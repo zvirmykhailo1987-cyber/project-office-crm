@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Угода (проєктний трек), активність і документ (ТЗ, Додаток А §1.4, §1.6, §1.8)."""
 from datetime import date, datetime
 

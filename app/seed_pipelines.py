@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Посів двох воронок. Ідемпотентний: стадії звіряються за (pipeline, code).
 
 Джерела дослівно:

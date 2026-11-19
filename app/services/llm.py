@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Vendor-agnostic LLM-клієнт (ТЗ §6, п.3–4).
 
 Один інтерфейс `complete()` поверх OpenAI-сумісного HTTP. Провайдер — з ENV,

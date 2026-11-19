@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Mykhailo Zvir
+
 /* yadro.js — спільний рушій карт ОФІС (біоенергетика й елеватори).
  *
  * ЧОМУ власна кластеризація, а не Leaflet.markercluster: 21 тисяча точок сидить

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Генерація документів із шаблонів (ТЗ §4a, модуль M8/M14).
 
 Тверді правила:

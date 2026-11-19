@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Mykhailo Zvir
+
 /* charts.js — SVG-генератори діаграм із ЖОРСТКИМ контрактом осей (dyzayn-ux/biblioteka).
  *
  * НАВІЩО. Відповідь на 10 класів діаграмного примітивізму, які система ловила

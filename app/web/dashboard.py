@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Головна під роль + панель стану баз даних (ТЗ §4c, модуль M15)."""
 from datetime import date, datetime, timedelta
 

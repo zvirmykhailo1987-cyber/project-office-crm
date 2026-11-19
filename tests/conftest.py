@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Спільні фікстури: БД у пам'яті + клієнт застосунку."""
 import os
 

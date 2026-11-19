@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Розбір експорту WhatsApp — детермінований, без мовної моделі.
 
 ЧОМУ саме експорт, а не інтеграція: офіційний Business API від Meta бачить лише

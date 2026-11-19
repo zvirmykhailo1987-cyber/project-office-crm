@@ -102,11 +102,13 @@
 
   <main class="kk-telo" id="vmist">
 {% block vmist %}{% endblock %}
+<p class="avtorstvo">© 2026 Mykhailo Zvir · <a href="https://github.com/zvirmykhailo1987-cyber/ofis/blob/main/LICENSE" rel="license">MIT License</a></p>
   </main>
 </div>
 {% else %}
 <main class="kk-telo gost-telo">
 {% block body_gost %}{{ self.vmist() }}{% endblock %}
+<p class="avtorstvo">© 2026 Mykhailo Zvir · <a href="https://github.com/zvirmykhailo1987-cyber/ofis/blob/main/LICENSE" rel="license">MIT License</a></p>
 </main>
 {% endif %}
 

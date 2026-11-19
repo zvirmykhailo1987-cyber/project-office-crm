@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Воронки: канбан, картка угоди, переходи з гейтами, активності (ТЗ §4, Додаток Б)."""
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from sqlmodel import Session, select

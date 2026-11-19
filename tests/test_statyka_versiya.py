@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Штамп версії статики (`?v=` на CSS).
 
 Навіщо тест: правки CSS не доходили до людей — браузер тримав стару таблицю навіть

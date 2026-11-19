@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Mykhailo Zvir
+
 /* Runs synchronously in <head>: theme, density and motion profile are applied
    before the first paint, so the page never flashes the wrong theme. */
 (function () {

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Шаблони документів, вихідні запити й налаштування офісу (ТЗ §4a, Додаток А §1.9–1.10)."""
 from datetime import date, datetime
 

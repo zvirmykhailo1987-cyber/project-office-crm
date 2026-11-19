@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Перебудова денормалізованих полів `Site.kat_pidpr` / `kat_osnovna` по базі.
 
 ЧОМУ ОКРЕМИЙ ПРОХІД, А НЕ ПРИ UPSERT SITE. Категорія рахується з ДПСС/поголівʼя

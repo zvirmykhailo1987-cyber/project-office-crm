@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Спільна база рядка: id + uid + позначки часу (ТЗ, Додаток А)."""
 import uuid
 from datetime import datetime, UTC

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Реєстрація всіх таблиць у SQLModel.metadata."""
 from ..authkit import AuthSession  # noqa: F401
 from .ai import ENGINES, AiRun  # noqa: F401

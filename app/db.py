@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """SQLite-двигун + ідемпотентна ініціалізація (create_all + migrate + FTS + bootstrap).
 
 Міграції — ідемпотентні ALTER через PRAGMA table_info, без Alembic (ТЗ §10).

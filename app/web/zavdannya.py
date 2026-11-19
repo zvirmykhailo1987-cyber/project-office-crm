@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Завдання й KPI (ТЗ §4, модулі M9/M10)."""
 from datetime import date
 

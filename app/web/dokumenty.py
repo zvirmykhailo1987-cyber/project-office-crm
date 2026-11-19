@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Документи, шаблони, потік узгодження, запити й листи (ТЗ §4a, модулі M8/M14)."""
 import hashlib
 import shutil

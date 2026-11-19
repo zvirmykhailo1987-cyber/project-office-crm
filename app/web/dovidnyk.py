@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Довідник контактів (ТЗ §4b, модуль M13).
 
 Усі організації та підприємства бази в одному місці. Фільтри — у SQL, не в Python:

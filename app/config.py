@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Конфіг з ENV. У проді — fail-fast, якщо секрети не задані (ТЗ §8, O3).
 
 Секрети НІКОЛИ не в git: локально — дефолти для розробки, у проді — `DATA_DIR/secrets.env`

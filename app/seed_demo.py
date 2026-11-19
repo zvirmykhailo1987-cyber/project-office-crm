@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Synthetic demo data for OFIS.
 
 Everything is invented: organisations, communities, people, sites, deals and

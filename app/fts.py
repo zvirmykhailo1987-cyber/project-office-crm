@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Повнотекстовий пошук довідника: FTS5-таблиця cp_fts, синхронізація з коду.
 
 Перенесено з kontakty_crm/app/fts.py. Тверда межа (грабля): це ЗВИЧАЙНА fts5-таблиця,

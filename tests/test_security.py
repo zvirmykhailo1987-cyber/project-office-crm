@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Security boundaries of sign-in, sessions, CSRF, rate limiting and headers.
 
 Every test drives the real HTTP stack (TestClient) without overriding

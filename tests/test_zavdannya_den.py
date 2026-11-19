@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Завдання, «мій день» під роль, KPI (ТЗ §3 О8, Додаток Б §6)."""
 from datetime import date, timedelta
 

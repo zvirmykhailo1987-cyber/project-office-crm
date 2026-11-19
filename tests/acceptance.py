@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Приймальна перевірка: критерії з ТЗ §11–12, по одному пункту на рядок.
 
 Запуск: `python -m tests.acceptance` з папки ofis_crm.

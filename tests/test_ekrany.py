@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Every reachable screen, on the synthetic demo data, as a signed-in user.
 
 * each GET page linked from the app answers 200 (no 404/500 anywhere);

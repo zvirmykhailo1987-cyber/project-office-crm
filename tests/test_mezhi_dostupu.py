@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Access boundaries, generated from the route table — a new route is covered automatically.
 
 For EVERY route of the app:

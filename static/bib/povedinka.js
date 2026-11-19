@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Mykhailo Zvir
+
 /* ═══ POVEDINKA — шар поведінки бібліотеки ══════════════════════════════════
  * Надбудова над `interaktyvnist/scripts/interactions.js` (`window.IX`).
  * Нічого з IX не переписує: там уже є `optimistic` з risk-tier гейтом,

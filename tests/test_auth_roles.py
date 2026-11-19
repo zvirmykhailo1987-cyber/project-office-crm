@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Ролі, дозволи, Tier3-гейт (ТЗ §2, §9)."""
 import pytest
 from sqlmodel import select

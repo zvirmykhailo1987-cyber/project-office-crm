@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Sign-in / sign-out. Every person has their own account; there is no shared password.
 
 The login page never lists accounts. Failed attempts are rate-limited per IP and

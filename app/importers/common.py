@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Ядро ідемпотентного імпорту (ТЗ, Додаток В §2).
 
 Перенесено з kontakty_crm/importers/common.py. Три правила, які не можна послаблювати:

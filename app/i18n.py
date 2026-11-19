@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """UI localisation: English (default) and Ukrainian.
 
 Source strings are written in Ukrainian (the product's working language) and

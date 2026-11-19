@@ -3,6 +3,7 @@ name = "ofis"
 version = "1.0.0"
 requires-python = ">=3.12"
 license = "MIT"
+authors = [{ name = "Mykhailo Zvir" }]
 
 [tool.ruff]
 line-length = 120

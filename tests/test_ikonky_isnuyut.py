@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Кожна покликана іконка існує у спрайті.
 
 ЧОМУ ЦЕ ТЕСТ, А НЕ ОКО. Посилання на неіснуючий символ (`#i-nemaye`) НЕ дає

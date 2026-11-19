@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Скоринг: формула, розклад на компоненти, «немає даних» ≠ нуль (ТЗ, Додаток А §4.1)."""
 import pytest
 from sqlmodel import select

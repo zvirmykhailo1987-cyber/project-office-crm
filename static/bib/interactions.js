@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Mykhailo Zvir
+
 /* interactions.js — self-contained патерни інтерактивності (скіл `interaktyvnist`).
  * Призначення: вбудовувати inline у HTML-артефакти під СТРОГИЙ CSP (без CDN/eval/fetch).
  * Усе — vanilla, без залежностей. Кожен анімований патерн поважає prefers-reduced-motion.

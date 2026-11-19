@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """PII leak scanner: proves the public repo and the demo database contain no real people data.
 
 Two modes:

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Сортування списку обʼєктів — за балом, а не «в межах сторінки».
 
 ЧОМУ ЦЕЙ ФАЙЛ ЗʼЯВИВСЯ. `sort=score` — типове сортування екрана `/obyekty`, і воно

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Mykhailo Zvir
+
 /* App shell behaviour (no inline scripts: the CSP forbids them).
    - CSRF: every same-origin unsafe fetch/htmx request carries X-CSRF-Token.
    - Mobile navigation rail toggle. */

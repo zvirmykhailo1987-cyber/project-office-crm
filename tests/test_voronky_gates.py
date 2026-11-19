@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Воронки як дані + гейти (ТЗ, Додаток Б; критерій приймання Ф2)."""
 import pytest
 from sqlmodel import select

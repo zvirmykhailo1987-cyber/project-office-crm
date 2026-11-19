@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Спільні залежності веб-шару: поточний користувач, рендер зі спільним контекстом."""
 from datetime import date
 

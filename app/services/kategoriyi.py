@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Категорія підприємства за ТЗ.
 
 НАВІЩО ОКРЕМИЙ КЛАСИФІКАТОР, КОЛИ Є `waste_category`. Категорія сировини

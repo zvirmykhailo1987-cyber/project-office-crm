@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Внутрішній чат офісу — заміна робочій групі у WhatsApp (Ф10).
 
 Навіщо свій чат, коли є WhatsApp: аудит переписки 05.08.2026 показав, що домовленості

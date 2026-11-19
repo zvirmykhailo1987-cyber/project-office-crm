@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Пошук довідника: кирилиця, регістр, префікс, пошук по особах (ТЗ §4b)."""
 from app.fts import fts_upsert, rebuild_all, search_ids
 from app.models import Counterparty, Person

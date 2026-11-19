@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Контрагент і контактна особа — ядро довідника контактів (ТЗ §4b, Додаток А §1.2–1.3).
 
 Схема сумісна з kontakty_crm.Organization, щоб міграція йшла без перетворень,

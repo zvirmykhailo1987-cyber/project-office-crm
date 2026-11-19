@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """ОФІС — хмарна платформа Проєктного офісу. Точка збірки застосунку."""
 from contextlib import asynccontextmanager
 

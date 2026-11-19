@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Shared authentication and web-security kit.
 
 The same file ships in both demo apps (OFIS and the Grants portal); keep the two

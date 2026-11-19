@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Numbers for the README / CV, computed from the code and (optionally) a database — never typed by hand.
 
     python scripts/metrics.py                       # code-only numbers

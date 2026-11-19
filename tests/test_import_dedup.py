@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Дедуп і ідемпотентність імпорту — головна вимога Ф1 (ТЗ, Додаток В §2)."""
 from sqlmodel import select
 

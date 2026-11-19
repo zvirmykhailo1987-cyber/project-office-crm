@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Jinja2-оточення + фільтри для української подачі чисел і дат."""
 from datetime import datetime, UTC
 

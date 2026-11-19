@@ -120,4 +120,4 @@ scripts/        pii_scan.py, metrics.py
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) © 2026 Mykhailo Zvir. Keep the copyright notice in copies and derived work.

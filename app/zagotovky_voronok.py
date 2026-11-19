@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Заготовки воронок — МАТЕРІАЛ для людини, а не істина.
 
 Свідомо окремо від `seed_pipelines.py`. Різниця принципова:

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Обʼєкти, хаби, скоринг і карта (ТЗ §4, модулі M5–M7)."""
 from datetime import date
 from urllib.parse import urlencode

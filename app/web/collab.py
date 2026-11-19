@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Роути співпраці: коментарі · затвердження · стрічка · сповіщення · доручення (Ф8)."""
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from sqlmodel import Session, select

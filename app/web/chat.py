@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Чат офісу (Ф10): кімната, повідомлення, вкладення.
 
 Замінює робочу групу у WhatsApp. Чому не інтеграція з самим WhatsApp: офіційний

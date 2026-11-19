@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Моделі скорингу з ОБОВʼЯЗКОВИМ розкладом на компоненти (ТЗ, Додаток А §4.1).
 
 Дві моделі:

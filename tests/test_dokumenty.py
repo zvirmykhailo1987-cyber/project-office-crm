@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Шаблони, підстановка, відмінювання, потік узгодження, реєстр листів (ТЗ §4a)."""
 from datetime import date, timedelta
 

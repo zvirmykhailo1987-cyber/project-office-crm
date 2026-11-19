@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Mykhailo Zvir
+
 """Risk-tier модель дій (ТЗ §9).
 
 Tier0 читання (не логуємо) · Tier1 зворотна зміна (лог) ·
