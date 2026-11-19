@@ -2,6 +2,8 @@
 
 [![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
 
+**Live demo:** https://office-crm-demo.159.195.219.73.sslip.io — synthetic data that resets every night at 04:00 CET; demo logins are listed on the sign-in page.
+
 Project Office CRM is a web platform for a small project office that develops **biogas plants** and
 **grain-elevator projects** with Ukrainian communities: one place for counterparties, sites,
 explainable site scoring, two deal pipelines with stage gates, documents, tasks, a map, a
