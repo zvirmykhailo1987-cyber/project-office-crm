@@ -78,13 +78,32 @@ All run in CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
 | Lint | ruff (pyflakes, pycodestyle, bugbear, pyupgrade, flake8-bandit) |
 | Types | mypy — strict on the security and i18n core; ORM query code with SQLModel-noise codes silenced (see `pyproject.toml`) |
 | Tests | pytest — HTTP tests through the real stack, an every-screen crawl, access-boundary tests generated from the route table |
-| Coverage | pytest-cov, `--cov-fail-under=75` |
+| Coverage | pytest-cov with branch coverage, `--cov-fail-under=95` (measured: 95.9% lines + branches; 97.4% of lines, 90.8% of branches) |
+| Mutation check | `scripts/mutation_check.py` — **29 of 29 injected bugs caught**; CI checks every mutation still applies, the full run is local (results in [`docs/mutation-results.json`](docs/mutation-results.json)) |
 | Dependencies | pip-audit |
 | Static security | bandit |
 | PII | `scripts/pii_scan.py` — pattern mode in CI; reference mode against the private production databases (read-only) is run by the maintainer before publishing |
 | Container | image builds, `/health` answers, CSP header is served |
 
 Current numbers are produced by a script, not typed by hand: `python scripts/metrics.py`.
+
+**Mutation check.** Coverage says a line ran; the mutation check says a test fails when the line
+is wrong. Each of the 29 mutations removes one guarantee from a temporary copy of the project —
+a stage gate, the signed-document requirement, the HTTP 428 confirmation, a role check, a CSRF
+check, session revocation and idle timeout, login lockout, private-archive visibility, the document
+download roots, the zip-bomb limit, the importer's namesake guard, "no data is not zero" — and the
+whole suite runs against it. A survivor means a missing test (add the test, never drop the mutation).
+It takes about an hour, so it is run before publishing rather than on every push:
+
+```bash
+python scripts/mutation_check.py           # rewrites docs/mutation-results.json
+python scripts/mutation_check.py --check   # seconds: every mutation still applies to the code
+```
+
+**Coverage exclusions.** There is no `# pragma: no cover` in the code. Two things are excluded in
+`pyproject.toml`, each for a stated reason: `app/seed_demo.py` (writes the synthetic showcase data;
+CI runs it before the PII scan) and `if __name__ == "__main__":` entry blocks (the functions they
+call are tested directly).
 
 ## Internationalisation
 
@@ -101,7 +120,7 @@ templates_v2/   Jinja2 templates (one skin)
 static/         design library (tokens, components, charts) + map scripts + vendored htmx/Leaflet
 static_v2/      product layer: app shell CSS/JS, generated utility classes
 tests/          pytest suite + acceptance criteria (`python -m tests.acceptance`)
-scripts/        pii_scan.py, metrics.py
+scripts/        pii_scan.py, metrics.py, mutation_check.py
 ```
 
 ## Known limits

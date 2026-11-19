@@ -1,0 +1,181 @@
+{
+  "measured": "2026-11-19",
+  "bugs_injected": 29,
+  "caught": 29,
+  "results": [
+    {
+      "bug": "A stage is entered although its gate is closed",
+      "file": "app/web/voronky.py",
+      "caught": true,
+      "caught_by": "tests/test_voronky_http.py::test_hejt_blokuye_perekhid_bez_pidpysanykh_dokumentiv"
+    },
+    {
+      "bug": "An unsigned final document opens the gate",
+      "file": "app/services/gates.py",
+      "caught": true,
+      "caught_by": "tests/test_voronky_gates.py::test_unsigned_final_document_does_not_open_gate"
+    },
+    {
+      "bug": "A draft (not final) document opens the gate",
+      "file": "app/services/gates.py",
+      "caught": true,
+      "caught_by": "tests/test_voronky_gates.py::test_draft_document_does_not_open_gate"
+    },
+    {
+      "bug": "The won stage is entered without its own contract",
+      "file": "app/services/gates.py",
+      "caught": true,
+      "caught_by": "tests/test_voronky_gates.py::test_gate_cannot_be_bypassed_by_skipping_stages"
+    },
+    {
+      "bug": "A detour through a terminal stage bypasses the gates",
+      "file": "app/services/gates.py",
+      "caught": true,
+      "caught_by": "tests/test_verifikatsiya_revyu.py::test_return_from_lost_stage_still_passes_the_gates"
+    },
+    {
+      "bug": "The automatic stage rule moves a deal the gate would stop",
+      "file": "app/services/gates.py",
+      "caught": true,
+      "caught_by": "tests/test_servisy_mezhi.py::test_pravylo_aktyvnist_ne_obkhodyt_hejt"
+    },
+    {
+      "bug": "Finalising a document needs no confirmation (no HTTP 428)",
+      "file": "app/web/dokumenty.py",
+      "caught": true,
+      "caught_by": "tests/test_vypravlennya_revyu.py::test_p02_finalizatsiya_lyshe_zatverdzhuvach_ne_avtor_z_pidtverdzhennyam"
+    },
+    {
+      "bug": "A stage gate is changed without confirmation (no HTTP 428)",
+      "file": "app/web/napryamy.py",
+      "caught": true,
+      "caught_by": "tests/test_napryamy.py::test_zmina_gejta_bez_pidtverdzhennya_428"
+    },
+    {
+      "bug": "The author finalises their own document",
+      "file": "app/web/dokumenty.py",
+      "caught": true,
+      "caught_by": "tests/test_vypravlennya_revyu.py::test_p02_finalizatsiya_lyshe_zatverdzhuvach_ne_avtor_z_pidtverdzhennyam"
+    },
+    {
+      "bug": "A final document goes back to draft",
+      "file": "app/web/dokumenty.py",
+      "caught": true,
+      "caught_by": "tests/test_vypravlennya_revyu.py::test_p03_tablytsya_perekhodiv_i_finalnyi_nezminnyi"
+    },
+    {
+      "bug": "Someone without the approver role marks a document agreed",
+      "file": "app/web/dokumenty.py",
+      "caught": true,
+      "caught_by": "tests/test_dokumenty_potik.py::test_uzhodzheno_lyshe_zatverdzhuvach_i_ne_avtor"
+    },
+    {
+      "bug": "An author approves their own work through a colleague's submission",
+      "file": "app/web/collab.py",
+      "caught": true,
+      "caught_by": "tests/test_vypravlennya_revyu.py::test_p04_zatverdzhuvach_avtor_dokumenta_ne_vyrishuye"
+    },
+    {
+      "bug": "\"Needs work\" is accepted without a comment",
+      "file": "app/web/collab.py",
+      "caught": true,
+      "caught_by": "tests/test_collab.py::test_na_doopratsyuvannya_bez_komentarya_ne_prohodyt"
+    },
+    {
+      "bug": "A role without the capability passes the route guard",
+      "file": "app/web/deps.py",
+      "caught": true,
+      "caught_by": "tests/test_dokumenty_potik.py::test_nova_versiya_lyshe_z_pravom_redahuvaty_chuzhe"
+    },
+    {
+      "bug": "A deactivated user keeps access",
+      "file": "app/web/deps.py",
+      "caught": true,
+      "caught_by": "tests/test_security.py::test_deactivated_user_loses_access_immediately"
+    },
+    {
+      "bug": "A CSRF token that does not match the cookie is accepted",
+      "file": "app/authkit.py",
+      "caught": true,
+      "caught_by": "tests/test_security.py::test_post_with_wrong_csrf_token_is_403"
+    },
+    {
+      "bug": "A cross-origin form post with a valid token is accepted",
+      "file": "app/authkit.py",
+      "caught": true,
+      "caught_by": "tests/test_authkit_mezhi.py::test_csrf_vidkhylyaye_neprozoryi_origin"
+    },
+    {
+      "bug": "A revoked session keeps working",
+      "file": "app/authkit.py",
+      "caught": true,
+      "caught_by": "tests/test_authkit_mezhi.py::test_sesiya_onovlyuyetsya_ne_chastishe_za_khvylynu"
+    },
+    {
+      "bug": "An idle session never times out",
+      "file": "app/authkit.py",
+      "caught": true,
+      "caught_by": "tests/test_security.py::test_expired_or_idle_session_is_rejected[last_seen_at-zsuv1]"
+    },
+    {
+      "bug": "Repeated failed logins never lock",
+      "file": "app/authkit.py",
+      "caught": true,
+      "caught_by": "tests/test_authkit_mezhi.py::test_stari_nevdachi_vypadayut_z_vikna"
+    },
+    {
+      "bug": "Production starts with a development secret",
+      "file": "app/config.py",
+      "caught": true,
+      "caught_by": "tests/test_zapusk.py::test_prod_ne_startuye_z_dev_abo_korotkym_sekretom[dev-secret-not-for-production-but-long-enough]"
+    },
+    {
+      "bug": "A private chat archive is readable by id from outside",
+      "file": "app/web/chat.py",
+      "caught": true,
+      "caught_by": "tests/test_chat_mezhi.py::test_chuzhyi_arkhiv_ne_viddaye_niyakyi_id"
+    },
+    {
+      "bug": "The team feed names a personal chat archive",
+      "file": "app/web/chat.py",
+      "caught": true,
+      "caught_by": "tests/test_chat_mezhi.py::test_osobystyi_arkhiv_ne_zlyvayetsya_zi_spilnym"
+    },
+    {
+      "bug": "A stored path outside the document roots is served",
+      "file": "app/web/dokumenty.py",
+      "caught": true,
+      "caught_by": "tests/test_dokumenty_potik.py::test_zavantazhennya_chytaye_lyshe_z_dozvolenykh_koreniv"
+    },
+    {
+      "bug": "An executable is accepted as a document upload",
+      "file": "app/web/dokumenty.py",
+      "caught": true,
+      "caught_by": "tests/test_dokumenty_potik.py::test_zavantazhennya_vidkydaye_vykonuvani_i_bez_imeni"
+    },
+    {
+      "bug": "A zip bomb is inflated past the limit",
+      "file": "app/services/wa_parser.py",
+      "caught": true,
+      "caught_by": "tests/test_wa_mezhi.py::test_spravzhni_rozpakovani_bayty_liczatsya_a_ne_zahlovok"
+    },
+    {
+      "bug": "The import merges namesakes from different regions",
+      "file": "app/importers/common.py",
+      "caught": true,
+      "caught_by": "tests/test_import_tezky.py::test_tezka_z_inshoyi_oblasti_ne_zlyvayetsya"
+    },
+    {
+      "bug": "Erased criteria are stored as a score of zero instead of no data",
+      "file": "app/web/obyekty.py",
+      "caught": true,
+      "caught_by": "tests/test_obyekty_http.py::test_sterty_vse_prybyraye_bal_a_ne_zberihaye_nul"
+    },
+    {
+      "bug": "A letter marks an unapproved document as sent",
+      "file": "app/web/dokumenty.py",
+      "caught": true,
+      "caught_by": "tests/test_dokumenty_potik.py::test_neuzhodzhenyi_dokument_ne_staye_nadislanym"
+    }
+  ]
+}
