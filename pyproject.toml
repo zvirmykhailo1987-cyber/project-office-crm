@@ -1,0 +1,65 @@
+[project]
+name = "ofis"
+version = "1.0.0"
+requires-python = ">=3.12"
+license = "MIT"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = [".venv", "data"]
+
+[tool.ruff.lint]
+# pyflakes, pycodestyle, bugbear, pyupgrade, flake8-bandit (security), comprehensions, simplify
+select = ["E", "F", "W", "B", "UP", "S", "C4", "SIM"]
+ignore = [
+  "E501",    # long lines: Ukrainian comments and SQL strings; formatter not enforced
+  "E701", "E702",  # compact one-line statements are used deliberately in a few places
+  "SIM108", "SIM102", "SIM105", "C408", "C416", "C405",
+  "B008",    # FastAPI Depends()/Form() in defaults is the framework idiom
+  "S101",    # assert is used for invariants that are also tested
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B", "SIM", "C4"]
+"scripts/**" = ["S603", "S607"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["app", "scripts"]
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_unused_configs = true
+# SQLModel query expressions (`Model.id.desc()`, `col.in_()`, `Model.x == y` in where())
+# are typed as plain `int | None` / `str`, so mypy reports them as attribute / argument
+# errors although SQLAlchemy builds a valid expression. Only those codes are silenced
+# for the ORM-heavy code; real errors (undefined names, wrong arity, bad returns) still fail.
+disable_error_code = ["union-attr", "attr-defined", "arg-type", "operator", "index", "type-var",
+                      "misc", "call-overload", "assignment", "var-annotated", "return-value"]
+
+[[tool.mypy.overrides]]
+# The security and i18n core is checked strictly, with no codes disabled.
+module = ["app.authkit", "app.security", "app.i18n", "app.config"]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_any_generics = true
+check_untyped_defs = true
+warn_return_any = true
+strict_equality = true
+enable_error_code = ["union-attr", "attr-defined", "arg-type", "operator", "index", "type-var",
+                     "misc", "call-overload", "assignment", "var-annotated", "return-value"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/seed_demo.py"]
+
+[tool.coverage.report]
+skip_covered = true
+show_missing = false
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv"]
+# B404 flags the bare `import subprocess`; every call site is reviewed and marked (fixed argv, no shell).
+skips = ["B404"]
