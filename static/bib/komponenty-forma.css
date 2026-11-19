@@ -93,7 +93,7 @@
 .k-dropzona {
   display: grid; place-items: center; gap: var(--sp2, 8px);
   padding: var(--sp6, 24px);
-  border: 2px dashed var(--mezha, #d8d4cb);
+  border: 2px dashed var(--mezha-kontrol, #8a8a8a);
   border-radius: var(--r, 10px);
   background: var(--tlo-2, #f0ede7);
   color: var(--prygl, #6f6759);

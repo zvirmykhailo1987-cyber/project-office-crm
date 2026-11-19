@@ -188,10 +188,10 @@
   display: block; width: 100%;
   min-height: var(--vysota-cili, 32px);
   padding: var(--pad-y, 8px) var(--pad-x, 12px);
-  border: 1px solid var(--mezha-m, #e6e2da);
+  border: 1px solid var(--mezha-kontrol, #8a8a8a);
   background: var(--poverhnya, #fff);
 }
-.k-pole:hover { border-color: var(--mezha, #d8d4cb) }
+.k-pole:hover { border-color: var(--mezha-kontrol-h, #6f6f6f) }
 .k-pole:focus-visible { border-color: var(--akcent, #0f7568) }
 .k-pole::placeholder { color: var(--prygl, #6f6759) }
 .k-pole.shchilne { min-height: 24px; padding: 2px var(--pad-x-sm, 12px) }
@@ -222,11 +222,11 @@
   display: block; width: 100%; resize: vertical;
   min-height: calc(var(--vysota-cili, 32px) * 2.5);
   padding: var(--pad-y, 8px) var(--pad-x, 12px);
-  border: 1px solid var(--mezha-m, #e6e2da);
+  border: 1px solid var(--mezha-kontrol, #8a8a8a);
   background: var(--poverhnya, #fff);
   line-height: 1.5;
 }
-.k-bahato:hover { border-color: var(--mezha, #d8d4cb) }
+.k-bahato:hover { border-color: var(--mezha-kontrol-h, #6f6f6f) }
 .k-bahato:focus-visible { border-color: var(--akcent, #0f7568) }
 .k-bahato[aria-invalid="true"] { border-color: var(--krytych, #b3261e); border-width: 2px }
 .k-bahato[disabled] { cursor: not-allowed; opacity: .55; border-style: dashed; background: var(--tlo-2, #f0ede7) }
@@ -240,7 +240,7 @@
   display: block; width: 100%;
   min-height: var(--vysota-cili, 32px);
   padding: var(--pad-y, 8px) calc(var(--pad-x, 12px) + 1.1em) var(--pad-y, 8px) var(--pad-x, 12px);
-  border: 1px solid var(--mezha-m, #e6e2da);
+  border: 1px solid var(--mezha-kontrol, #8a8a8a);
   background: var(--poverhnya, #fff);
   cursor: pointer;
   appearance: none;
@@ -250,7 +250,7 @@
   background-size: 4px 4px, 4px 4px;
   background-repeat: no-repeat;
 }
-.k-vybir:hover { border-color: var(--mezha, #d8d4cb) }
+.k-vybir:hover { border-color: var(--mezha-kontrol-h, #6f6f6f) }
 .k-vybir:focus-visible { border-color: var(--akcent, #0f7568) }
 /* ВІДКРИТИЙ — стрілка перевертається. Стан, який зазвичай забувають, і через
    це список виглядає однаково відкритим і закритим. */
@@ -268,7 +268,7 @@
 .k-praporets {
   appearance: none; flex: none;
   inline-size: 16px; block-size: 16px;
-  border: 1px solid var(--mezha, #d8d4cb);
+  border: 1px solid var(--mezha-kontrol, #8a8a8a);
   border-radius: var(--r-xs, 4px);
   background: var(--poverhnya, #fff);
   cursor: pointer; display: inline-grid; place-content: center;
@@ -300,7 +300,7 @@
 .k-radio {
   appearance: none; flex: none;
   inline-size: 16px; block-size: 16px;
-  border: 1px solid var(--mezha, #d8d4cb);
+  border: 1px solid var(--mezha-kontrol, #8a8a8a);
   border-radius: var(--r-full, 999px);
   background: var(--poverhnya, #fff);
   cursor: pointer; display: inline-grid; place-content: center;
@@ -323,7 +323,7 @@
 .k-tumbler {
   appearance: none; flex: none;
   inline-size: 34px; block-size: 20px;
-  border: 1px solid var(--mezha, #d8d4cb);
+  border: 1px solid var(--mezha-kontrol, #8a8a8a);
   border-radius: var(--r-full, 999px);
   background: var(--tlo-2, #f0ede7);
   cursor: pointer; position: relative;
