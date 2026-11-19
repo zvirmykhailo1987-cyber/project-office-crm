@@ -325,12 +325,31 @@ def test_templates_have_no_inline_handlers_or_unnonced_scripts():
     assert not bidy, bidy
 
 
-def test_openapi_docs_closed_outside_dev(lyudy, gist):
-    from app import main
-    if main._DOCS:
-        pytest.skip("dev environment exposes /docs by design")
-    assert gist.get("/docs").status_code == 404
-    assert gist.get("/openapi.json").status_code == 404
+_DOCS_PROBE = (
+    "from fastapi.testclient import TestClient\n"
+    "from app.main import app\n"
+    "c = TestClient(app)\n"
+    "print(c.get('/docs').status_code, c.get('/openapi.json').status_code)\n"
+)
+
+
+@pytest.mark.parametrize("env", ["dev", "demo", "production"])
+def test_openapi_docs_only_in_dev(env, tmp_path):
+    """/docs and /openapi.json exist in local development only.
+
+    The suite itself runs with OFIS_ENV=dev, so each environment is imported fresh in a
+    subprocess: the flag is read once at import time.
+    """
+    import os
+    import pathlib
+    import subprocess  # nosec B404 — runs this repo's own app module
+    import sys
+    root = pathlib.Path(__file__).resolve().parents[1]
+    env_vars = {**os.environ, "OFIS_ENV": env, "DATA_DIR": str(tmp_path),
+                "OFIS_SECRET": "x" * 40, "PYTHONIOENCODING": "utf-8"}
+    out = subprocess.run([sys.executable, "-c", _DOCS_PROBE], cwd=root, env=env_vars,  # noqa: S603  # nosec B603
+                         capture_output=True, text=True, timeout=120, check=True).stdout.split()
+    assert out == (["200", "200"] if env == "dev" else ["404", "404"]), out
 
 
 def test_language_switch_rejects_open_redirect(gist):

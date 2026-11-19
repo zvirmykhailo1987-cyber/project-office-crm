@@ -3,7 +3,7 @@
 
 """Приймальна перевірка: критерії з ТЗ §11–12, по одному пункту на рядок.
 
-Запуск: `python -m tests.acceptance` з папки ofis_crm.
+Запуск: `python -m tests.acceptance` з кореня репозиторію.
 Не pytest: це перевірка ЖИВОЇ бази після імпорту, а не ізольованих одиниць коду.
 """
 import sys
@@ -13,7 +13,7 @@ from sqlmodel import Session, func, select
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-# Windows-консоль за замовчуванням cp1251 — без цього звіт падає на «обʼєкт» (Г7)
+# Windows-консоль за замовчуванням cp1251 — без цього звіт падає на «обʼєкт»
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 except (AttributeError, ValueError):
@@ -156,7 +156,8 @@ def main() -> int:
         no_geo = s.exec(select(func.count()).select_from(Site)
                         .where(Site.site_type == "biogaz_object",
                                Site.lat.is_(None))).one()
-        warn("Ф3", "обʼєктів без координат (на карту не потраплять)", f"{no_geo}")
+        if no_geo:
+            warn("Ф3", "обʼєктів без координат (на карту не потраплять)", f"{no_geo}")
         hrubi = s.exec(select(func.count()).select_from(Site).where(
             Site.site_type == "biogaz_object",
             Site.geo_precision.in_(["oblast", "raion"]))).one()
@@ -272,7 +273,7 @@ def main() -> int:
         if neproch:
             warn("Ф8", "сповіщень у системі", f"{neproch} шт.")
 
-    print(f"\n{'=' * 74}\nПРИЙМАЛЬНА ПЕРЕВІРКА · ОФІС\n{'=' * 74}")
+    print(f"\n{'=' * 74}\nПРИЙМАЛЬНА ПЕРЕВІРКА · CRM проєктного офісу\n{'=' * 74}")
     cur = None
     for phase, status, text in results:
         if phase != cur:
