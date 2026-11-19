@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}{{ prog.title }} {{ _("— воронка") }}{% endblock %}
+{% block vmist %}
+<p class="k-krykhty"><a href="/napryamy">{{ _("Напрями") }}</a> · {{ prog.code }}</p>
+<div class="kk-tulbar">
+  <h1>{{ prog.title }}</h1>
+  {% if not prog.active %}<span class="k-chip">{{ _("архів") }}</span>{% endif %}
+  <span class="k-chip">{{ n_ugod|num }} {{ n_ugod|plural(_('угода'),_('угоди'),_('угод')) }}</span>
+</div>
+
+{% if request.query_params.get('err') == 'kudy' %}
+<p class="k-banner krytych" role="alert">{{ _("Оберіть, куди перенести угоди — без цього стадію прибрати не можна. Інакше угоди лишились би на неіснуючій стадії.") }}</p>
+{% elif request.query_params.get('err') == 'ostannya' %}
+<p class="k-banner krytych" role="alert">{{ _("Це остання стадія воронки — прибрати не можна.") }}</p>
+{% elif request.query_params.get('err') == 'kod_zaynyato' %}
+<p class="k-banner krytych" role="alert">{{ _("Стадія з таким кодом у цій воронці вже є.") }}</p>
+{% endif %}
+
+{# ФОРМА ВОРОНКИ ЧАРТОМ, а не саморобними смужками. Стара шкіра кодувала
+   ймовірність ВИСОТОЮ смужки без шкали — це не читається як число й гейт-4
+   справедливо рахує такий екран як «числа без візуального доказу».
+   Тут — `CH.funnel` з жорстким контрактом осі. #}
+<section class="surf-panel s-2efb524">
+  <div class="metryka-h s-bdbf926">
+    <b>{{ _("Форма воронки") }}</b><span class="dim">{{ _("угод на стадіях") }}</span>
+  </div>
+  <div id="chart-napryam"></div>
+  <script type="application/json" id="dani-napryam">
+    [{% for st in stadiyi %}
+      {"label": {{ st.title|tojson }}, "value": {{ lich.get(st.id, 0) }}}{{ "," if not loop.last }}
+    {% endfor %}]
+  </script>
+</section>
+<script nonce="{{ csp_nonce }}">
+  document.addEventListener('DOMContentLoaded', function () {
+    var v = document.getElementById('chart-napryam');
+    var s = document.getElementById('dani-napryam');
+    if (!v || !s) return;
+    if (typeof CH === 'undefined') {
+      v.innerHTML = '<div class="kk-chesnist"><span class="nepovno">'
+                  + T('чарт не побудовано: charts.js не завантажився</span></div>');
+      return;
+    }
+    var dani = [];
+    try { dani = JSON.parse(s.textContent); } catch (e) {}
+    // Воронка з нульовою стадією не має форми — контракт бібліотеки це прямо
+    // забороняє. Порожнечу малюємо порожнім станом, а не «чартом із нулів»,
+    // який виглядав би як дані.
+    var neporozhni = dani.filter(function (d) { return d.value > 0; });
+    if (neporozhni.length < 2) {
+      v.innerHTML = T('<div class="kk-chesnist">Форму воронки видно від двох ')
+                  + T('непорожніх стадій. Зараз угод замало.</div>');
+      return;
+    }
+    try {
+      v.innerHTML = CH.funnel({ stadii: neporozhni, unit: T('угод'), w: 900 });
+    } catch (e) {
+      v.innerHTML = '<div class="kk-chesnist"><span class="nepovno">'
+                  + T('чарт не побудовано: ') + String(e.message || e) + '</span></div>';
+    }
+  });
+</script>
+
+<div class="rozdil"><span class="nz">{{ _("Стадії") }}</span>
+  <span class="lich-r">{{ stadiyi|length }}</span></div>
+
+{% for st in stadiyi %}
+<details class="stadiya" {% if loop.first %}open{% endif %}>
+  <summary>
+    <span class="krug" data-styl="background:{{ st|ton }}" aria-hidden="true"></span>
+    <b>{{ st.title }}</b>
+    <span class="k-chip">{{ st.code }}</span>
+    {% if st.rezultat %}<span class="chip {{ 'ok' if st.rezultat=='vygrash' else 'dim' }}">{{ st.rezultat_label }}</span>{% endif %}
+    {% if st.required_list %}<span class="k-chip s-93827eb">{{ _("гейт") }}</span>{% endif %}
+    {% if st.avto_umova %}<span class="chip akc">{{ _("авто") }}</span>{% endif %}
+    <span class="dim s-9942017">{{ st.default_probability }}%</span>
+    {% if lich.get(st.id) %}<span class="k-chip">{{ lich[st.id] }} {{ _("угод") }}</span>{% endif %}
+  </summary>
+
+  <div class="stadiya-tilo">
+    <form method="post" action="/napryamy/{{ prog.code }}/stadiya/{{ st.id }}"
+          class="kk-forma"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="k-hrupa-polya">
+        <label>{{ _("Назва") }}<input name="title" value="{{ st.title }}"></label>
+        <label>{{ _("Код") }} <span class="dim">{{ _("— незмінний") }}</span>
+          <input value="{{ st.code }}" disabled></label>
+        <label>{{ _("Ймовірність, %") }}
+          <input type="number" name="default_probability" min="0" max="100"
+                 value="{{ st.default_probability }}"></label>
+        <label>{{ _("Колір") }}<input type="color" name="color" value="{{ st.color }}"></label>
+      </div>
+      <label>{{ _("Ціль стадії — навіщо вона в процесі") }}
+        <input name="goal" value="{{ st.goal }}"></label>
+      <label>{{ _("Критерій переходу далі — словами") }}
+        <input name="gate_criteria" value="{{ st.gate_criteria }}"></label>
+
+      <div class="k-hrupa-polya">
+        <label>{{ _("Результат — чим закінчується угода тут") }}
+          <select class="k-vybir" name="rezultat">
+            {% for k, v in rezultaty.items() %}
+            <option value="{{ k }}" {% if k == st.rezultat %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select></label>
+        <label>{{ _("Переходить сама") }}
+          <select class="k-vybir" name="avto_umova">
+            {% for k, v in avto_umovy.items() %}
+            <option value="{{ k }}" {% if k == st.avto_umova %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select></label>
+        <label>{{ _("…на стадію") }}
+          <select class="k-vybir" name="avto_do_id">
+            <option value="">—</option>
+            {% for x in stadiyi if x.id != st.id %}
+            <option value="{{ x.id }}" {% if x.id == st.avto_do_id %}selected{% endif %}>{{ x.title }}</option>
+            {% endfor %}
+          </select></label>
+      </div>
+
+      <label>{{ _("Обовʼязкові документи —") }} <b>{{ _("гейт") }}</b>{{ _(", коди через кому") }}
+        <input name="required_doc_kinds" value="{{ st.required_doc_kinds }}"
+               placeholder="{{ _('напр. KP або COM-06') }}"></label>
+      <label>{{ _("Підказка «які документи тут доречні» — коди через кому") }}
+        <input name="key_docs" value="{{ st.key_docs }}"></label>
+
+      {% if st.required_list %}
+      <p class="notatka"><b>{{ _("Зміна гейта — незворотна дія.") }}</b> {{ _("Нова вимога діє на вже заведені угоди: ті, що стоять далі по воронці, не зможуть рухатись, доки документа немає. Тому потрібне окреме підтвердження.") }}</p>
+      <label class="chk"><input type="checkbox" name="confirm" value="1">
+        {{ _("Розумію наслідки для наявних угод") }}</label>
+      {% else %}
+      <label class="chk"><input type="checkbox" name="confirm" value="1">
+        {{ _("Підтверджую, якщо змінюю гейт") }}</label>
+      {% endif %}
+
+      <button type="submit">{{ _("Зберегти стадію") }}</button>
+    </form>
+
+    <div class="stadiya-dii">
+      <form method="post" action="/napryamy/{{ prog.code }}/stadiya/{{ st.id }}/porydok"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="kudy" value="vgoru">
+        <button class="k-btn shchilna"{% if loop.first %} aria-disabled="true"
+                title="{{ _('Це вже перша стадія') }}"{% endif %}>
+          <svg class="ik" width="13" height="13" aria-hidden="true"><use href="/static/bib/ikony.svg#i-sort-vhoru"></use></svg>
+          {{ _("вище") }}</button>
+      </form>
+      <form method="post" action="/napryamy/{{ prog.code }}/stadiya/{{ st.id }}/porydok"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="kudy" value="vnyz">
+        <button class="k-btn shchilna"{% if loop.last %} aria-disabled="true"
+                title="{{ _('Це вже остання стадія') }}"{% endif %}>
+          <svg class="ik" width="13" height="13" aria-hidden="true"><use href="/static/bib/ikony.svg#i-sort-vnyz"></use></svg>
+          {{ _("нижче") }}</button>
+      </form>
+      <form method="post"
+            action="/napryamy/{{ prog.code }}/stadiya/{{ st.id }}/prybraty"
+            class="prybraty"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        {% if lich.get(st.id) %}
+        <label class="s-9942017">{{ _("Перенести") }} {{ lich[st.id] }}
+          {{ lich[st.id]|plural(_('угоду'),_('угоди'),_('угод')) }} {{ _("на") }}
+          {% set err_kudy = request.query_params.get('err') == 'kudy'
+                and request.query_params.get('sid')|int == st.id %}
+          <select class="k-vybir" name="kudy_ugody" required
+                  {% if err_kudy %}aria-invalid="true"
+                  aria-describedby="e-kudy-{{ st.id }}" autofocus{% endif %}>
+            <option value="">{{ _("— оберіть —") }}</option>
+            {% for x in stadiyi if x.id != st.id %}
+            <option value="{{ x.id }}">{{ x.title }}</option>
+            {% endfor %}
+          </select></label>
+        {% if err_kudy %}
+        <p class="pomylka" id="e-kudy-{{ st.id }}">{{ _("Оберіть стадію — інакше") }}
+          {{ lich[st.id] }} {{ lich[st.id]|plural(_('угода'),_('угоди'),_('угод')) }}
+          {{ _("лишились би на неіснуючій стадії.") }}</p>
+        {% endif %}
+        {% endif %}
+        <button class="btn-quiet danger"
+                {% if stadiyi|length <= 1 %}disabled{% endif %}>{{ _("Прибрати стадію") }}</button>
+      </form>
+    </div>
+  </div>
+</details>
+{% endfor %}
+
+{% set err_kod = request.query_params.get('err') == 'kod_zaynyato' %}
+{# Банер угорі каже, ЩО сталось; підпис тут каже, ДЕ це виправляти. Одне без
+   одного не працює: на довгій сторінці банер не показує поле, а самотній
+   підпис під полем не видно, поки до нього не догортаєш. #}
+<form method="post" action="/napryamy/{{ prog.code }}/stadiya" class="inline dodaty-st"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input name="title" aria-label="{{ _('Назва нової стадії') }}" placeholder="{{ _('Назва нової стадії') }}" required>
+  <input name="stage_kod" aria-label="{{ _('Код нової стадії') }}" placeholder="{{ _('код (необовʼязково)') }}"
+         pattern="[a-z][a-z0-9_]{1,29}"
+         {% if err_kod %}aria-invalid="true" aria-describedby="e-stage-kod"
+         autofocus{% endif %}>
+  <button type="submit">{{ _("Додати стадію") }}</button>
+  {% if err_kod %}
+  <p class="pomylka" id="e-stage-kod">{{ _("Такий код у цій воронці вже є — оберіть інший або лишіть порожнім, і його складуть із назви.") }}</p>
+  {% endif %}
+</form>
+<p class="kk-chesnist">{{ _("Нова стадія стає перед термінальними — інакше вона опинилась би після «Угоди» чи «Відмови», куди процес уже не доходить.") }}</p>
+
+<div class="rozdil"><span class="nz">{{ _("Напрям") }}</span></div>
+<div class="cols">
+  <form method="post" action="/napryamy/{{ prog.code }}/napryam" class="kk-forma"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="k-hrupa-polya">
+      <label>{{ _("Назва") }}<input name="nazva" value="{{ prog.title }}"></label>
+      <label>{{ _("Колір") }}<input type="color" name="color" value="{{ prog.color }}"></label>
+    </div>
+    <label>{{ _("Опис") }}<textarea class="k-pole" name="opys" rows="2">{{ prog.opys }}</textarea></label>
+    <label>{{ _("Модель балу") }}
+      <select class="k-vybir" name="model_balu">
+        {% for k, v in modeli.items() %}
+        <option value="{{ k }}" {% if k == prog.model_balu %}selected{% endif %}>{{ v }}</option>
+        {% endfor %}
+      </select></label>
+    <p class="notatka">{{ _("Якщо моделі немає — обʼєкти напряму просто не матимуть балу. Це чесніше, ніж рахувати їх чужою формулою: число вийшло б правдоподібним, і помилку ніхто б не помітив.") }}</p>
+    <button type="submit">{{ _("Зберегти напрям") }}</button>
+  </form>
+
+  <aside class="col">
+    <div class="card">
+      <h3>{{ _("Архів") }}</h3>
+      <p class="small dim">{{ _("Архівний напрям зникає з вибору для") }} <b>{{ _("нових") }}</b> {{ _("угод, а наявні працюють далі. Видалення напряму немає взагалі: на його код посилаються шаблони листів і журнал дій.") }}</p>
+      <form method="post" action="/napryamy/{{ prog.code }}/arhiv"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="k-btn shchilna">
+          {{ _('Повернути в роботу') if not prog.active else _('В архів') }}</button>
+      </form>
+    </div>
+  </aside>
+</div>
+{% endblock %}

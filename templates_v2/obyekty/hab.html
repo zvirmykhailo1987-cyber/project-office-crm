@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}{{ c.site_code }} {{ _("— Хаб") }}{% endblock %}
+{% block shapka %}{{ _("Хаб") }} {{ c.site_code }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K2 «Сторінка сутності». #}
+
+<nav class="k-krykhty" aria-label="{{ _('Шлях') }}">
+  <a href="/haby">{{ _("Хаби") }}</a>
+  <span aria-hidden="true">·</span>
+  <span aria-current="page">{{ c.site_code }}</span>
+</nav>
+
+<div class="kk-sutnist">
+  <header class="shapka">
+    <h1 class="s-1169661">{{ c.site_code }}</h1>
+    <div class="k-krykhty s-4c77968">
+      <span class="k-chip">{{ c.type_label or labels.get(c.type, c.type) }}</span>
+      <span class="k-chip">{{ c.total_mw|num }} {{ _("МВт") }}</span>
+      <span class="k-chip">{{ c.n_donors }} {{ _("донорів · радіус") }} {{ c.radius_km|num }} {{ _("км") }}</span>
+    </div>
+  </header>
+
+  <div class="telo">
+    <section>
+      <h2 class="metryka-h">{{ _("Члени хабу") }} <span class="dim">({{ rows|length }})</span></h2>
+      <p class="kk-chesnist">{{ _("Відсортовані за балом — згори ті, кого дзвонити першими.") }}</p>
+
+      <div class="surf-panel s-47ffdd9" data-stan="porozhno" {% if rows %}hidden{% endif %}
+          >
+        <b>{{ _("Членів хабу немає") }}</b>
+        <div class="kk-chesnist">{{ _("Кластер порожній — можливо, обʼєкти випали при перерахунку радіуса.") }}</div>
+        <a class="k-btn holovna" href="/haby">{{ _("До списку хабів") }}</a>
+      </div>
+
+      {% if rows %}
+      <div class="k-tab-obh" data-stan="spokiy">
+      <table class="k-tab kartky">
+        <thead><tr><th>{{ _("Підприємство") }}</th><th>{{ _("ЄДРПОУ") }}</th><th>{{ _("Обдзвін") }}</th><th>{{ _("Бал") }}</th></tr></thead>
+        <tbody>
+        {% for m, site in rows %}
+        {% set sc = scores.get(site.id) if site else None %}
+          <tr class="k-ryad">
+            <td data-holovne data-p="{{ _('Підприємство') }}">
+              {%- if site %}<a href="/obyekty/{{ site.id }}">{{ site.name }}</a>
+              {% if site.is_anchor %}<span class="k-chip s-d066582">{{ _("якір") }}</span>{% endif %}
+              {%- else %}<span class="dim">{{ _("немає в базі обʼєктів") }}</span>{% endif %}</td>
+            <td data-p="{{ _('ЄДРПОУ') }}" class="chyslo">{{ m.edrpou or '—' }}</td>
+            <td data-p="{{ _('Обдзвін') }}" class="dim">{{ site.member_status if site else '—' }}</td>
+            <td data-p="{{ _('Бал') }}" class="chyslo">
+              {% if sc %}
+              {# Сегментована шкала замість суцільної смужки: вона несе поділки,
+                 тобто читається як 0–100, а не як «якийсь відсоток». #}
+              {% set part = ((sc.value / 20) | round | int) %}
+              <span class="shkala mini" role="img"
+                    aria-label="{{ _('бал') }} {{ sc.value }} {{ _('зі 100 —') }} {{ sc.priority }}"
+                    title="{{ sc.value }} {{ _('зі 100 —') }} {{ sc.priority }}">
+                {% for n in range(5) %}<i class="{{ 'on' if n < part else '' }}"></i>{% endfor %}
+              </span>
+              <span class="chyslo">{{ sc.value }}</span><span class="dim">/100</span>
+              {% else %}<span class="dim">{{ _("немає даних") }}</span>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
+    </section>
+
+    <aside class="sayidbar surf-panel">
+      {# Хаб як робоча сутність: стадія розвитку + власник + завдання. Доти
+         картка була лише переглядом — хаб не можна було вести по воронці
+         девелопменту, хоч поля stage/owner в моделі й були. #}
+      <h2 class="metryka-h">{{ _("Розвиток хабу") }}</h2>
+      <form method="post" action="/haby/{{ c.id }}/stan" class="kk-forma s-5255831"
+           ><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label class="dim s-9942017" for="hstage">{{ _("Стадія") }}</label>
+        <select class="k-vybir" id="hstage" name="stage">
+          {% for st in cluster_stages %}
+          <option value="{{ st }}"{% if st == c.stage %} selected{% endif %}>{{ st }}</option>
+          {% endfor %}
+        </select>
+        <label class="dim s-9942017" for="howner">{{ _("Відповідальний") }}</label>
+        <select class="k-vybir" id="howner" name="owner">
+          <option value="">{{ _("— не призначено —") }}</option>
+          {% for m in komanda %}
+          <option value="{{ m }}"{% if m == c.owner %} selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+        <button class="k-btn shchilna" type="submit" data-has-js>{{ _("Зберегти") }}</button>
+      </form>
+
+      <h2 class="metryka-h s-bdbc1ed">
+        {{ _("Завдання") }} <span class="dim">({{ zavdannya|length }})</span></h2>
+      {% if not zavdannya %}
+      <p class="kk-chesnist">{{ _("Відкритих завдань по хабу немає. Доручити — нижче, у блоці співпраці.") }}</p>
+      {% else %}
+      <ul class="s-a8bd71a">
+        {% for t in zavdannya %}
+        <li class="s-e150c64">
+          <span>{{ t.title }}</span>
+          {% if t.assignee %}<span class="dim s-9942017">{{ t.assignee }}</span>{% endif %}
+          {% if t.due_date %}<span class="k-chip"{% if t.due_date < dnes %} data-styl="--stan:var(--krytych)"{% endif %}>
+            {{ t.due_date|dt('%d.%m') }}{% if t.due_date < dnes %} {{ _("· прострочено") }}{% endif %}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      <h2 class="metryka-h">{{ _("Параметри хабу") }}</h2>
+      <div class="kk-fakty">
+        <div><span>{{ _("Область") }}</span><span>{{ c.oblast or '—' }}</span></div>
+        <div><span>{{ _("Якірне підприємство") }}</span><span>{{ c.anchor_name or '—' }}
+          {% if c.anchor_edrpou %}<span class="dim chyslo">({{ c.anchor_edrpou }})</span>{% endif %}</span></div>
+        <div><span>{{ _("Суміш сировини") }}</span><span>{{ c.waste_mix or '—' }}</span></div>
+        <div><span>{{ _("Сировина, т/рік") }}</span><span class="chyslo">{{ c.feedstock_t|num }}</span></div>
+        <div><span>{{ _("Енергія, МВт·год/рік") }}</span><span class="chyslo">{{ c.energy_mwh|num }}</span></div>
+        <div><span>{{ _("До газопроводу, км") }}</span><span class="chyslo">{{ c.gas_km|num }}</span></div>
+        <div><span>{{ _("Координати") }}</span><span class="chyslo">
+          {%- if c.lat %}{{ c.lat }}, {{ c.lon }} <a href="/karta">{{ _("на карті") }}</a>
+          {%- else %}<span class="dim">{{ _("немає даних") }}</span>{% endif %}</span></div>
+      </div>
+
+      <h2 class="metryka-h s-bdbc1ed">
+        {{ _("Економіка") }} <span class="k-chip s-93827eb">PRELIMINARY</span></h2>
+      <div class="kk-fakty">
+        <div><span>CAPEX, €</span><span class="chyslo">{{ c.capex_eur|num }}</span></div>
+        <div><span>{{ _("Дохід, €/рік") }}</span><span class="chyslo">{{ c.revenue_eur_y|num }}</span></div>
+        <div><span>{{ _("Окупність, років") }}</span><span class="chyslo">{{ c.payback_y|num }}</span></div>
+        <div><span>IRR, %</span><span class="chyslo">{{ c.irr_pct|num }}</span></div>
+      </div>
+      {# PRELIMINARY не спрощується й не ховається: це не оферта. #}
+      <p class="kk-chesnist s-c5502a3">
+        <span class="nepovno">{{ _("Оцінки попередні.") }}</span>
+        {{ _("Не використовувати як проєктне рішення чи оферту.") }}</p>
+    </aside>
+  </div>
+</div>
+
+{% with entity='cluster', entity_id=c.id %}{% include "_spivpratsya.html" %}{% endwith %}
+{% endblock %}

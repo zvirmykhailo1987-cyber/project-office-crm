@@ -1,0 +1,12 @@
+{# Сповіщення в підвалі рейки. Полінг 30 с.
+   Форма пункту та сама, що в решти рейки — сигнал несе ЧИСЛО, а не окремий
+   вигляд: інакше в рейці зʼявився б другий візуальний словник. #}
+<a href="/spovishchennya" id="lich"
+   {% if n %}aria-current="false"{% endif %}
+   hx-get="/spovishchennya/lichylnyk" hx-trigger="every 30s" hx-swap="outerHTML"
+   title="{% if n %}{{ n }} {{ _('нових') }}{% else %}{{ _('Нічого нового') }}{% endif %}"
+   aria-label="{{ _('Сповіщення') }}{% if n %}: {{ n }} {{ _('нових') }}{% endif %}">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-prapor"></use></svg>
+  {{ _("Сповіщення") }}
+  {% if n %}<span class="lich">{{ n }}</span>{% endif %}
+</a>

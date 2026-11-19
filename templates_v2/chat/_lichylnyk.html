@@ -1,0 +1,10 @@
+{# Пункт «Чат» у рейці разом із лічильником непрочитаних. Полінг 30 с.
+   Лічильник у САМОМУ пункті, а не окремим рядком: у згорнутій рейці окремий
+   рядок ніде було б показати, і сигнал зник би саме тоді, коли місця обмаль. #}
+<a href="/chat" {% if aktyvna %}aria-current="page"{% endif %}
+   hx-get="/chat/lichylnyk" hx-trigger="every 30s" hx-swap="outerHTML"
+   title="{% if n %}{{ n }} {{ _('нових повідомлень') }}{% else %}{{ _('Чат офісу') }}{% endif %}">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-chat"></use></svg>
+  {{ _("Чат") }}
+  {% if n %}<span class="lich" aria-label="{{ n }} {{ _('нових') }}">{{ n }}</span>{% endif %}
+</a>

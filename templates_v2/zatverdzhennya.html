@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Затвердження — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Затвердження") }}{% endblock %}
+{% block vmist %}
+
+<div class="kk-tulbar">
+  <span class="kk-chesnist">
+    {% if can_decide %}{{ _("Ваше рішення: затвердити або сказати, що поміняти.") }}
+    {% else %}{{ _("Тут видно, що подано й на якій стадії розгляду.") }}{% endif %}
+  </span>
+  <span class="roztyah"></span>
+  <span class="kk-chesnist">{{ _("на розгляді") }} <b class="chyslo">{{ pending|length }}</b></span>
+</div>
+
+{% if err == 'bez-komentarya' %}
+{# Помилка НАЗИВАЄ правило, а не факт відмови: «не приймається» без причини
+   змушує вгадувати, що саме зробити інакше. #}
+<div class="k-banner krytych s-3c19453" role="alert">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-uvaha"></use></svg>
+  <div><b>{{ _("«На доопрацювання» без коментаря не приймається") }}</b>
+    <div class="dim">{{ _("Треба сказати, що саме поміняти — інакше подавач не знає, що виправляти.") }}</div></div>
+</div>
+{% endif %}
+
+<h2 class="metryka-h s-bdbc1ed">{{ _("На розгляді") }}</h2>
+
+<div class="surf-panel s-eab8806" data-stan="porozhno" {% if pending %}hidden{% endif %}
+    >
+  <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+    <use href="/static/bib/porozhni.svg#p-arkush"></use></svg>
+  <b>{{ _("Черга порожня") }}</b>
+  <div class="kk-chesnist">{{ _("Нічого не чекає на рішення.") }}</div>
+  <a class="k-btn holovna" href="/strichka">{{ _("Що робить команда") }}</a>
+</div>
+
+{% if pending %}
+<ul class="kk-strichka">
+  {% for a in pending %}
+  <li class="s-711d762">
+    <div class="s-509a426">
+      <span class="k-chip">{{ a.entity }} #{{ a.entity_id }}</span>
+      <span>{{ _("подання від") }} <b>{{ a.submitted_by }}</b></span>
+      {# «Чекає N днів» — це не оздоба, а вимір черги: рішення, що лежить
+         тиждень, коштує більше за саме рішення. #}
+      {% if a.days_waiting %}
+      <span class="k-chip"{% if a.days_waiting > 3 %} data-styl="--stan:var(--uvaha)"{% endif %}>{{ _("чекає") }} {{ a.days_waiting }} {{ _("дн.") }}</span>
+      {% endif %}
+      <time class="chyslo dim s-8c5865f">{{ a.submitted_at|dt('%d.%m %H:%M') }}</time>
+    </div>
+    {% if a.note %}<div class="s-348d633">{{ a.note }}</div>{% endif %}
+
+    <div class="k-hrupa s-c5502a3">
+      <a class="k-btn shchilna" href="{{ a.entity | url_for_entity(a.entity_id) }}">{{ _("Відкрити") }}</a>
+    </div>
+
+    {% if can_decide and a.submitted_by != user.name %}
+    <form class="s-e772e96" method="post" action="/zatverdzhennya/{{ a.id }}/rishennya"
+         ><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="k-hrupa-polya">
+        <label for="note-{{ a.id }}">{{ _("Що саме поміняти") }}</label>
+        <input class="k-pole" id="note-{{ a.id }}" type="text" name="note"
+               placeholder="{{ _('Обовʼязково для доопрацювання') }}"
+               aria-describedby="p-{{ a.id }}">
+        <span class="pidkazka" id="p-{{ a.id }}">{{ _("Для «затвердити» можна лишити порожнім.") }}</span>
+      </div>
+      <div class="k-hrupa">
+        <button class="k-btn holovna" type="submit" name="status" value="zatverdzheno">
+          <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-hotovo"></use></svg>
+          {{ _("Затвердити") }}</button>
+        <button class="k-btn shchilna" type="submit" name="status" value="na_doopratsyuvannya">
+          {{ _("На доопрацювання") }}</button>
+      </div>
+    </form>
+    {% elif a.submitted_by == user.name %}
+    {# Своє подання не затверджують самі — і це сказано, а не показано
+       вимкненою кнопкою: вимкнена кнопка без пояснення читається як поломка. #}
+    <p class="kk-chesnist s-c5502a3">
+      {{ _("Ваше подання — рішення ухвалює колега.") }}</p>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if recent %}
+<h2 class="metryka-h s-a52c42b">{{ _("Останні рішення") }}</h2>
+<div class="k-tab-obh" data-stan="spokiy">
+<table class="k-tab kartky">
+  <thead><tr><th>{{ _("Що") }}</th><th>{{ _("Подав") }}</th><th>{{ _("Рішення") }}</th><th>{{ _("Хто") }}</th><th>{{ _("Коли") }}</th></tr></thead>
+  <tbody>
+  {% for a in recent %}
+    <tr class="k-ryad">
+      <td data-holovne data-p="{{ _('Що') }}">
+        <a href="{{ a.entity | url_for_entity(a.entity_id) }}">{{ a.entity }} #{{ a.entity_id }}</a>
+        {% if a.decision_note %}
+        <div class="dim s-9942017">{{ a.decision_note }}</div>{% endif %}
+      </td>
+      <td data-p="{{ _('Подав') }}">{{ a.submitted_by }}</td>
+      <td data-p="{{ _('Рішення') }}">
+        <span class="k-chip" data-styl="--stan:{{ 'var(--dobre)' if a.status == 'zatverdzheno'
+              else ('var(--uvaha)' if a.status == 'na_doopratsyuvannya' else 'var(--prygl)') }}">
+          {{ statuses.get(a.status, a.status) }}</span>
+      </td>
+      <td data-p="{{ _('Хто') }}" class="dim">{{ a.approver or '—' }}</td>
+      <td data-p="{{ _('Коли') }}" class="dim chyslo">{{ a.decided_at|dt('%d.%m %H:%M') }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

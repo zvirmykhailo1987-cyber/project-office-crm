@@ -1,0 +1,290 @@
+/* ═══ KOMPONENTY-BASE — бібліотечний компонентний шар (dyzayn-ux) ═══════════
+   Узагальнено 07.08.2026 з виміряного продакшн-шару ofis_crm
+   (static/komponenty.css 572 р. + komponenty2.css) — кожне правило тут або
+   пережило рендер-QA на живих даних, або лагодить дефект, який там знайшовся.
+
+   ПРАВИЛА ШАРУ:
+   1. ЖОДНОГО власного кольору: тільки токени ядра/мови. Файл не містить #hex
+      і oklch() поза фолбеками. Якщо токен ще не підключено — працює фолбек
+      var(--x, значення): нейтральна світла палітра, щоб шар не розсипався
+      і поза системою токенів.
+   2. Жодного проєктного: тут немає рейки, канбану, чату, воронки — лише
+      компоненти, які потрібні будь-якому екрану з даними.
+   3. Порядок підключення: movy/<мова>.css → yadro.css → цей файл.
+      (Поки мов немає — фолбеки тримають шар самі.)
+
+   ЗМІСТ: §1 Поверхні · §2 Мікрочарти · §3 Метрика-плитка · §4 Легенда,
+   підпис, бейдж/таг, розділювач, комірка.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── §1 ПОВЕРХНІ — три рівні ────────────────────────────────────────────────
+   page   — тло сторінки: без рамки й тіні, лише колір.
+   panel  — робоча картка: межа + мала тінь + СВІТЛО НА РЕБРІ
+            (inset 0 1px 0 — імітація освітлення згори; один рядок,
+            і панель перестає бути пласким прямокутником).
+   raised — піднята поверхня (спливне, активне): глибша тінь, те саме ребро.
+
+   Стани — ОКРЕМИЙ модифікатор .interakt: поверхня сама по собі не реагує
+   на курсор; реагує лише та, що заявила себе інтерактивною. Це прибирає
+   «все кудись пливе під мишею» на щільному екрані. */
+.surf-page{background:var(--tlo,#f6f4f0);color:var(--tilo,#262219)}
+
+.surf-panel{background:var(--poverhnya,#fff);
+  border:1px solid var(--mezha-m,#e6e2da);
+  border-radius:var(--r,10px);padding:var(--sp4,16px);
+  box-shadow:var(--tin-1,0 1px 2px rgba(38,34,25,.07)),
+             inset 0 1px 0 var(--mezha-svitla,rgba(0,0,0,.05))}
+
+.surf-raised{background:var(--poverhnya-2,#fff);
+  border:1px solid var(--mezha-m,#e6e2da);
+  border-radius:var(--r,10px);padding:var(--sp4,16px);
+  box-shadow:var(--tin-2,0 2px 6px rgba(38,34,25,.08),0 8px 24px -8px rgba(38,34,25,.14)),
+             inset 0 1px 0 var(--mezha-svitla,rgba(0,0,0,.05))}
+
+/* Стани інтерактивної поверхні. hover — підйом і глибша тінь; selected —
+   світло на ребрі (мотив), а НЕ заливка: заливка на N картках дала б N
+   кольорових плям. disabled — приглушення; курсор чесно каже «не можна». */
+:is(.surf-panel,.surf-raised).interakt{cursor:pointer;
+  transition:border-color var(--d-fast,90ms) var(--ease,ease),
+             translate var(--d-fast,90ms) var(--ease,ease),
+             box-shadow var(--d-fast,90ms) var(--ease,ease)}
+:is(.surf-panel,.surf-raised).interakt:hover{
+  border-color:var(--mezha,#d8d4cb);
+  translate:0 calc(-2px * var(--ruh,1));
+  box-shadow:var(--tin-2,0 2px 6px rgba(38,34,25,.08),0 8px 24px -8px rgba(38,34,25,.14)),
+             inset 0 1px 0 var(--mezha-svitla,rgba(0,0,0,.05));
+  text-decoration:none}
+/* Натискання. Підйом від наведення СКАСОВУЄТЬСЯ — картка йде під палець, а не
+   від нього. Без цього стану клік по картці не має миті відгуку: наведення
+   вже сталось до кліку, тож людина тисне й нічого не змінюється до самого
+   переходу. Гейт-5 08.08.2026 показав, що це єдиний стан, якого поверхні
+   бракувало (5/6). */
+:is(.surf-panel,.surf-raised).interakt:active{
+  translate:0 0;
+  box-shadow:var(--tin-1,0 1px 2px rgba(38,34,25,.07)),
+             inset 0 1px 0 var(--mezha-svitla,rgba(0,0,0,.05))}
+:is(.surf-panel,.surf-raised).interakt:focus-visible{
+  outline:var(--fokus-tovshchyna,2px) solid var(--akcent,#0f7568);
+  outline-offset:var(--fokus-tovshchyna,2px)}
+:is(.surf-panel,.surf-raised):is(.selected,[aria-selected=true]){
+  border-color:color-mix(in oklch,var(--akcent,#0f7568) 45%,var(--mezha-m,#e6e2da));
+  box-shadow:inset var(--mot-rebro,2px) 0 0 var(--mot-svitlo,var(--akcent,#0f7568)),
+             var(--tin-1,0 1px 2px rgba(38,34,25,.07)),
+             inset 0 1px 0 var(--mezha-svitla,rgba(0,0,0,.05))}
+:is(.surf-panel,.surf-raised):is(.disabled,[aria-disabled=true],:disabled){
+  opacity:.5;cursor:not-allowed;pointer-events:none}
+
+/* ── §2 МІКРОЧАРТИ — пʼять, і КОЛИ ЯКИЙ ─────────────────────────────────────
+   .spark  — ДИНАМІКА в часі: важить форма тренду, не точні значення.
+   .kilce  — ЧАСТКА ВІД ЦІЛОГО (0–100%), одне число з контекстом.
+   .bullet — ФАКТ ПРОТИ ЦІЛІ на одній смузі: коли є план/бюджет/норма.
+   .teplo  — ЩІЛЬНІСТЬ подій за календарний період, рівні 0–4.
+   .shkala — ДИСКРЕТНИЙ бал/повнота/гейти: кожен сегмент або взято, або ні.
+   Правило вибору: безперервна величина в часі → spark; одна частка → kilce;
+   частка З ЦІЛЛЮ → bullet; календар → teplo; лічильна шкала → shkala.
+   Спільне: жоден не потребує SVG чи JS — дані заходять через CSS-змінні
+   (--i, --p, --f, --c, data-r) просто з шаблонізатора. */
+
+/* 2.1 Спарклайн. Стовпці з даними — приглушений акцент, пік — той самий
+   акцент на повну: пік показуємо СИЛОЮ кольору, а не іншим значенням
+   (виміряно в ofis: пік кольором «уваги» читався як тривога, і найактивніший
+   день офісу виглядав як аварія). --i на стовпці — каскадна поява. */
+.spark{display:flex;align-items:flex-end;gap:2px;height:34px;width:100%}
+.spark i{flex:1;min-width:2px;border-radius:2px 2px 0 0;
+  background:var(--mezha,#d8d4cb);transform-origin:bottom;
+  animation:kb-spark-rist var(--d-slow,320ms) var(--pruzhyna,var(--ease,ease)) both;
+  animation-delay:calc(var(--i,0) * 22ms * var(--ruh,1))}
+.spark i.on{background:color-mix(in oklch,var(--akcent,#0f7568) 55%,var(--mezha,#d8d4cb))}
+.spark i.pik{background:var(--akcent,#0f7568)}
+@keyframes kb-spark-rist{from{scale:1 0}to{scale:1 1}}
+
+/* 2.2 Кільце прогресу — conic-gradient, без SVG і без JS.
+   --p = відсоток (число 0–100), --d = діаметр. */
+.kilce{--p:0;--d:52px;position:relative;width:var(--d);height:var(--d);
+  flex:0 0 auto;border-radius:50%;
+  background:conic-gradient(var(--akcent,#0f7568) calc(var(--p) * 1%),
+                            var(--mezha-m,#e6e2da) 0);
+  transition:background var(--d-slow,320ms) var(--ease,ease)}
+.kilce::after{content:"";position:absolute;inset:5px;border-radius:50%;
+  background:var(--poverhnya,#fff)}
+.kilce span{position:absolute;inset:0;display:grid;place-items:center;z-index:1;
+  font:700 12px/1 var(--f-kod,ui-monospace,Consolas,monospace);
+  font-variant-numeric:tabular-nums;color:var(--tilo,#262219)}
+.kilce.lg{--d:72px} .kilce.lg span{font-size:15px}
+.kilce.uvaha{background:conic-gradient(var(--uvaha,#8a5a09) calc(var(--p) * 1%),
+                                       var(--mezha-m,#e6e2da) 0)}
+
+/* 2.3 Bullet: факт проти цілі. Одна смуга замість двох чисел.
+   Розмітка: <div class="bullet" style="--f:64;--c:80"><i></i><u></u></div>
+   --f = факт у %, --c = ціль у %.
+
+   ПОЛАГОДЖЕНА АНАТОМІЯ. В ofis маркер цілі <u> НЕ РЕНДЕРИВСЯ: смуга мала
+   overflow:hidden, маркер виступав на ±3px і зрізався, а дефолтна ціль 100%
+   ставила його на left:100% — ПОВНІСТЮ за межами боксу, тобто маркер зникав
+   саме в найтиповішому стані. Тому тут:
+   · overflow:hidden знято зі смуги — ціль МАЄ ПРАВО виступати (виступи і є
+     її розпізнаваним силуетом проти заливки);
+   · радіус заливки успадковано, тож зрізати її краї більше нічим не треба;
+   · маркер центровано на значенні (translate:-50%) і затиснуто clamp-ом,
+     щоб і 0%, і 100% лишались видимими цілком;
+   · заливка обмежена max-width:100% — перевиконання не малює факт за смугу
+     (для «понад ціль» і існує маркер лівіше краю). */
+.bullet{position:relative;height:10px;border-radius:var(--r-full,999px);
+  background:var(--mezha-m,#e6e2da)}
+.bullet i{position:absolute;inset:0 auto 0 0;width:calc(var(--f,0) * 1%);
+  max-width:100%;background:var(--akcent,#0f7568);
+  border-radius:inherit;transform-origin:left center;
+  /* fill=BACKWARDS, не both: кадр тут лише from, кінцевий стан тримає БАЗОВЕ
+     правило — після завершення transform звільняється каскаду. `both` тримав
+     анімацію у стеку властивості назавжди (заморозка, Г32) — спіймано
+     гейтом-7 на стенді 10.08.2026 після фікса ordering-бага вердикту. */
+  animation:kb-bullet-rist var(--d-slow,320ms) var(--pruzhyna,var(--ease,ease)) backwards}
+.bullet u{position:absolute;top:-3px;bottom:-3px;
+  left:clamp(1px,calc(var(--c,100) * 1%),calc(100% - 1px));
+  translate:-50% 0;width:2px;border-radius:1px;
+  background:var(--tilo,#262219);opacity:.7;text-decoration:none}
+/* Ріст — через scaleX, а не width: анімація ширини змушує браузер рахувати
+   розкладку щокадру, і на екрані з двома десятками смуг це видно як ривок
+   (знайдено гейтом-7 08.08.2026 — до нього ніхто цього не міряв).
+   Ціна вибору названа чесно: поки заливка стиснута, її правий заокруглений
+   край теж стиснутий і виглядає вужчим за 999px-радіус. Ефект живе рівно
+   стільки, скільки триває ріст, і зникає в кінцевому стані. */
+@keyframes kb-bullet-rist{from{transform:scaleX(0)}}
+
+/* 2.4 Теплова смуга — щільність подій за період. data-r="0…4";
+   рівні — сила ОДНОГО акценту, не чотири різні кольори. */
+.teplo{display:flex;gap:2px;height:14px}
+.teplo i{flex:1;border-radius:2px;background:var(--mezha-m,#e6e2da)}
+.teplo i[data-r="1"]{background:color-mix(in oklch,var(--akcent,#0f7568) 28%,var(--mezha-m,#e6e2da))}
+.teplo i[data-r="2"]{background:color-mix(in oklch,var(--akcent,#0f7568) 55%,var(--mezha-m,#e6e2da))}
+.teplo i[data-r="3"]{background:color-mix(in oklch,var(--akcent,#0f7568) 80%,var(--mezha-m,#e6e2da))}
+.teplo i[data-r="4"]{background:var(--akcent,#0f7568)}
+
+/* 2.5 Сегментована шкала — одна мова на бал/повноту/гейти.
+   Семантичні сегменти (.uvaha/.krytych) — для гейтів зі станом. */
+.shkala{display:inline-flex;gap:2px;height:9px;width:96px;vertical-align:middle}
+.shkala i{flex:1;background:var(--mezha-m,#e6e2da);border-radius:1px}
+.shkala i.on{background:var(--akcent,#0f7568)}
+.shkala i.uvaha{background:var(--uvaha,#8a5a09)}
+.shkala i.krytych{background:var(--krytych,#b3261e)}
+.shkala.mini{width:64px;height:6px} .shkala.wide{width:160px}
+
+/* ── §3 МЕТРИКА-ПЛИТКА ──────────────────────────────────────────────────────
+   Анатомія: заголовок → число (+ одиниця ОКРЕМИМ слотом) → дельта → слот
+   мікрочарта. tabular-nums ВБУДОВАНО в число — плитка не має права залежати
+   від того, чи згадали про це на body: стрибучі розряди в сітці метрик
+   помітні раніше, ніж усвідомлюються.
+   Розмітка:
+     <div class="metryka surf-panel">
+       <div class="metryka-h">Підпис</div>
+       <div class="metryka-znach">3 396<span class="od">кВт</span></div>
+       <span class="delta up">+12%</span>
+       <div class="metryka-chart">…мікрочарт…</div>
+     </div> */
+.metryka{display:flex;flex-direction:column;gap:var(--sp2,8px);min-width:0}
+.metryka-h{display:flex;align-items:center;gap:var(--sp2,8px);
+  font:600 11px/1.3 var(--f-kod,ui-monospace,Consolas,monospace);
+  letter-spacing:.1em;text-transform:uppercase;color:var(--prygl,#5d594f)}
+.metryka-znach{font-family:var(--f-dysplei,var(--f-tilo,system-ui,sans-serif));
+  font-weight:700;font-size:clamp(26px,9cqi,40px);line-height:1;
+  letter-spacing:-.03em;color:var(--tilo,#262219);
+  font-variant-numeric:tabular-nums;   /* вбудовано, не успадковано */
+  display:flex;align-items:baseline;gap:var(--sp1,4px);flex-wrap:wrap;min-width:0}
+/* Одиниця — окремий слот меншого кегля: «3 396 кВт» одним кеглем читається
+   як шестизначне число. Кегль тримаємо ≥12px навіть при найменшому числі. */
+.metryka-znach .od{font-size:max(.42em,12px);font-weight:500;
+  letter-spacing:0;color:var(--prygl,#5d594f)}
+.metryka-chart{margin-top:auto;min-width:0}
+
+/* Дельта-чип: знак ІДЕ ПЕРШИМ і не тримається на самому кольорі —
+   дальтонізм і чорно-білий друк знімають зелений/червоний. */
+.delta{display:inline-flex;align-items:baseline;gap:2px;
+  font:600 12px/1.4 var(--f-kod,ui-monospace,Consolas,monospace);
+  font-variant-numeric:tabular-nums;color:var(--prygl,#5d594f)}
+.delta.up{color:var(--dobre,#1d7a3d)}     .delta.up::before{content:"▲ "}
+.delta.down{color:var(--krytych,#b3261e)} .delta.down::before{content:"▼ "}
+.delta.flat::before{content:"— "}
+
+/* «НЕ-ЧИСЛО» — ОКРЕМИЙ КЛАС. Слово («Активний», «Очікує») дисплейним кеглем
+   метрики прикидається даними, яких немає. Статус-картка тримає той самий
+   каркас, але значення — звичайного кегля, з крапкою стану попереду. */
+.status-kartka{display:flex;flex-direction:column;gap:var(--sp2,8px);min-width:0}
+/* заголовок .metryka-h — спільний з метрикою */
+.status-znach{display:flex;align-items:center;gap:var(--sp2,8px);
+  font-size:15px;font-weight:600;color:var(--tilo,#262219)}
+.status-znach::before{content:"";width:8px;height:8px;border-radius:50%;
+  background:var(--stan,var(--prygl,#5d594f));flex:0 0 auto}
+.status-kartka .pid{color:var(--prygl,#5d594f);font-size:13px}
+.status-kartka.ok{--stan:var(--dobre,#1d7a3d)}
+.status-kartka.uvaha{--stan:var(--uvaha,#8a5a09)}
+.status-kartka.krytych{--stan:var(--krytych,#b3261e)}
+
+/* ── §4 ЛЕГЕНДА · ПІДПИС · БЕЙДЖ/ТАГ · РОЗДІЛЮВАЧ · КОМІРКА ───────────────── */
+
+/* Легенда. ОДИН тип свотча на легенду: форму задає data-sw на КОРЕНІ
+   (kvadrat — площі/стовпці · liniya — лінії · krapka — точки/статуси),
+   тож змішати квадрат і крапку в одній легенді неможливо за конструкцією.
+   Колір свотча — справа даних: inline style="--sw-c:…" на пункті. */
+.legend{display:flex;flex-wrap:wrap;gap:var(--sp2,8px) var(--sp4,16px);
+  align-items:center;font-size:13px;color:var(--prygl,#5d594f)}
+.legend>span{display:inline-flex;align-items:center;gap:var(--sp1,4px);min-width:0}
+.legend .sw{flex:0 0 auto;background:var(--sw-c,var(--akcent,#0f7568))}
+.legend,.legend[data-sw=kvadrat]{--_sw-w:10px;--_sw-h:10px;--_sw-r:2px}
+.legend[data-sw=liniya]{--_sw-w:14px;--_sw-h:3px;--_sw-r:var(--r-full,999px)}
+.legend[data-sw=krapka]{--_sw-w:8px;--_sw-h:8px;--_sw-r:50%}
+.legend .sw{width:var(--_sw-w);height:var(--_sw-h);border-radius:var(--_sw-r)}
+
+/* Підпис під даними/чартом. :empty → НЕ рендериться: порожній підпис
+   не має лишати по собі щілину у вертикальному ритмі.
+   Кегль 12px — нижня межа читабельності (9pt), нижче не опускати. */
+.caption{font-size:12px;line-height:1.5;color:var(--prygl,#5d594f);
+  margin:var(--sp1,4px) 0 0;max-width:var(--mira,68ch);text-wrap:pretty}
+.caption:empty{display:none}
+
+/* Бейдж і таг — ЄДИНА анатомія (inline-flex · gap 4 · padding 2×8 · 12px ·
+   рамка), різняться лише роллю і радіусом:
+   .badge = СТАН (повний радіус, семантичний колір, гліф — щоб стан не
+            тримався на самому кольорі);
+   .tag   = КАТЕГОРІЯ (малий радіус, нейтральний, без гліфів). */
+.badge,.tag{display:inline-flex;align-items:center;gap:4px;
+  padding:2px var(--sp2,8px);font-size:12px;font-weight:500;line-height:1.5;
+  white-space:nowrap;border:1px solid var(--mezha,#d8d4cb);
+  color:var(--prygl,#5d594f);background:transparent}
+.badge{border-radius:var(--r-full,999px)}
+.badge.ok{color:var(--dobre,#1d7a3d);
+  border-color:color-mix(in oklch,var(--dobre,#1d7a3d) 45%,transparent)}
+.badge.ok::before{content:"✓";font-size:10px}
+.badge.uvaha{color:var(--uvaha,#8a5a09);
+  border-color:color-mix(in oklch,var(--uvaha,#8a5a09) 45%,transparent)}
+.badge.uvaha::before{content:"!";font-weight:700;font-size:10px}
+.badge.krytych{color:var(--krytych,#b3261e);
+  border-color:color-mix(in oklch,var(--krytych,#b3261e) 45%,transparent)}
+.badge.krytych::before{content:"✕";font-size:10px}
+.badge.akc{color:var(--akcent-tekst,var(--akcent,#0f7568));
+  border-color:color-mix(in oklch,var(--akcent,#0f7568) 45%,transparent)}
+.badge.akc::before{content:"◆";font-size:8px}
+.tag{border-radius:var(--r-sm,7px);background:var(--tlo-2,#edeae4);
+  color:var(--tilo,#262219);border-color:transparent}
+
+/* Розділювач (клас навмисно БЕЗ англ. divider/line у назві — проекторний гейт
+   міряє такі як «видимі лінії документа», а це екранна волосина).
+   З текстом — підписаний розрив; порожній — проста лінія, gap зникає. */
+.rozdilnyk{display:flex;align-items:center;gap:var(--sp2,8px);
+  margin:var(--sp4,16px) 0;
+  font:600 11px/1 var(--f-kod,ui-monospace,Consolas,monospace);
+  letter-spacing:.12em;text-transform:uppercase;color:var(--prygl,#5d594f)}
+.rozdilnyk::before,.rozdilnyk::after{content:"";flex:1;height:1px;
+  background:var(--mezha-m,#e6e2da)}
+.rozdilnyk:empty{gap:0}
+
+/* Комірка даних. text-wrap:pretty — перенос без сирітських хвостів;
+   overflow-wrap:break-word рве ЛИШЕ те, що інакше не влізе, і не зменшує
+   мінімальну ширину (в ofis word-break:break-word різав «3 396» на «3 39/6»,
+   ЄДРПОУ і телефони — по живому).
+   HARD-TRUNCATE ЗАБОРОНЕНО: у цьому шарі немає text-overflow:ellipsis для
+   даних — обрізане число читається як інше число. Числа/коди/телефони
+   (.kod) не переносяться взагалі. */
+.cell{min-width:0;text-wrap:pretty;overflow-wrap:break-word}
+.cell :is(.kod,.mono),.cell.kod,.cell.mono{
+  font-family:var(--f-kod,ui-monospace,Consolas,monospace);
+  font-variant-numeric:tabular-nums;white-space:nowrap}

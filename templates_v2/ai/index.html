@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{{ _("AI-витяг — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("AI-витяг із файлів") }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K4 «Майстер» (вхід). Головне тут — межа: нічого не потрапляє в базу
+   без підтвердження людини. Це не примітка дрібним шрифтом, а перше, що
+   екран каже. #}
+<div class="k-banner s-c9996a7" role="note">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-ai"></use></svg>
+  <div>{{ _("Рахунок, анкета чи список контактів → готова") }} <b>{{ _("чернетка") }}</b>{{ _(". Нічого не потрапляє в базу без вашого підтвердження.") }}</div>
+</div>
+
+{% if llm_on %}
+<p class="kk-chesnist">{{ _("Мовна модель увімкнена (") }}{{ provider }}{{ _("). Не заповнені нею місця добирає детермінований екстрактор.") }}</p>
+{% else %}
+{# Вимкнена модель — це СТАН СИСТЕМИ, а не помилка, і він мусить пояснювати,
+   що працює замість неї та як увімкнути. Мовчазне «AI недоступний» змушує
+   думати, що екран зламаний. #}
+<div class="k-banner uvaha s-c9996a7" role="status">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-uvaha"></use></svg>
+  <div><b>{{ _("Мовна модель вимкнена") }}</b> {{ _("— працює детермінований екстрактор (регулярні вирази по типових українських формулюваннях). Він надійний на структурованих файлах (XLSX, текстові PDF, CSV) і слабший на вільному тексті.") }}
+    <div class="dim s-348d633">{{ _("Увімкнути: задати") }}
+      <code>LLM_PROVIDER</code> {{ _("і") }} <code>LLM_API_KEY</code> {{ _("у") }}
+      <code>secrets.env</code> {{ _("— код не змінюється.") }}</div></div>
+</div>
+{% endif %}
+
+<div class="kk-splyt">
+  <div>
+    <h2 class="metryka-h s-b5e8626">{{ _("Завантажити файл") }}</h2>
+    <form class="kk-forma s-ee686a5" method="post" action="/ai/vytyah"
+          enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="k-hrupa-polya">
+        <label for="kind">{{ _("Що це") }}</label>
+        <select class="k-vybir" id="kind" name="kind">
+          {% for k, v in kinds.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+        </select>
+      </div>
+
+      <div class="k-hrupa-polya" id="siteWrap" hidden>
+        <label for="site_id">{{ _("Громада (для анкети)") }}</label>
+        <select class="k-vybir" id="site_id" name="site_id">
+          <option value="">{{ _("— оберіть —") }}</option>
+          {% for h in hromady %}<option value="{{ h.id }}">{{ h.name }}</option>{% endfor %}
+        </select>
+      </div>
+
+      <div class="k-hrupa-polya">
+        <label for="file">{{ _("Файл") }}</label>
+        <input class="k-pole" id="file" type="file" name="file" required
+               aria-describedby="p-file"
+               accept=".pdf,.xlsx,.xlsm,.docx,.txt,.csv,.md,.jpg,.jpeg,.png">
+        {# Межа інструмента названа ЧЕСНО й наперед: скан без текстового шару не
+           прочитається, і краще сказати це до завантаження, ніж після. #}
+        <span class="pidkazka" id="p-file">{{ _("PDF з текстом, XLSX, DOCX, TXT/CSV. Скани й фото без текстового шару не читаються — розпізнавання зображень не встановлено.") }}</span>
+      </div>
+
+      <button class="k-btn holovna" type="submit">{{ _("Витягти дані") }}</button>
+    </form>
+  </div>
+
+  <aside class="detali surf-panel">
+    <h2 class="metryka-h">{{ _("Останні прогони") }}</h2>
+
+    <div class="s-05c4d07" data-stan="pershe" {% if runs %}hidden{% endif %}
+        >
+      <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+        <use href="/static/bib/porozhni.svg#p-vytyah"></use></svg>
+      <b>{{ _("Витягів ще не було") }}</b>
+      <div class="kk-chesnist">{{ _("Завантажте рахунок, анкету або список контактів — система зробить чернетку, яку ви підтвердите.") }}</div>
+      <button class="k-btn holovna" data-has-js data-fokus="input[type=file]" data-fokus-klik>
+        {{ _("Обрати файл") }}</button>
+    </div>
+
+    {% if runs %}
+    <ul class="kk-strichka">
+      {% for r in runs %}
+      <li>
+        <div class="s-509a426">
+          <a href="/ai/{{ r.id }}"><b>{{ kinds.get(r.kind, r.kind) }}</b></a>
+          {% if r.confirmed_at %}<span class="k-chip s-d066582">{{ _("підтверджено") }}</span>
+          {% elif r.error and r.engine == 'none' %}<span class="k-chip s-81e863b">{{ _("не вдалося") }}</span>
+          {% else %}<span class="k-chip">{{ _("чернетка") }}</span>{% endif %}
+          {% if r.arithmetic_ok is false %}
+          {# Арифметична розбіжність — окремий знак: витяг може бути повним і
+             при цьому не сходитись у сумах, і це різні проблеми. #}
+          <span class="k-chip s-93827eb">{{ _("арифметика не сходиться") }}</span>{% endif %}
+        </div>
+        <div class="dim s-9942017">
+          {{ r.source_file }} · {{ r.engine_label }} {{ _("· заповнено") }} {{ r.fill_rate }}%
+          · {{ r.created_at|dt('%d.%m %H:%M') }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </aside>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+  document.addEventListener('DOMContentLoaded', function () {
+    var kind = document.getElementById('kind');
+    var wrap = document.getElementById('siteWrap');
+    if (!kind || !wrap) return;
+    // Поле громади показується ЛИШЕ для анкети: постійно видиме порожнє поле
+    // читається як «щось не заповнив», хоча воно тут ні до чого.
+    function synk() { wrap.hidden = kind.value !== 'anketa'; }
+    kind.addEventListener('change', synk);
+    synk();
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,334 @@
+/* ═══ KOMPONENTY-SHAR — усе, що зʼявляється НАД сторінкою ═══════════════════
+   Шість компонентів шару + три навігації + два відображення.
+
+   ЧОМУ ЦЕ ОДИН ФАЙЛ. Тост, діалог, шухляда, підказка й банер ділять одну
+   модель: вони переривають роботу, тож мають спільні правила — повернення
+   фокуса, порядок над сторінкою, поведінка при `prefers-reduced-motion`.
+   Розвести їх по файлах означало б розвести й ці правила.
+
+   ЩО ЦЕ ЗАМІНЮЄ. Вимір 08.08.2026 у робочому продукті: нуль тостів, нуль
+   діалогів підтвердження, нуль тултипів (усюди рідний `title=`), і `alert()`
+   як єдиний канал помилки інлайнового редагування. Тобто найпомітніший
+   розрив рівня в усьому коді — системне модальне вікно ОС посеред власної
+   дизайн-системи.
+
+   ЗМІСТ: §1 Тост · §2 Діалог · §3 Шухляда · §4 Підказка · §5 Банер ·
+          §6 Скелетон · §7 Вкладки · §8 Хлібні крихти · §9 Меню дій ·
+          §10 Чіп · §11 Аватар
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── §1 ТОСТ ───────────────────────────────────────────────────────────────
+   Черга не довша за три. Четвертий тост нікому не потрібен: людина читає
+   один, найсвіжіший, а стос із семи перетворюється на стіну, яку закривають
+   не читаючи. */
+.k-tosty {
+  position: fixed; inset-block-end: var(--sp4, 16px); inset-inline-end: var(--sp4, 16px);
+  display: grid; gap: var(--sp2, 8px); z-index: 60; max-inline-size: min(92vw, 26rem);
+}
+.k-tost {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: start;
+  gap: var(--sp2, 8px) var(--sp3, 12px);
+  padding: var(--sp3, 12px) var(--pad-x, 12px);
+  border: 1px solid var(--mezha-m, #e6e2da); border-inline-start-width: 3px;
+  border-radius: var(--r, 10px);
+  background: var(--poverhnya-2, #fff);
+  box-shadow: var(--tin-2, 0 2px 6px rgba(38,34,25,.08), 0 8px 24px -8px rgba(38,34,25,.14));
+  font-size: var(--kegl-bazovyi, 14px);
+  transition: translate var(--d, 180ms) var(--ease, ease),
+              opacity var(--d, 180ms) var(--ease, ease);
+}
+.k-tost:hover { border-color: var(--mezha, #d8d4cb) }
+.k-tost:focus-within { outline: var(--fokus-tovshchyna, 2px) solid var(--akcent, #0f7568);
+                       outline-offset: 2px }
+/* Тональність несе ліва грань, не заливка: тост і так поверх контенту,
+   суцільний колір робить його плакатом. */
+.k-tost.uspikh  { border-inline-start-color: var(--dobre, #2f7d32) }
+.k-tost.uvaha   { border-inline-start-color: var(--uvaha, #a8620a) }
+.k-tost.pomylka { border-inline-start-color: var(--krytych, #b3261e) }
+.k-tost > .znak { color: var(--prygl, #6f6759) }
+.k-tost.uspikh > .znak  { color: var(--dobre, #2f7d32) }
+.k-tost.pomylka > .znak { color: var(--krytych, #b3261e) }
+/* Смужка відліку. На наведенні й фокусі відлік СТОЇТЬ — інакше тост із
+   кнопкою «Скасувати» зникає рівно тоді, коли до неї тягнуться. */
+.k-tost > .vidlik {
+  grid-column: 1 / -1; block-size: 2px; border-radius: var(--r-full, 999px);
+  background: var(--mezha-m, #e6e2da); overflow: hidden;
+}
+.k-tost > .vidlik > i {
+  display: block; block-size: 100%; background: var(--prygl, #6f6759);
+  animation: k-vidlik calc(8s / max(var(--ruh, 1), .01)) linear forwards;
+}
+.k-tost:hover > .vidlik > i, .k-tost:focus-within > .vidlik > i { animation-play-state: paused }
+@keyframes k-vidlik { from { inline-size: 100% } to { inline-size: 0 } }
+
+/* ── §2 ДІАЛОГ ─────────────────────────────────────────────────────────────
+   Нативний `<dialog>`: фокус-пастка, Esc і повернення фокуса на тригер — усе
+   це вже робить браузер і `IX.dialogController`. Свій — означає відтворювати
+   те саме гірше. */
+.k-dialoh {
+  border: 1px solid var(--mezha-m, #e6e2da); border-radius: var(--r-lg, 14px);
+  background: var(--poverhnya-2, #fff); color: var(--tilo, #262219);
+  padding: var(--sp5, 20px); max-inline-size: min(92vw, 32rem);
+  box-shadow: var(--tin-3, 0 12px 40px -12px rgba(38,34,25,.3));
+}
+.k-dialoh::backdrop { background: rgba(0,0,0,.35) }
+.k-dialoh > .shapka { font-weight: 600; margin-block-end: var(--sp2, 8px) }
+.k-dialoh > .diyi {
+  display: flex; gap: var(--sp2, 8px); justify-content: flex-end;
+  margin-block-start: var(--sp4, 16px); flex-wrap: wrap;
+}
+/* Руйнівна дія: рамка ліворуч кричить формою, а не лише кольором. */
+.k-dialoh.ruynivna { border-inline-start: 3px solid var(--krytych, #b3261e) }
+.k-dialoh[data-stan="zaynyata"] { cursor: progress }
+.k-dialoh[data-stan="zaynyata"] > .diyi { opacity: .55; pointer-events: none }
+.k-dialoh[data-stan="pomylka"] { border-color: var(--krytych, #b3261e) }
+
+/* ── §3 ШУХЛЯДА ────────────────────────────────────────────────────────────
+   Панель деталей збоку (десктоп) або знизу (телефон). Використовується там,
+   де діалог завеликий, а окремий екран губить контекст списку. */
+.k-shuhlyada {
+  position: fixed; inset-block: 0; inset-inline-end: 0; inline-size: min(92vw, 30rem);
+  background: var(--poverhnya, #fff);
+  border-inline-start: 1px solid var(--mezha-m, #e6e2da);
+  box-shadow: var(--tin-3, 0 12px 40px -12px rgba(38,34,25,.3));
+  padding: var(--sp5, 20px); overflow: auto; z-index: 50;
+  transition: translate var(--d, 180ms) var(--ease, ease);
+}
+.k-shuhlyada[data-stan="zaynyata"] { cursor: progress }
+.k-shuhlyada[data-stan="porozhno"] {
+  display: grid; place-content: center; text-align: center;
+  color: var(--prygl, #6f6759); border-inline-start-style: dashed;
+}
+@media (max-width: 600px) {
+  .k-shuhlyada { inset: auto 0 0 0; inline-size: auto; block-size: min(80vh, 32rem);
+                 border-inline-start: 0; border-block-start: 1px solid var(--mezha-m, #e6e2da);
+                 border-start-start-radius: var(--r-lg, 14px);
+                 border-start-end-radius: var(--r-lg, 14px) }
+}
+
+/* ── §4 ПІДКАЗКА ───────────────────────────────────────────────────────────
+   Замінює рідний `title=`. Причина не в вигляді: `title` не показується з
+   клавіатури, не читається читачем екрана як підказка й зʼявляється через
+   секунду мовчання. А саме підказка робить виконуваною вимогу «недоступна
+   мусить пояснювати ЧОМУ». */
+.k-pidkazka { position: relative; display: inline-flex }
+.k-pidkazka > .telo {
+  position: absolute; inset-block-end: calc(100% + 6px); inset-inline-start: 50%;
+  translate: -50% 0;
+  padding: var(--sp1, 4px) var(--sp2, 8px);
+  border-radius: var(--r-sm, 7px);
+  background: var(--tilo, #262219); color: var(--tlo, #f6f4f0);
+  font-size: var(--kegl-dribnyi, 12.5px);
+  /* НЕ `white-space:nowrap`: підказка «Немає підписаного MOU громади (COM-06)»
+     виїжджала за край вікна — гейт `ui_audit` спіймав це 08.08.2026. Пояснення
+     «чому недоступно» буває довгим за визначенням, тому переносимо. */
+  inline-size: max-content; max-inline-size: min(18rem, calc(100vw - var(--sp8, 32px)));
+  text-align: center; text-wrap: balance;
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--d-fast, 90ms) var(--ease, ease);
+}
+.k-pidkazka:hover > .telo, .k-pidkazka:focus-within > .telo { opacity: 1 }
+
+/* ⚠ ТРИГЕР НЕДОСТУПНОЇ ДІЇ — `aria-disabled`, А НЕ `disabled`.
+   Знайдено гейтом-5 08.08.2026: `disabled` прибирає елемент із порядку обходу,
+   тож із клавіатури до нього не дійти — а отже, людина, яка не користується
+   мишею, ніколи не дізнається, ЧОМУ дія недоступна. Норма
+   (`stany-komponentiv.md`) вимагає пояснення, і `disabled` робить її
+   невиконуваною за визначенням. `aria-disabled` лишає елемент фокусованим:
+   читач екрана оголосить «недоступно», а підказка поруч скаже причину.
+   Натискання блокує обробник, не браузер. */
+.k-pidkazka > [aria-disabled="true"] { cursor: not-allowed }
+/* Поповер — те саме місце, але з вмістом, який можна виділити й натиснути. */
+.k-pidkazka.popover > .telo { inline-size: 16rem; text-align: start; pointer-events: auto }
+
+/* ── §5 БАНЕР ──────────────────────────────────────────────────────────────
+   Повідомлення рівня сторінки. На відміну від тоста — не зникає сам. */
+.k-banner {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: start;
+  gap: var(--sp2, 8px) var(--sp3, 12px);
+  padding: var(--sp3, 12px) var(--pad-x, 12px);
+  border: 1px solid var(--mezha-m, #e6e2da); border-inline-start-width: 3px;
+  border-radius: var(--r, 10px); background: var(--tlo-2, #f0ede7);
+  font-size: var(--kegl-bazovyi, 14px);
+}
+.k-banner:hover { border-color: var(--mezha, #d8d4cb) }
+.k-banner:focus-within { outline: var(--fokus-tovshchyna, 2px) solid var(--akcent, #0f7568);
+                         outline-offset: 2px }
+.k-banner.uspikh  { border-inline-start-color: var(--dobre, #2f7d32) }
+.k-banner.uvaha   { border-inline-start-color: var(--uvaha, #a8620a) }
+.k-banner.pomylka { border-inline-start-color: var(--krytych, #b3261e) }
+
+/* ── §6 СКЕЛЕТОН ───────────────────────────────────────────────────────────
+   ФОРМА МАЙБУТНЬОГО КОНТЕНТУ, не смуга й не крутилка. Крутилка посеред
+   екрана каже «чекай», скелет каже «ось що зараз буде» — і сторінка не
+   стрибає, коли дані приходять. */
+.k-skelet {
+  background: linear-gradient(90deg,
+      var(--mezha-m, #e6e2da) 0%, var(--tlo-2, #f0ede7) 50%, var(--mezha-m, #e6e2da) 100%);
+  background-size: 200% 100%;
+  border-radius: var(--r-xs, 4px);
+  animation: k-skelet calc(1400ms / max(var(--ruh, 1), .01)) linear infinite;
+}
+@keyframes k-skelet { to { background-position: -200% 0 } }
+.k-skelet.ryadok  { block-size: 1em; inline-size: 100% }
+.k-skelet.korotky { inline-size: 55% }
+.k-skelet.kruh    { border-radius: var(--r-full, 999px); inline-size: 28px; block-size: 28px }
+.k-skelet.kartka  { block-size: 5rem; inline-size: 100% }
+
+/* ── §7 ВКЛАДКИ ────────────────────────────────────────────────────────────
+   Шість станів, зокрема «з лічильником»: вкладка, що несе число, — окремий
+   стан, бо число мусить лишатись читабельним і на активній, і на вимкненій. */
+/* Смуга вкладок ПРОКРУЧУЄТЬСЯ, а не переноситься. Перенесення на другий рядок
+   ламає лінію підкреслення активної вкладки й зсуває вміст під нею; у вузькому
+   вікні це виглядає як дві різні панелі. Тому горизонтальний скрол —
+   і `scrollbar-width:none`, бо смуга прокрутки під вкладками читається як
+   зайва межа. Гейт `ui_audit` спіймав переповнення тут 08.08.2026. */
+.k-vkladky {
+  display: flex; gap: var(--sp1, 4px);
+  border-block-end: 1px solid var(--mezha-m, #e6e2da);
+  overflow-x: auto; scrollbar-width: none; max-inline-size: 100%;
+}
+.k-vkladky::-webkit-scrollbar { block-size: 0 }
+.k-vkladka { flex: none }
+.k-vkladka {
+  display: inline-flex; align-items: center; gap: var(--sp2, 8px);
+  min-block-size: var(--vysota-cili, 32px); padding: 0 var(--pad-x, 12px);
+  border: 0; background: none; cursor: pointer; color: var(--prygl, #6f6759);
+  font: inherit; font-size: var(--kegl-bazovyi, 14px);
+  border-block-end: 2px solid transparent; margin-block-end: -1px;
+  outline: var(--fokus-tovshchyna, 2px) solid transparent;
+  outline-offset: calc(-1 * var(--fokus-tovshchyna, 2px));
+  transition: color var(--d-fast, 90ms) var(--ease, ease),
+              border-color var(--d-fast, 90ms) var(--ease, ease);
+}
+.k-vkladka:hover { color: var(--tilo, #262219); border-block-end-color: var(--mezha, #d8d4cb) }
+.k-vkladka:focus-visible { outline-color: var(--akcent, #0f7568) }
+.k-vkladka[aria-selected="true"] {
+  color: var(--tilo, #262219); font-weight: 600;
+  border-block-end-color: var(--akcent, #0f7568);
+}
+.k-vkladka[disabled], .k-vkladka[aria-disabled="true"] {
+  cursor: not-allowed; opacity: .55; text-decoration: line-through;
+}
+.k-vkladka > .lich {
+  font-size: var(--kegl-dribnyi, 12.5px); font-variant-numeric: tabular-nums;
+  padding: 0 var(--sp2, 8px); border-radius: var(--r-full, 999px);
+  background: var(--mezha-m, #e6e2da); color: var(--tilo, #262219);
+}
+
+/* ── §8 ХЛІБНІ КРИХТИ ──────────────────────────────────────────────────────
+   Роздільник — псевдоелемент, а не символ у розмітці: інакше він потрапляє в
+   копіювання й у читача екрана як «більше». */
+.k-krykhty {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp1, 4px);
+  font-size: var(--kegl-dribnyi, 12.5px); color: var(--prygl, #6f6759);
+}
+.k-krykhty > a {
+  color: inherit; text-decoration: none; padding: 2px 4px; border-radius: var(--r-xs, 4px);
+  outline: var(--fokus-tovshchyna, 2px) solid transparent;
+  outline-offset: calc(-1 * var(--fokus-tovshchyna, 2px));
+  transition: color var(--d-fast, 90ms) var(--ease, ease),
+              text-decoration-color var(--d-fast, 90ms) var(--ease, ease);
+  text-decoration: underline; text-decoration-color: transparent;
+}
+.k-krykhty > a:hover { color: var(--tilo, #262219); text-decoration-color: currentColor }
+.k-krykhty > a:focus-visible { outline-color: var(--akcent, #0f7568) }
+.k-krykhty > a + a::before { content: "/"; margin-inline-end: var(--sp1, 4px); opacity: .5 }
+
+/* ── §9 МЕНЮ ДІЙ ───────────────────────────────────────────────────────────
+   Тригер «⋯» + список. Руйнівний пункт відділений рискою й несе колір —
+   але не є першим у списку: перший пункт натискають наосліп. */
+.k-menyu { position: relative; display: inline-flex }
+.k-menyu > .spysok {
+  position: absolute; inset-block-start: calc(100% + 4px); inset-inline-end: 0;
+  /* Ширина обмежена вікном: у вузькій колонці меню з `inset-inline-end:0`
+     виїжджало ліворуч за екран (гейт спіймав на 375 px 08.08.2026). */
+  min-inline-size: 12rem; max-inline-size: calc(100vw - var(--sp8, 32px));
+  padding: var(--sp1, 4px);
+  border: 1px solid var(--mezha-m, #e6e2da); border-radius: var(--r, 10px);
+  background: var(--poverhnya-2, #fff);
+  box-shadow: var(--tin-2, 0 2px 6px rgba(38,34,25,.08), 0 8px 24px -8px rgba(38,34,25,.14));
+  display: none; z-index: 40;
+}
+.k-menyu[data-stan="vidkrytyi"] > .spysok { display: grid }
+.k-menyu[data-stan="nedostupna"] { opacity: .55; cursor: not-allowed }
+.k-menyu .punkt {
+  display: flex; align-items: center; gap: var(--sp2, 8px);
+  min-block-size: var(--vysota-cili, 32px); padding: 0 var(--pad-x, 12px);
+  border: 0; background: none; cursor: pointer; text-align: start;
+  border-radius: var(--r-sm, 7px); font: inherit; color: inherit;
+}
+.k-menyu .punkt:hover { background: var(--tlo-2, #f0ede7) }
+.k-menyu .punkt.ruynivnyi { color: var(--krytych, #b3261e) }
+.k-menyu .rozdil { block-size: 1px; background: var(--mezha-m, #e6e2da); margin: var(--sp1, 4px) 0 }
+
+/* ── §10 ЧІП ───────────────────────────────────────────────────────────────
+   Чотири варіанти. У продукті це були шість кольорових капсул, які нічого не
+   вміли: не клікались, не знімались, не мали розмірів. Тобто підпис у рамці,
+   а не компонент фільтра. */
+.k-chip {
+  display: inline-flex; align-items: center; gap: var(--sp1, 4px);
+  min-block-size: 22px; padding: 0 var(--sp2, 8px);
+  border: 1px solid var(--mezha-m, #e6e2da); border-radius: var(--r-full, 999px);
+  background: var(--tlo-2, #f0ede7); color: var(--tilo, #262219);
+  font-size: var(--kegl-dribnyi, 12.5px); white-space: nowrap;
+}
+.k-chip.klikabelnyi {
+  cursor: pointer;
+  outline: var(--fokus-tovshchyna, 2px) solid transparent;
+  outline-offset: calc(-1 * var(--fokus-tovshchyna, 2px));
+  transition: border-color var(--d-fast, 90ms) var(--ease, ease),
+              background-color var(--d-fast, 90ms) var(--ease, ease);
+}
+.k-chip.klikabelnyi:hover { border-color: var(--mezha, #d8d4cb); background: var(--poverhnya, #fff) }
+.k-chip.klikabelnyi:focus-visible { outline-color: var(--akcent, #0f7568) }
+.k-chip[aria-pressed="true"], .k-chip[aria-selected="true"] {
+  border-color: var(--akcent, #0f7568); background: var(--akcent-tlo, #e0efec);
+  font-weight: 600;
+}
+.k-chip[aria-disabled="true"] {
+  opacity: .55; cursor: not-allowed; border-style: dashed; text-decoration: line-through;
+}
+.k-chip.velykyi { min-block-size: 28px; font-size: var(--kegl-bazovyi, 14px) }
+.k-chip > .znyaty {
+  border: 0; background: none; cursor: pointer; padding: 0 0 0 2px;
+  color: var(--prygl, #6f6759); font: inherit; line-height: 1;
+}
+.k-chip > .znyaty:hover { color: var(--krytych, #b3261e) }
+
+/* ── §11 АВАТАР ────────────────────────────────────────────────────────────
+   Варіант «битий файл» — не теорія: 07.08.2026 фото людини стало однотонним
+   квадратом (тест перезаписав файл), і фолбека не було — на екрані лишився
+   кольоровий прямокутник замість обличчя. Тепер монограма лежить ПІД
+   зображенням, тож будь-яка невдача картинки показує ініціали. */
+.k-avatar {
+  position: relative; display: inline-grid; place-items: center;
+  inline-size: 28px; block-size: 28px; flex: none;
+  border-radius: var(--r-full, 999px);
+  background: var(--mezha-m, #e6e2da); color: var(--tilo, #262219);
+  font-size: 11px; font-weight: 600; overflow: hidden;
+  transition: box-shadow var(--d-fast, 90ms) var(--ease, ease);
+}
+.k-avatar > img {
+  position: absolute; inset: 0; inline-size: 100%; block-size: 100%;
+  object-fit: cover; object-position: center 25%;
+}
+.k-avatar:hover { box-shadow: 0 0 0 2px var(--akcent, #0f7568) }
+.k-avatar:focus-visible { outline: var(--fokus-tovshchyna, 2px) solid var(--akcent, #0f7568);
+                          outline-offset: 1px }
+.k-avatar.velykyi { inline-size: 40px; block-size: 40px; font-size: 15px }
+/* Присутність — крапка на межі, з рамкою кольору тла: без рамки вона зливається
+   з темним фото. */
+.k-avatar > .prysutnist {
+  position: absolute; inset-block-end: 0; inset-inline-end: 0;
+  inline-size: 9px; block-size: 9px; border-radius: var(--r-full, 999px);
+  background: var(--dobre, #2f7d32); border: 2px solid var(--tlo, #f6f4f0);
+}
+.k-avatary { display: inline-flex }
+.k-avatary > .k-avatar + .k-avatar { margin-inline-start: -8px }
+.k-avatary > .k-avatar { box-shadow: 0 0 0 2px var(--tlo, #f6f4f0) }
+
+@media (max-width: 600px), (pointer: coarse) {
+  .k-vkladka, .k-menyu .punkt { min-block-size: 44px }
+  .k-chip { min-block-size: 32px }
+}

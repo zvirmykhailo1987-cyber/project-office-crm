@@ -1,0 +1,232 @@
+/* ═══ KOMPONENTY-DANI — реєстр і все навколо нього ══════════════════════════
+   Сім компонентів. Це 80 % часу роботи з CRM: 46 149 контрагентів у продукті,
+   заради якого шар і робиться.
+
+   ЧОМУ ТАБЛИЦЯ — НАЙВАЖЧИЙ КОМПОНЕНТ БІБЛІОТЕКИ. Вона єдина мусить існувати в
+   усіх ШЕСТИ станах даних (перше входження · порожньо · завантаження · готово ·
+   помилка · частково) І дати рядкові власні чотири (спокій · наведення ·
+   обраний · змінений). Виміряно 08.08.2026: у продукті `.grid` мав сортування,
+   ховер і липку шапку — і жодного чекбокса, жодної панелі масових дій. Тобто
+   з двадцятьма рядками одразу зробити не можна було нічого.
+
+   ЗМІСТ: §1 Таблиця · §2 Рядок · §3 Рядок карткою · §4 Сторінкування ·
+          §5 Фільтри · §6 Збережені подання · §7 Комірка з редагуванням
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── §1 ТАБЛИЦЯ ────────────────────────────────────────────────────────────
+   Обгортка + сітка + липка шапка. Обгортка потрібна ЗАВЖДИ: без неї широка
+   таблиця розсуває сторінку, і горизонтально їде вся верстка, а не таблиця. */
+.k-tab-obh {
+  overflow: auto; max-inline-size: 100%;
+  border: 1px solid var(--mezha-m, #e6e2da);
+  border-radius: var(--r, 10px);
+  background: var(--poverhnya, #fff);
+}
+.k-tab { inline-size: 100%; border-collapse: collapse; font-size: var(--kegl-bazovyi, 14px) }
+
+.k-tab th, .k-tab td {
+  padding: var(--pad-y, 8px) var(--pad-x, 12px);
+  text-align: start; vertical-align: baseline;
+  border-block-end: 1px solid var(--mezha-m, #e6e2da);
+}
+.k-tab tbody tr:last-child > td { border-block-end: 0 }
+
+/* Липка шапка працює лише в контейнері, що скролиться ВЕРТИКАЛЬНО. У продукті
+   вона сиділа в контейнері з горизонтальним скролом і не липла ніколи —
+   правило було, ефекту не було. Тому висота обгортки задається знадвору. */
+.k-tab thead th {
+  position: sticky; inset-block-start: 0; z-index: 1;
+  background: var(--tlo-2, #f0ede7);
+  font-size: var(--kegl-dribnyi, 12.5px); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--prygl, #6f6759);
+  white-space: nowrap;
+}
+/* Числові колонки — моноширинні цифри й праве вирівнювання: інакше розряди
+   не збігаються по вертикалі й порівняти суми оком неможливо. */
+.k-tab .chyslo { text-align: end; font-variant-numeric: tabular-nums }
+
+/* Сортування: знак ЗАВЖДИ на місці, лише міняє вигляд. Якщо знак зʼявляється
+   тільки в активної колонки, шапка стрибає в ширині при кожному сортуванні. */
+.k-tab th > .k-sort {
+  display: inline-flex; align-items: center; gap: var(--sp1, 4px);
+  color: inherit; text-decoration: none; cursor: pointer;
+  border: 0; background: none; padding: 0; font: inherit;
+  letter-spacing: inherit; text-transform: inherit;
+  outline: var(--fokus-tovshchyna, 2px) solid transparent;
+  outline-offset: calc(-1 * var(--fokus-tovshchyna, 2px));
+  transition: color var(--d-fast, 90ms) var(--ease, ease);
+}
+.k-tab th > .k-sort:hover { color: var(--tilo, #262219) }
+.k-tab th > .k-sort:focus-visible { outline-color: var(--akcent, #0f7568) }
+.k-tab th[aria-sort] > .k-sort { color: var(--tilo, #262219); font-weight: 700 }
+.k-tab th > .k-sort > .znak { opacity: .4; transition: opacity var(--d-fast, 90ms) var(--ease, ease) }
+.k-tab th[aria-sort] > .k-sort > .znak { opacity: 1 }
+
+/* Стани таблиці — на обгортці, щоб порожньо/помилка займали те саме місце,
+   що й дані, і сторінка не смикалась. */
+.k-tab-obh[data-stan="zavantazhennya"] { cursor: progress }
+.k-tab-obh[data-stan="pomylka"] { border-color: var(--krytych, #b3261e) }
+.k-tab-obh[data-stan="chastkovo"] { border-block-start: 3px solid var(--uvaha, #a8620a) }
+.k-tab-obh[data-stan="porozhno"], .k-tab-obh[data-stan="pershe"] {
+  border-style: dashed; background: var(--tlo-2, #f0ede7);
+}
+/* Чесність про неповноту — обовʼязкова частина стану «частково», не оздоба. */
+.k-tab-obh > .chesnist {
+  padding: var(--sp2, 8px) var(--pad-x, 12px);
+  font-size: var(--kegl-dribnyi, 12.5px);
+  color: var(--uvaha, #a8620a);
+  border-block-end: 1px solid var(--mezha-m, #e6e2da);
+}
+
+/* ── §2 РЯДОК ──────────────────────────────────────────────────────────────
+   Чотири стани. «Змінений» — той, без якого інлайнове редагування бреше:
+   людина правила комірку, пішла — і не знає, збереглось воно чи ні. */
+.k-ryad { transition: background-color var(--d-fast, 90ms) var(--ease, ease) }
+.k-ryad:hover { background: var(--tlo-2, #f0ede7) }
+.k-ryad:focus-within { background: var(--tlo-2, #f0ede7) }
+.k-ryad[aria-selected="true"] {
+  background: var(--akcent-tlo, #e0efec);
+  box-shadow: inset 3px 0 0 var(--akcent, #0f7568);   /* штрих — мотив КОД-І-ШТРИХ */
+}
+.k-ryad[data-stan="zmineno"] {
+  box-shadow: inset 3px 0 0 var(--uvaha, #a8620a);
+  font-style: italic;                                  /* форма, не лише колір */
+}
+.k-ryad[data-stan="zmineno"] > td:first-child::after {
+  content: " ·"; color: var(--uvaha, #a8620a); font-weight: 700;
+}
+
+/* ── §3 РЯДОК КАРТКОЮ ──────────────────────────────────────────────────────
+   Та сама таблиця на ≤600 px. Розмітка лишається таблицею — сортування,
+   семантика й читач екрана на місці; міняється лише малюнок.
+
+   Альтернатива — горизонтальний скрол — на 375 px лишає за кадром третину
+   рядка, і щоб прочитати запис, його возять пальцем туди-сюди. */
+@media (max-width: 600px) {
+  .k-tab.kartky, .k-tab.kartky tbody, .k-tab.kartky tr, .k-tab.kartky td { display: block }
+  .k-tab.kartky thead { position: absolute; inline-size: 1px; block-size: 1px;
+                        overflow: hidden; clip-path: inset(50%) }
+  .k-tab.kartky tr {
+    position: relative; margin-block-end: var(--sp2, 8px);
+    padding: var(--sp3, 12px) var(--sp3, 12px) var(--sp3, 12px) var(--sp4, 16px);
+    border: 1px solid var(--mezha-m, #e6e2da); border-radius: var(--r, 10px);
+  }
+  .k-tab.kartky tr::before {
+    content: ""; position: absolute; inset: 0 auto 0 0; inline-size: 3px;
+    border-start-start-radius: var(--r, 10px); border-end-start-radius: var(--r, 10px);
+    background: var(--akcent, #0f7568);
+  }
+  .k-tab.kartky td {
+    display: grid; grid-template-columns: minmax(5.5rem, auto) minmax(0, 1fr);
+    gap: var(--sp1, 4px) var(--sp3, 12px); padding: 2px 0; border: 0;
+    align-items: baseline;
+  }
+  .k-tab.kartky td::before {
+    content: attr(data-p); color: var(--prygl, #6f6759);
+    font-size: var(--kegl-dribnyi, 12.5px);
+  }
+  /* Головна комірка — на всю ширину й без підпису: назва себе називає.
+     Правило йде ПІСЛЯ загального, інакше сітка відсуває її в другу колонку. */
+  .k-tab.kartky td[data-holovne] {
+    display: block; padding-block-end: var(--sp2, 8px); font-size: 1.04rem;
+  }
+  .k-tab.kartky td[data-holovne]::before { content: none }
+  .k-tab.kartky td a { min-block-size: 44px; display: inline-flex; align-items: center }
+}
+
+/* ── §4 СТОРІНКУВАННЯ ──────────────────────────────────────────────────────
+   З ЧЕСНИМ ЧИСЛОМ. «← назад / далі →» без «показано 51–100 з 46 149» не дає
+   людині зрозуміти, де вона в масиві й скільки ще попереду. */
+.k-storinky {
+  display: flex; align-items: center; gap: var(--sp3, 12px);
+  padding: var(--sp2, 8px) var(--pad-x, 12px);
+  font-size: var(--kegl-dribnyi, 12.5px); color: var(--prygl, #6f6759);
+  flex-wrap: wrap;
+}
+.k-storinky > .skilky { font-variant-numeric: tabular-nums }
+.k-storinky[data-stan="zavantazhennya"] { cursor: progress; opacity: .7 }
+.k-storinky[data-stan="nedostupna"] { opacity: .55 }
+
+/* ── §5 ФІЛЬТРИ ────────────────────────────────────────────────────────────
+   Панель чіпів із лічильником активних і скиданням. Лічильник — щоб
+   «нічого не знайдено» не виглядало поломкою бази: майже завжди причина в
+   тому, що три фільтри лишились увімкненими з минулого разу. */
+.k-filtry {
+  display: flex; align-items: center; gap: var(--sp2, 8px); flex-wrap: wrap;
+  padding: var(--sp2, 8px) 0;
+}
+.k-filtry > .lichylnyk {
+  font-size: var(--kegl-dribnyi, 12.5px); color: var(--prygl, #6f6759);
+  font-variant-numeric: tabular-nums;
+}
+.k-filtry[data-stan="vybrano"] > .lichylnyk { color: var(--akcent, #0f7568); font-weight: 600 }
+.k-filtry[data-stan="porozhno"] > .lichylnyk { color: var(--uvaha, #a8620a); font-weight: 600 }
+.k-filtry:focus-within > .lichylnyk { text-decoration: underline }
+
+/* ── §6 ЗБЕРЕЖЕНІ ПОДАННЯ ─────────────────────────────────────────────────
+   Стан «змінено» — головний: подання відкрите й підправлене, але не збережене.
+   Без нього людина думає, що працює у своєму поданні, а працює в чернетці. */
+.k-podannya {
+  display: inline-flex; align-items: center; gap: var(--sp2, 8px);
+  min-block-size: var(--vysota-cili, 32px);
+  padding: 0 var(--pad-x, 12px);
+  border: 1px solid var(--mezha-m, #e6e2da); border-radius: var(--r-sm, 7px);
+  background: var(--poverhnya, #fff); cursor: pointer;
+  font-size: var(--kegl-bazovyi, 14px);
+  outline: var(--fokus-tovshchyna, 2px) solid transparent;
+  outline-offset: calc(-1 * var(--fokus-tovshchyna, 2px));
+  transition: border-color var(--d-fast, 90ms) var(--ease, ease),
+              background-color var(--d-fast, 90ms) var(--ease, ease);
+}
+.k-podannya:hover { border-color: var(--mezha, #d8d4cb); background: var(--tlo-2, #f0ede7) }
+.k-podannya:focus-visible { outline-color: var(--akcent, #0f7568) }
+.k-podannya[aria-selected="true"] {
+  border-color: var(--akcent, #0f7568); font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--akcent, #0f7568);
+}
+.k-podannya[data-stan="zmineno"] {
+  border-style: dashed; border-color: var(--uvaha, #a8620a);
+}
+.k-podannya[data-stan="zmineno"]::after {
+  content: "змінено"; font-size: var(--kegl-dribnyi, 12.5px);
+  color: var(--uvaha, #a8620a); font-weight: 600;
+}
+.k-podannya[data-stan="pershe"] { border-style: dotted; color: var(--prygl, #6f6759) }
+
+/* ── §7 КОМІРКА З РЕДАГУВАННЯМ ─────────────────────────────────────────────
+   Сім станів. Найважливіші два — «зберігається» й «помилка», бо саме їх у
+   продукті не було: `blur` → `fetch` → пауза невідомої довжини → або зелений
+   спалах, або системний `alert()`. Модальне вікно ОС посеред власної
+   дизайн-системи — найпомітніший розрив рівня, який знайшов аудит 08.08.2026.
+   Помилка мусить лишатись У КОМІРЦІ: там, де очі, і там, де правити. */
+.k-komirka {
+  display: block; inline-size: 100%;
+  padding: 2px var(--sp1, 4px); margin: -2px calc(-1 * var(--sp1, 4px));
+  border: 1px solid transparent; border-radius: var(--r-xs, 4px);
+  background: transparent; cursor: text; font: inherit; color: inherit;
+  outline: var(--fokus-tovshchyna, 2px) solid transparent;
+  outline-offset: calc(-1 * var(--fokus-tovshchyna, 2px));
+  transition: border-color var(--d-fast, 90ms) var(--ease, ease),
+              background-color var(--d-fast, 90ms) var(--ease, ease);
+}
+.k-komirka:hover { border-color: var(--mezha-m, #e6e2da); background: var(--poverhnya, #fff) }
+.k-komirka:focus-visible { outline-color: var(--akcent, #0f7568) }
+.k-komirka[data-stan="redahuvannya"] {
+  border-color: var(--akcent, #0f7568); background: var(--poverhnya, #fff);
+}
+.k-komirka[data-stan="zaynyata"] {
+  cursor: progress; border-style: dashed; border-color: var(--akcent, #0f7568);
+  color: color-mix(in oklab, currentColor 55%, transparent);
+}
+.k-komirka[data-stan="pomylka"] {
+  border-color: var(--krytych, #b3261e); border-width: 2px;
+  background: var(--poverhnya, #fff);
+}
+.k-komirka[data-stan="lyshe_chytannya"] { cursor: default }
+.k-komirka[data-stan="lyshe_chytannya"]:hover { border-color: transparent; background: transparent }
+
+@media (max-width: 600px), (pointer: coarse) {
+  .k-podannya { min-block-size: 44px }
+  .k-tab th, .k-tab td { padding-block: var(--sp3, 12px) }
+}

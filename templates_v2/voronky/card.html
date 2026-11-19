@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+{% block title %}{{ d.title }} {{ _("— Воронка") }}{% endblock %}
+{% block shapka %}{{ d.title|truncate(60) }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K2 «Сторінка сутності». Головне на цій картці — не реквізити, а
+   ГЕЙТ СТАДІЇ: що саме заважає рухатись далі. Тому він іде першим блоком, а
+   не підказкою під заголовком. #}
+
+<nav class="k-krykhty" aria-label="{{ _('Шлях') }}">
+  <a href="/voronky?program={{ prog.code }}">{{ _("Воронка «") }}{{ prog.title }}»</a>
+  <span aria-hidden="true">·</span>
+  <span aria-current="page">№{{ d.id }}</span>
+</nav>
+
+<div class="kk-sutnist">
+  <header class="shapka">
+    <h1 class="s-1169661">{{ d.title }}</h1>
+    <div class="k-krykhty s-4c77968">
+      {# Номер угоди — саме ним на неї посилаються в чаті, а більше ніде на
+         екрані його не видно. Код стадії латиницею поруч з українським чипом
+         тієї ж стадії був тим самим словом двічі. #}
+      <span class="k-chip">№{{ d.id }}</span>
+      <span class="k-chip" data-styl="--stan:{{ cur|ton }}">{{ cur.title }}</span>
+      <span class="k-chip">{{ d.probability }}%</span>
+      {% if d.is_stale %}
+      <span class="k-chip s-93827eb">{{ _("без активності") }} {{ d.days_on_stage }} {{ _("дн.") }}</span>
+      {% endif %}
+    </div>
+  </header>
+
+  <div class="telo">
+    <section>
+      {% if request.query_params.get('gate') %}
+      <div class="k-banner krytych s-c9996a7" role="alert">
+        <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-zamok"></use></svg>
+        <div><b>{{ _("Перехід заблоковано гейтом") }}</b>
+          <div class="dim">{{ _("Не вистачає підписаних документів — перелік у списку стадій нижче.") }}</div></div>
+      </div>
+      {% endif %}
+
+      <h2 class="metryka-h">{{ _("Стадія") }}</h2>
+      <div class="k-banner s-c9996a7" role="note">
+        <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-zamok"></use></svg>
+        <div>{{ _("Умова переходу з поточної стадії:") }} <b>{{ cur.gate_criteria or '—' }}</b></div>
+      </div>
+
+      <div class="kk-kroky">
+        {% for st in stages %}
+        {% set ch = checks[st.id] %}
+        {% if st.id == cur.id %}
+        {# «Ви тут» — НЕ вимкнена кнопка: приглушення читалось як «недоступно»
+           саме на найважливішому рядку картки. #}
+        <div class="krok" data-stan="potochnyi" aria-current="step">
+          <b>{{ st.title }}</b>
+          <span class="k-chip s-354c52c">{{ _("ви тут") }}</span>
+        </div>
+        {% else %}
+        <form class="krok" method="post" action="/voronky/{{ d.id }}/stage"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="stage_id" value="{{ st.id }}">
+          {# Недоступність — `aria-disabled`, а не `disabled`: до вимкненої
+             кнопки не дійти з клавіатури й не дізнатись, ЧОМУ вона вимкнена. #}
+          <button class="k-btn shchilna" type="submit"
+                  {% if not ch.allowed %}aria-disabled="true"{% endif %}
+                  aria-describedby="{{ 'chomu-' ~ st.id if not ch.allowed else '' }}">
+            {{ st.title }}
+            {% if not ch.allowed %}
+            <svg class="ik" width="13" height="13" aria-hidden="true"><use href="/static/bib/ikony.svg#i-zamok"></use></svg>
+            {% endif %}
+          </button>
+          {% if not ch.allowed %}
+          <div class="kk-chesnist" id="chomu-{{ st.id }}">
+            <span class="nepovno">{{ _("не вистачає:") }}</span> {{ ch.missing|join(', ') }}</div>
+          {% endif %}
+        </form>
+        {% endif %}
+        {% endfor %}
+      </div>
+
+      <h2 class="metryka-h s-a52c42b">{{ _("Наступна дія") }}</h2>
+      <form class="kk-forma" method="post" action="/voronky/{{ d.id }}/next-action"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="k-hrupa-polya">
+          <label for="na-date">{{ _("Коли") }}</label>
+          <input class="k-pole k-data" id="na-date" type="date" name="next_action_date"
+                 value="{{ d.next_action_date.isoformat() if d.next_action_date else '' }}">
+        </div>
+        <div class="k-hrupa-polya">
+          <label for="na-note">{{ _("Що саме зробити") }}</label>
+          <input class="k-pole" id="na-note" type="text" name="next_action_note"
+                 value="{{ d.next_action_note }}" placeholder="{{ _('Одним рядком, дієсловом') }}">
+        </div>
+        <button class="k-btn holovna" type="submit">{{ _("Зберегти") }}</button>
+      </form>
+      {% if d.action_overdue %}
+      <p class="kk-chesnist"><span class="nepovno">{{ _("Дата минула — дія прострочена.") }}</span></p>
+      {% endif %}
+
+      <h2 class="metryka-h s-a52c42b">{{ _("Нова активність") }}</h2>
+      <form class="kk-forma" method="post" action="/voronky/{{ d.id }}/activity"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="k-hrupa-polya">
+          <label for="v-type">{{ _("Тип активності") }}</label>
+          <select class="k-vybir" id="v-type" name="type">
+            {% for t in activity_types %}<option>{{ t }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="k-hrupa-polya">
+          <label for="v-outcome">{{ _("Результат") }}</label>
+          <input class="k-pole" id="v-outcome" type="text" name="outcome" required
+                 placeholder="{{ _('Коротко, по суті') }}">
+        </div>
+        <div class="k-hrupa-polya">
+          <label for="v-note">{{ _("Нотатка") }} <span class="dim">{{ _("— необовʼязково") }}</span></label>
+          <textarea class="k-pole" id="v-note" name="note" rows="2"></textarea>
+        </div>
+        <button class="k-btn holovna" type="submit">{{ _("Записати") }}</button>
+        <p class="kk-chesnist">{{ _("Дата, автор і привʼязка проставляться самі.") }}</p>
+      </form>
+
+      <h2 class="metryka-h s-a52c42b">
+        {{ _("Історія контактів") }} <span class="dim">({{ acts|length }})</span></h2>
+
+      <div class="surf-panel s-47ffdd9" data-stan="pershe" {% if acts %}hidden{% endif %}
+          >
+        <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+          <use href="/static/bib/porozhni.svg#p-aktyvnist"></use></svg>
+        <b>{{ _("Активностей ще немає") }}</b>
+        <div class="kk-chesnist s-0db9dc9">{{ _("Кожен дзвінок, зустріч чи лист лишає слід тут. Запишіть перший — дата й автор проставляться самі.") }}</div>
+        <button class="k-btn holovna" data-has-js data-fokus="[name=outcome]">{{ _("Записати активність") }}</button>
+      </div>
+
+      {% if acts %}
+      <ul class="kk-strichka">
+        {% for a in acts %}
+        <li>
+          <div class="s-509a426">
+            <span class="k-chip">{{ a.type }}</span>
+            <span class="dim s-9942017">{{ a.author }}</span>
+            <time class="chyslo dim s-8c5865f">{{ a.when|dt('%d.%m.%Y %H:%M') }}</time>
+          </div>
+          <div><b>{{ a.outcome }}</b></div>
+          {% if a.note %}<div class="dim">{{ a.note }}</div>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </section>
+
+    <aside class="sayidbar surf-panel">
+      <h2 class="metryka-h">{{ _("Контрагент") }}</h2>
+      <div class="s-05c4d07" data-stan="porozhno" {% if cp %}hidden{% endif %}
+          >
+        <b>{{ _("Контрагента не привʼязано") }}</b>
+        <div class="kk-chesnist">{{ _("Без нього угода не має ані телефону, ані історії.") }}</div>
+        <a class="k-btn shchilna" href="/dovidnyk">{{ _("Обрати в довіднику") }}</a>
+      </div>
+
+      {% if cp %}
+      <div class="kk-fakty">
+        <div><span>{{ _("Організація") }}</span><span><a href="/dovidnyk/{{ cp.id }}">{{ cp.name }}</a></span></div>
+        <div><span>{{ _("ЄДРПОУ") }}</span><span class="chyslo">{{ cp.edrpou or '—' }}</span></div>
+        <div><span>{{ _("Де") }}</span><span>{{ cp|misce }}</span></div>
+        <div><span>{{ _("Телефон") }}</span><span>
+          {%- if cp.phone %}<a href="tel:{{ cp.phone }}">{{ cp.phone }}</a>{% else %}—{% endif %}</span></div>
+        <div><span>Email</span><span>
+          {%- if cp.email %}<a href="mailto:{{ cp.email }}">{{ cp.email }}</a>{% else %}—{% endif %}</span></div>
+      </div>
+      {% if persons %}
+      <ul class="s-e101e45">
+        {% for p in persons[:5] %}
+        <li><b>{{ p.name }}</b>{% if p.role %}<span class="dim"> — {{ p.role }}</span>{% endif %}
+          {% if p.phone %}<div><a href="tel:{{ p.phone }}">{{ p.phone }}</a></div>{% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      {# 360° з боку угоди: інші угоди й обʼєкти цього контрагента — щоб з
+         картки було видно всю роботу з компанією, не вертаючись у довідник. #}
+      {% if inshi_ugody %}
+      <h3 class="s-7a98cae">{{ _("Інші угоди контрагента") }}
+        <span class="dim">({{ inshi_ugody|length }})</span></h3>
+      <ul class="s-e716b57">
+        {% for u in inshi_ugody[:8] %}
+        <li class="s-e150c64">
+          <a href="/voronky/{{ u.id }}">{{ u.title|truncate(34) }}</a>
+          {% set st = stadiyi.get(u.stage_id) %}
+          {% if st %}<span class="k-chip">{{ st.title }}</span>{% endif %}
+          {% if u.status != 'active' %}<span class="dim s-9942017">{{ u.status }}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if obyekty %}
+      <h3 class="s-7a98cae">{{ _("Обʼєкти контрагента") }}
+        <span class="dim">({{ obyekty|length }})</span></h3>
+      <ul class="s-e716b57">
+        {% for o in obyekty[:8] %}
+        <li class="s-e150c64">
+          <a href="/obyekty/{{ o.id }}">{{ (o.name or o.city or '—')|truncate(30) }}</a>
+          <span class="k-chip">{{ o.type_label }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% endif %}
+
+      <h2 class="metryka-h s-bdbc1ed">{{ _("Документи угоди") }}</h2>
+
+      <div class="s-05c4d07" data-stan="porozhno" {% if docs %}hidden{% endif %}
+          >
+        <svg class="ik s-7bdef09" width="24" height="24" aria-hidden="true">
+          <use href="/static/bib/porozhni.svg#p-dokument"></use></svg>
+        <b>{{ _("Документів ще немає") }}</b>
+        <div class="kk-chesnist">{{ _("Гейти воронки відкриває лише документ, позначений фінальним і з датою підписання.") }}</div>
+        <button class="k-btn shchilna" data-has-js data-vidkryty=".adddoc"
+                data-fokus="[name=kind]" data-fokus-v=".adddoc">{{ _("Зафіксувати документ") }}</button>
+      </div>
+
+      {% if docs %}
+      <div class="k-tab-obh" data-stan="spokiy">
+      <table class="k-tab kartky">
+        <thead><tr><th>{{ _("Вид") }}</th><th>{{ _("Версія") }}</th><th>{{ _("Статус") }}</th><th>{{ _("Підписано") }}</th></tr></thead>
+        <tbody>
+        {% for doc in docs %}
+          <tr class="k-ryad">
+            <td data-holovne data-p="{{ _('Вид') }}"><b>{{ doc.kind }}</b>
+              <div class="dim s-9942017">{{ doc.title }}</div></td>
+            <td data-p="{{ _('Версія') }}" class="chyslo">v{{ doc.version }}</td>
+            <td data-p="{{ _('Статус') }}">
+              {% if doc.is_final %}<span class="k-chip s-d066582">{{ _("фінальний") }}</span>
+              {% else %}<span class="k-chip">{{ _("чернетка") }}</span>{% endif %}</td>
+            <td data-p="{{ _('Підписано') }}" class="dim chyslo">{{ doc.signed_at|dt }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
+
+      <details class="adddoc s-35823d2">
+        <summary>{{ _("Зафіксувати документ") }}</summary>
+        <form class="kk-forma" method="post" action="/voronky/{{ d.id }}/document"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="k-hrupa-polya">
+            <label for="dk">{{ _("Вид документа") }}</label>
+            <input class="k-pole" id="dk" type="text" name="kind" required list="kinds"
+                   placeholder="{{ _('напр. COM-06, KP') }}">
+            <datalist id="kinds">
+              {% for k, v in doc_kinds.items() %}<option value="{{ k }}" label="{{ v }}">{% endfor %}
+              {% for k in cur.required_list %}<option value="{{ k }}">{% endfor %}
+              {% for k in cur.key_docs_list %}<option value="{{ k }}">{% endfor %}
+            </datalist>
+          </div>
+          <div class="k-hrupa-polya">
+            <label for="dt">{{ _("Назва") }}</label>
+            <input class="k-pole" id="dt" type="text" name="title">
+          </div>
+          <div class="k-hrupa-polya">
+            <label for="ds">{{ _("Дата підписання") }}</label>
+            <input class="k-pole k-data" id="ds" type="date" name="signed_at">
+          </div>
+          <label class="s-9f2e797">
+            <input class="k-praporets" type="checkbox" name="is_final">
+            <span>{{ _("фінальний") }} <span class="dim">{{ _("(незворотно)") }}</span></span>
+          </label>
+          <button class="k-btn holovna" type="submit">{{ _("Додати") }}</button>
+          <p class="kk-chesnist">{{ _("Гейт відкриває лише документ, позначений") }}
+            <b>{{ _("фінальним") }}</b> {{ _("і з датою підписання.") }}</p>
+        </form>
+      </details>
+
+      {% if cur.key_docs_list %}
+      <p class="kk-chesnist s-35823d2">
+        {{ _("Доречні на цій стадії:") }} {{ cur.key_docs_list|join(' · ') }}</p>
+      {% endif %}
+    </aside>
+  </div>
+</div>
+
+{% with entity='deal', entity_id=d.id %}{% include "_spivpratsya.html" %}{% endwith %}
+{% endblock %}

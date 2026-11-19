@@ -1,0 +1,61 @@
+{% extends "karta/_karkas.html" %}
+{% block title %}{{ _("Карта елеваторів — ОФІС") }}{% endblock %}
+{% block zagolovok %}{{ _("Карта елеваторів") }}{% endblock %}
+
+{% block filtry %}
+<div class="k-poshuk">
+  <input type="search" id="q" placeholder="{{ _('Громада або обʼєкт') }}" autocomplete="off"
+         aria-label="{{ _('Пошук за назвою') }}">
+</div>
+
+<div class="k-grupa">
+  <div class="k-lbl">{{ _("Що показувати") }} <b id="typN"></b></div>
+  <div id="typRyady"></div>
+</div>
+
+<div class="k-grupa">
+  <div class="k-lbl">{{ _("Область") }} <b id="oblN">{{ _("усі") }}</b></div>
+  <div id="oblRyady"></div>
+</div>
+
+<div class="k-grupa">
+  <div class="k-lbl">{{ _("Пороги") }}</div>
+  <div class="k-povzunok">
+    <label for="minZerno">{{ _("Мін. зернові землі") }} <b><span id="minZernoV">0</span> {{ _("га") }}</b></label>
+    <input type="range" id="minZerno" min="0" max="150000" step="5000" value="0">
+  </div>
+  <div class="k-povzunok">
+    <label for="minVid">{{ _("Мін. відстань до елеватора") }} <b><span id="minVidV">0</span> {{ _("км") }}</b></label>
+    <input type="range" id="minVid" min="0" max="60" step="5" value="0">
+  </div>
+  <label class="k-ryad"><input type="checkbox" id="showHrubi">
+    <span class="romb"></span><span class="nm">{{ _("Без точної локації") }}</span>
+    <span class="n" id="hrubiN"></span></label>
+</div>
+
+<div class="k-grupa">
+  <div class="k-lbl">{{ _("Дії") }}</div>
+  <button class="k-btn shchilna" id="expBtn" type="button" data-has-js>{{ _("Експорт CSV") }}</button>
+  <button class="k-btn shchilna" id="shareBtn" type="button" data-has-js>{{ _("Копіювати вид") }}</button>
+</div>
+
+<div class="k-grupa">
+  <div class="k-lbl">{{ _("Про дані") }}</div>
+  <p class="kk-chesnist s-1169661">{{ _("Місткість наявних елеваторів — з відкритих джерел; де її не вказано, поле лишається порожнім, а не оцінюється. Бали двох наборів громад") }} <b>{{ _("не порівнюються між собою") }}</b> {{ _("— методики різні.") }}</p>
+</div>
+{% endblock %}
+
+{% block sortuvannya %}
+<option value="bal">{{ _("за балом") }}</option>
+<option value="zerno">{{ _("за зерновими землями") }}</option>
+<option value="mistkist">{{ _("за місткістю") }}</option>
+<option value="nazva">{{ _("за назвою") }}</option>
+{% endblock %}
+
+{% block prymitka %}
+{{ _("Підложка — OpenStreetMap. Оцінки перед-ТЕО попередні — не використовувати як проєктне рішення чи оферту.") }}
+{% endblock %}
+
+{% block skrypt %}
+<script type="module" src="/static/karta/elevatory.js?v={{ statyka_v }}"></script>
+{% endblock %}

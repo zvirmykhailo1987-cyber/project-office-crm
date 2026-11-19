@@ -1,0 +1,108 @@
+{% from "_ava.html" import ava with context %}
+{# Пачка повідомлень. Той самий файл малює і початковий екран, і кожну порцію полінгу.
+   Механіка: в кінці стрічки завжди стоїть порожня мітка `#hvist`, яка раз на 5 с сама
+   себе замінює відповіддю сервера. Нові повідомлення приходять разом із НОВОЮ міткою,
+   тому вставляються рівно на місце старої — у кінець, без дублів і без прокрутки. #}
+{% for m in rows %}
+<article data-povidomlennya="{{ m.id }}" data-vid="{% if m.author == user.name %}ya{% else %}inshyi{% endif %}"{% if m.is_deleted %} data-stan="znyato"{% endif %}
+         id="m{{ m.id }}">
+  <header class="hto s-e150c64">
+    {{ ava(m.author, "sm") }}<b>{{ m.author }}</b>
+    <time class="koly chyslo s-8c5865f" datetime="{{ m.created_at.isoformat() }}">{{ m.created_at.strftime('%d.%m %H:%M') }}</time>
+    {% if m.is_edited %}<span class="dim s-9942017">{{ _("виправлено") }}</span>{% endif %}
+  </header>
+
+  {% if m.reply_to_id and batky.get(m.reply_to_id) %}
+    {% set b = batky[m.reply_to_id] %}
+    <a class="k-chip s-a61fb35" href="#m{{ b.id }}">
+      <b>{{ b.author }}</b>:
+      {% if b.is_deleted %}<i>{{ _("повідомлення знято") }}</i>{% else %}{{ (b.text or _('файл'))[:90] }}{% endif %}
+    </a>
+  {% endif %}
+
+  {% if m.is_deleted %}
+    <p class="dim"><i>{{ _("Повідомлення зняв") }} {{ m.deleted_by }}</i></p>
+  {% else %}
+    {% if m.text %}<p class="s-b84a663">{{ m.text }}</p>{% endif %}
+
+    {% if m.vidsutni_list or m.media_vtracheno %}
+      {# Експорт «без медіа» зберігає лише згадку про файл. Кажемо це прямо —
+         інакше виглядало б, ніби файлу не було, і його шукали б не там. #}
+      <p class="kk-chesnist">
+        {% if m.vidsutni_list %}{{ _("Файл згадано, але його немає в експорті:") }}
+          {{ m.vidsutni_list | join(', ') }}
+        {% else %}{{ _("Тут був файл — експорт зроблено без медіа") }}{% endif %}
+      </p>
+    {% endif %}
+
+    {% if files.get(m.id) %}
+    <div class="s-6ab7881">
+      {% for a in files[m.id] %}
+        {% if a.ext in ('png', 'jpg', 'jpeg', 'webp', 'gif') %}
+          <figure class="s-4d61802">
+            <a href="/chat/fayl/{{ a.id }}" target="_blank" rel="noopener">
+              <img src="/chat/fayl/{{ a.id }}" alt="{{ a.original_name }}" loading="lazy">
+            </a>
+            <figcaption class="dim s-9942017">{{ a.original_name }} · {{ a.size_label }}</figcaption>
+          </figure>
+        {% else %}
+          <a class="k-chip s-f0abc1d" href="/chat/fayl/{{ a.id }}" download>
+            <span class="chyslo">{{ a.ext }}</span>
+            <span class="imya">{{ a.original_name }}</span>
+            <span class="dim s-9942017">{{ a.size_label }}</span>
+          </a>
+        {% endif %}
+        {% if a.promoted_document_id %}
+          <a class="k-chip s-d066582" href="/dokumenty/{{ a.promoted_document_id }}">{{ _("у документах") }}</a>
+        {% elif user.can('crm') %}
+          <form method="post" action="/chat/fayl/{{ a.id }}/v-dokumenty"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="k-btn tykha shchilna" title="{{ _('Перенести файл у реєстр документів') }}">{{ _("→ у документи") }}</button>
+          </form>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <footer class="pid s-752fbdf">
+      {% set arhiv = room.archived | default(false) %}
+      {% if not arhiv %}
+        <button class="k-btn tykha shchilna" data-vidpovisty="{{ m.id }}" data-hto="{{ m.author }}">{{ _("відповісти") }}</button>
+      {% endif %}
+      {% if m.text %}
+        <details>
+          <summary>{{ _("у завдання") }}</summary>
+          <form class="s-6ab7881" method="post" action="/chat/{{ m.id }}/u-zavdannya"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <select class="k-vybir" name="assignee" aria-label="{{ _('Виконавець завдання') }}">
+              {% for u in users %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
+            </select>
+            <input class="k-pole k-data" type="date" name="due_date" aria-label="{{ _('Термін завдання') }}">
+            <button class="k-btn shchilna">{{ _("Створити") }}</button>
+          </form>
+        </details>
+      {% endif %}
+      {% if not arhiv and m.author == user.name %}
+        <details>
+          <summary>{{ _("правити") }}</summary>
+          <form class="s-6ab7881" method="post" action="/chat/{{ m.id }}/redahuvaty"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input class="k-pole" name="text" value="{{ m.text }}" aria-label="{{ _('Новий текст повідомлення') }}">
+            <button class="k-btn shchilna">{{ _("Зберегти") }}</button>
+          </form>
+        </details>
+      {% endif %}
+      {% if not arhiv and (m.author == user.name or user.can('delete')) %}
+        <form method="post" action="/chat/{{ m.id }}/vydalyty"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="k-btn tykha shchilna">{{ _("зняти") }}</button>
+        </form>
+      {% endif %}
+    </footer>
+  {% endif %}
+</article>
+{% endfor %}
+
+{# Мітка «докуди дочитано» — HTMX замінює саме її, тому вона завжди в кінці стрічки.
+   У режимі пошуку полінг вимкнено: інакше в підбірку за запитом сипались би нові
+   повідомлення, які цьому запиту не відповідають. #}
+{% if polling | default(true) %}
+<span id="hvist" hx-get="/chat/novi?after={{ ostannii }}" hx-trigger="every 5s"
+      hx-swap="outerHTML" hx-target="this"></span>
+{% endif %}

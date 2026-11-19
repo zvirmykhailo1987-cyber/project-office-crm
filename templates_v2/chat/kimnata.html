@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Чат — ОФІС") }}{% endblock %}
+{% block shapka %}{{ room.title }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K8 «Потік» (`dyzayn-ux/biblioteka/kompozytsiyi/potik.html`) —
+   збудоване 08.08.2026 саме під цей екран. Потік — НЕ список: він росте знизу,
+   має композитор, який не перекриває останнє повідомлення, стани доставки й
+   ознаку «хтось пише». `grid-template-rows: 1fr auto` прокручує лише стрічку. #}
+
+<div class="kk-tulbar">
+  {% if kimnaty | default([]) | length > 1 %}
+  <div class="k-vkladky" role="tablist" aria-label="{{ _('Кімнати') }}">
+    {% for k in kimnaty %}
+    <a class="k-vkladka" role="tab" href="/chat?kimnata={{ k.code }}"
+       aria-selected="{{ 'true' if k.code == room.code else 'false' }}">{{ k.title }}
+      {%- if k.archived %} <span class="lich">{{ _("архів") }}</span>{% endif %}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <span class="roztyah"></span>
+  <form class="k-poshuk s-7aa5b31" method="get" action="/chat" role="search"
+        data-stan="{{ 'vybrano' if q else 'spokiy' }}">
+    <span class="znak" aria-hidden="true">
+      <svg class="ik" width="15" height="15"><use href="/static/bib/ikony.svg#i-poshuk"></use></svg></span>
+    <input type="hidden" name="kimnata" value="{{ room.code }}">
+    <label class="visually-hidden" for="chat-q">{{ _("Пошук у чаті") }}</label>
+    <input class="k-pole" id="chat-q" type="search" name="q" value="{{ q }}"
+           placeholder="{{ _('пошук по тексту й файлах') }}">
+  <button type="submit" class="visually-hidden">{{ _("Шукати") }}</button>
+  </form>
+  {% if q %}<a class="k-btn shchilna" href="/chat?kimnata={{ room.code }}">{{ _("Скинути") }}</a>{% endif %}
+  {% if room.archived %}<span class="k-chip">{{ _("архів") }}</span>{% endif %}
+</div>
+
+{% if request.query_params.get('err') %}
+<div class="k-banner krytych s-7251ed7" role="alert">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-uvaha"></use></svg>
+  <div>{{ request.query_params.get('err') }}</div>
+</div>
+{% endif %}
+{% if request.query_params.get('zvit') %}
+<div class="k-banner s-7251ed7" role="status">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-hotovo"></use></svg>
+  <div>{{ _("Перенесено:") }} {{ request.query_params.get('zvit') }}</div>
+</div>
+{% endif %}
+
+{% if q %}
+{# Полінг у режимі пошуку вимкнений — і це сказано. Мовчазне «нові не
+   приходять» читалося б як зависання. #}
+<p class="kk-chesnist">{{ _("Знайдено") }} <b class="chyslo">{{ rows | length }}</b>{{ _(". Оновлення нових повідомлень у режимі пошуку вимкнене —") }}
+  <a href="/chat">{{ _("поверніться до розмови") }}</a>.</p>
+{% endif %}
+
+<section class="surf-panel s-a6770a8">
+  <div class="kk-potik s-d9a69d5">
+    <div class="strichka" id="potik" role="log" aria-live="polite" aria-label="{{ _('Повідомлення') }}">
+      {% if ranishi | default(0) %}
+      <a class="k-btn shchilna s-9162a24"
+         href="/chat?kimnata={{ room.code }}&do={{ do }}{% if q %}&q={{ q }}{% endif %}">
+        <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-zgornuty"></use></svg>
+        {{ _("Показати раніші — ще") }} {{ ranishi }}</a>
+      {% elif rows and q %}
+      <p class="den">{{ _("це всі збіги за запитом") }}</p>
+      {% elif rows %}
+      <p class="den">{{ _("початок переписки") }}{% if vsoho %} {{ _("· усього") }} {{ vsoho }}{% endif %}</p>
+      {% endif %}
+
+      {# Порожній стан присутній ЗАВЖДИ: «нічого не знайдено» і «ще не писали» —
+         різні стани з різним текстом і різною дією. #}
+      <div class="s-9ca9c16" data-stan="{{ 'porozhno' if q else 'pershe' }}" {% if rows %}hidden{% endif %}
+          >
+        <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+          <use href="/static/bib/porozhni.svg#p-chat"></use></svg>
+        {% if q %}
+        <b>{{ _("За запитом «") }}{{ q }}{{ _("» нічого немає") }}</b>
+        <div class="kk-chesnist">{{ _("Спробуйте частину слова або імʼя файлу.") }}</div>
+        <a class="k-btn holovna" href="/chat">{{ _("Скинути пошук") }}</a>
+        {% else %}
+        <b>{{ _("Розмова ще не почалась") }}</b>
+        <div class="kk-chesnist s-742b679">{{ _("Це кімната всієї команди. Пишіть, прикріпляйте файли — документи, таблиці, архіви до 100 МБ. Будь-яке повідомлення можна перетворити на завдання з виконавцем і терміном.") }}</div>
+        <button class="k-btn holovna" data-has-js data-fokus="#pole">{{ _("Написати перше") }}</button>
+        {% endif %}
+      </div>
+
+      {# Полінг лише в ЖИВІЙ кімнаті: архів не поповнюється сам, а в режимі
+         пошуку нові повідомлення сипались би в підбірку, якій не відповідають. #}
+      {% set polling = not q and not room.archived %}
+      {% include "chat/_potik.html" %}
+    </div>
+
+    {% if room.archived %}
+    <div class="kompozytor s-2a1b75c">
+      <p class="kk-chesnist s-1169661">{{ _("Це перенесена переписка") }}{% if room.dzherelo %}
+        {{ _("з") }} {{ room.dzherelo }}{% endif %} — <b>{{ _("лише для читання") }}</b>{{ _(". Писати сюди не можна, але шукати, качати файли й перетворювати репліки на завдання — так.") }}
+        {% if room.uchasnyky_list %}<b>{{ _("Видима лише вам") }}</b>
+        ({{ room.uchasnyky_list | join(', ') }}).{% endif %}</p>
+    </div>
+    {% else %}
+    <form class="kompozytor s-bfcf5b6" method="post" action="/chat" enctype="multipart/form-data"
+         ><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="kk-chesnist" id="vidpovid" hidden>
+        <span id="vidpovid-tekst"></span>
+        <button type="button" class="k-btn tykha shchilna" id="vidpovid-skynuty"
+                data-has-js aria-label="{{ _('Скасувати відповідь') }}">
+          <svg class="ik" width="12" height="12" aria-hidden="true"><use href="/static/bib/ikony.svg#i-zakryty"></use></svg>
+        </button>
+      </div>
+      <input type="hidden" name="reply_to" id="reply_to" value="">
+      <div class="s-4dc5699">
+        <label class="visually-hidden" for="pole">{{ _("Текст повідомлення") }}</label>
+        <textarea class="k-pole s-e2ae55b" name="text" id="pole" rows="2"
+                 
+                  placeholder="{{ _('Повідомлення… Enter — надіслати, Shift+Enter — новий рядок') }}"></textarea>
+        <label class="k-btn tykha lyshe-ikona" title="{{ _('Прикріпити файли') }}">
+          <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-fayl"></use></svg>
+          <input type="file" name="fayly" multiple id="fayly" class="visually-hidden"
+                 aria-label="{{ _('Прикріпити файли') }}">
+        </label>
+        <button class="k-btn holovna" type="submit">{{ _("Надіслати") }}</button>
+      </div>
+      <span class="kk-chesnist" id="obrani"></span>
+      <p class="kk-chesnist s-1169661">{{ _("Згадка:") }} {{ mention_hint }} {{ _("— людині прийде сповіщення. Виконувані файли (.exe, .bat, .ps1, .js…) не приймаються. Максимум 100 МБ на файл.") }}</p>
+    </form>
+    {% endif %}
+  </div>
+</section>
+
+{% if user.can('data') %}
+<details class="s-497f315">
+  <summary>{{ _("Перенести переписку з WhatsApp") }}</summary>
+  <form class="kk-forma s-ee686a5" method="post" action="/chat/perenesty"
+        enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <p class="kk-chesnist">{{ _("У WhatsApp: чат → меню →") }} <b>{{ _("Експорт чату") }}</b>{{ _(". «Без медіа» дасть") }} <code>.txt</code>{{ _(", «з медіа» —") }} <code>.zip</code> {{ _("із файлами. Обидва підходять. Історія лягає окремою архівною кімнатою, лише для читання; повторне перенесення того самого експорту нічого не подвоїть.") }}</p>
+    <div class="k-hrupa-polya">
+      <label for="w-nazva">{{ _("Назва кімнати") }}</label>
+      <input class="k-pole" id="w-nazva" name="nazva" required placeholder="{{ _('напр. ПРОЄКТНИЙ ОФІС') }}">
+    </div>
+    <label class="s-9f2e797">
+      <input class="k-praporets" type="checkbox" name="osobystyi" value="1">
+      <span>{{ _("Особиста переписка — показувати лише мені") }}</span>
+    </label>
+    <div class="k-hrupa-polya">
+      <label for="w-fayl">{{ _("Файл експорту") }}</label>
+      <input class="k-pole" id="w-fayl" type="file" name="fayl" accept=".txt,.zip,.json" required>
+    </div>
+    <button class="k-btn holovna" type="submit">{{ _("Перенести") }}</button>
+  </form>
+</details>
+{% endif %}
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function () {
+  // Прокрутка донизу при відкритті й після приходу нових: інакше свіже
+  // повідомлення зʼявляється за краєм екрана, і людина його просто не бачить.
+  var potik = document.getElementById('potik');
+  function vnyz() { if (potik) potik.scrollTop = potik.scrollHeight; }
+  vnyz();
+  document.body.addEventListener('htmx:afterSwap', vnyz);
+
+  var pole = document.getElementById('pole');
+  var box = document.getElementById('vidpovid');
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-vidpovisty]');
+    if (b) {
+      document.getElementById('reply_to').value = b.dataset.vidpovisty;
+      document.getElementById('vidpovid-tekst').textContent = T('у відповідь ') + b.dataset.hto;
+      box.hidden = false;
+      if (pole) pole.focus();
+      return;
+    }
+    if (e.target.closest && e.target.closest('#vidpovid-skynuty')) {
+      document.getElementById('reply_to').value = '';
+      box.hidden = true;
+    }
+  });
+
+  // Скільки файлів обрано — без цього не видно, що вибір узагалі спрацював.
+  var fayly = document.getElementById('fayly');
+  var obrani = document.getElementById('obrani');
+  if (fayly) fayly.addEventListener('change', function () {
+    var n = fayly.files.length;
+    obrani.textContent = n ? (n === 1 ? fayly.files[0].name : T('файлів: ') + n) : '';
+  });
+
+  // Enter надсилає, Shift+Enter — новий рядок: звичка з усіх месенджерів,
+  // і обидва варіанти названі в плейсхолдері.
+  if (pole) pole.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); pole.form.requestSubmit(); }
+  });
+  if (pole) pole.addEventListener('input', function () {
+    this.style.blockSize = 'auto';
+    this.style.blockSize = Math.min(this.scrollHeight, 240) + 'px';
+  });
+});
+</script>
+{% endblock %}

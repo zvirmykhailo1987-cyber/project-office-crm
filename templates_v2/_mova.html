@@ -1,0 +1,6 @@
+<nav class="mova-perem" aria-label="{{ _('Мова інтерфейсу') }}">
+  {% for code, nazva in LANGS.items() %}
+  {% if code == lang %}<b aria-current="true">{{ nazva }}</b>
+  {% else %}<a href="/lang/{{ code }}?next={{ request.url.path|urlencode }}" hreflang="{{ code }}" lang="{{ code }}">{{ nazva }}</a>{% endif %}
+  {% endfor %}
+</nav>

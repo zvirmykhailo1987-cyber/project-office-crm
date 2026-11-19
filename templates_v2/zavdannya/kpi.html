@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}{{ _("KPI — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("KPI офісу") }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K5 «Дашборд». Обовʼязковий елемент лекала — РЯДОК ЧЕСНОСТІ: звідки
+   числа й чого в них немає. Без нього набір плиток читається як звіт, який
+   хтось зводив руками. #}
+<p class="kk-chesnist s-c9996a7">
+  <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-kpi"></use></svg>
+  {{ _("Усе обчислюється з даних системи — жодного ручного зведення.") }}
+</p>
+
+<h2 class="metryka-h s-bdbc1ed">{{ _("Воронки") }}</h2>
+<section class="kk-plytky scena">
+  <div class="kk-plytka surf-panel nahyl vhid pidiym s-e6ca168" data-nahyl>
+    <div class="zahol shar-1">{{ _("У роботі") }}</div>
+    <div class="chyslo shar-2">{{ k.deals_active|num }}</div>
+    <div class="kk-chesnist">{{ k.deals_active|plural(_('угода'),_('угоди'),_('угод')) }}</div>
+  </div>
+  <div class="kk-plytka surf-panel nahyl vhid pidiym s-a0e00e9" data-nahyl>
+    <div class="zahol shar-1">{{ _("Виграно") }}</div>
+    <div class="chyslo shar-2">{{ k.deals_won|num }}</div>
+    <div class="kk-chesnist">{{ _("угод") }}</div>
+  </div>
+  <div class="kk-plytka surf-panel nahyl vhid pidiym s-d1ebece" data-nahyl>
+    <div class="zahol shar-1">{{ _("Втрачено") }}</div>
+    <div class="chyslo shar-2">{{ k.deals_lost|num }}</div>
+    <div class="kk-chesnist">{{ _("угод") }}</div>
+  </div>
+  <div class="kk-plytka surf-panel nahyl vhid pidiym shyr-2 s-c01e5d5" data-nahyl>
+    <div class="zahol shar-1">{{ _("Зважений пайплайн") }}</div>
+    <div class="chyslo shar-2">{{ k.pipeline_value|num }}</div>
+    {# «Зважений» — це не те саме, що «сума угод», і різницю треба назвати:
+       інакше число цитують у розмові як гроші, яких ще немає. #}
+    <div class="kk-chesnist">{{ _("сума×ймовірність стадії, не сума угод") }}</div>
+  </div>
+</section>
+
+{% if k.by_stage %}
+<h2 class="metryka-h s-a52c42b">{{ _("По стадіях") }}</h2>
+<section class="surf-panel s-0519a0a">
+  <div id="chart-stadii"></div>
+  <script type="application/json" id="dani-stadii">
+    [{% for title, n in k.by_stage.items() %}
+      {"label": {{ title|tojson }}, "value": {{ n }}}{{ "," if not loop.last }}
+    {% endfor %}]
+  </script>
+</section>
+<script nonce="{{ csp_nonce }}">
+  // DOMContentLoaded обовʼязково: `charts.js` іде з `defer`, і інлайн-скрипт,
+  // запущений під час парсингу, не побачив би `CH` — чарта не було б, помилки
+  // теж, причини не видно.
+  document.addEventListener('DOMContentLoaded', function () {
+    var v = document.getElementById('chart-stadii');
+    var s = document.getElementById('dani-stadii');
+    if (!v || !s) return;
+    if (typeof CH === 'undefined') {
+      v.innerHTML = '<div class="kk-chesnist"><span class="nepovno">'
+                  + T('чарт не побудовано: charts.js не завантажився</span></div>');
+      return;
+    }
+    var dani = [];
+    try { dani = JSON.parse(s.textContent); } catch (e) {}
+    if (!dani.length) { v.innerHTML = T('<div class="kk-chesnist">Стадій немає.</div>'); return; }
+    var mx = Math.max.apply(null, dani.map(function (d) { return d.value; })) || 1;
+    // Стеля осі — рівна, а не «максимум даних»: вісь, підігнана під найбільший
+    // стовпчик, робить будь-який набір однаково «повним» і приховує масштаб.
+    var stelya = Math.max(5, Math.ceil(mx / 5) * 5);
+    try {
+      v.innerHTML = CH.bar({
+        dani: dani, w: 900,
+        vis: { domain: [0, stelya], unit: T('угод'),
+               ticks: [0, stelya / 4, stelya / 2, stelya * 3 / 4, stelya] }
+      });
+    } catch (e) {
+      v.innerHTML = T('<div class="kk-chesnist"><span class="nepovno">чарт не побудовано: ')
+                  + String(e.message || e) + '</span></div>';
+    }
+  });
+</script>
+{% endif %}
+
+<h2 class="metryka-h s-a52c42b">{{ _("Гігієна воронки") }}</h2>
+<section class="kk-plytky scena">
+  <div class="kk-plytka surf-panel nahyl vhid pidiym s-41aea5f" data-nahyl>
+    <div class="zahol shar-1">{{ _("Прострочені дії") }}</div>
+    <div class="chyslo shar-2">{{ k.overdue_actions|num }}</div>
+    <div class="kk-chesnist">
+      {%- if k.overdue_actions %}<span class="nepovno">{{ _("потребують дії сьогодні") }}</span>
+      {%- else %}{{ _("немає") }}{% endif %}</div>
+  </div>
+  <div class="kk-plytka surf-panel nahyl vhid pidiym s-d83e897" data-nahyl>
+    <div class="zahol shar-1">{{ _("Без наступної дії") }}</div>
+    <div class="chyslo shar-2">{{ k.no_next_action|num }}</div>
+    <div class="kk-chesnist">
+      {%- if k.no_next_action %}<span class="nepovno">{{ _("угода без дії зупиняється мовчки") }}</span>
+      {%- else %}{{ _("у кожної угоди є дія") }}{% endif %}</div>
+  </div>
+  <div class="kk-plytka surf-panel nahyl vhid pidiym s-537524b" data-nahyl>
+    <div class="zahol shar-1">{{ _("Завмерлі") }}</div>
+    <div class="chyslo shar-2">{{ k.stale|num }}</div>
+    <div class="kk-chesnist">{{ _("без активності понад 21 день") }}</div>
+  </div>
+</section>
+
+<h2 class="metryka-h s-a52c42b">{{ _("Запити й листи") }}</h2>
+<section class="kk-plytky scena">
+  <div class="kk-plytka surf-panel nahyl vhid pidiym s-5adbddf" data-nahyl>
+    <div class="zahol shar-1">{{ _("Надіслано") }}</div>
+    <div class="chyslo shar-2">{{ k.outreach_sent|num }}</div>
+    <div class="kk-chesnist">{{ k.outreach_sent|plural(_('лист'),_('листи'),_('листів')) }}</div>
+  </div>
+  <div class="kk-plytka surf-panel nahyl vhid pidiym s-cff378c" data-nahyl>
+    <div class="zahol shar-1">{{ _("Відповіли") }}</div>
+    <div class="chyslo shar-2">{{ k.outreach_replied|num }}</div>
+    <div class="kk-chesnist">{{ _("адресатів") }}</div>
+  </div>
+  <div class="kk-plytka surf-panel nahyl vhid pidiym s-ba2ce12" data-nahyl>
+    <div class="zahol shar-1">{{ _("Без відповіді в строк") }}</div>
+    <div class="chyslo shar-2">{{ k.outreach_overdue|num }}</div>
+    <div class="kk-chesnist">
+      {%- if k.outreach_overdue %}<span class="nepovno">{{ _("час нагадати") }}</span>
+      {%- else %}{{ _("немає") }}{% endif %}</div>
+  </div>
+  <div class="kk-plytka surf-panel nahyl vhid pidiym s-65d0843" data-nahyl>
+    <div class="zahol shar-1">{{ _("Частка відповідей") }}</div>
+    {# Частка від НУЛЯ надісланих не дорівнює нулю — вона НЕ ВИЗНАЧЕНА.
+       Показати тут «0 %» означало б сказати «нам не відповідають», хоча
+       ми ще нічого не питали (Г15: «невідомо» ≠ «нуль»). #}
+    <div class="chyslo shar-2">{% if k.reply_rate is not none %}{{ k.reply_rate }}<span class="od">%</span>
+      {%- else %}—{% endif %}</div>
+    {% if k.reply_rate is not none %}
+    {% set part = ((k.reply_rate / 20) | round | int) %}
+    <span class="shkala" role="img" aria-label="{{ k.reply_rate }} {{ _('відсотків зі 100') }}">
+      {% for n in range(5) %}<i class="{{ 'on' if n < part else '' }}"></i>{% endfor %}
+    </span>
+    {% endif %}
+    <div class="kk-chesnist">
+      {%- if k.reply_rate is none %}{{ _("не визначена: листів ще не надсилали") }}
+      {%- else %}{{ _("від надісланих") }}{% endif %}</div>
+  </div>
+</section>
+
+<h2 class="metryka-h s-a52c42b">{{ _("Завдання й документи") }}</h2>
+<section class="kk-plytky scena">
+  <div class="kk-plytka surf-panel nahyl vhid pidiym s-257d35d" data-nahyl>
+    <div class="zahol shar-1">{{ _("Відкриті завдання") }}</div>
+    <div class="chyslo shar-2">{{ k.tasks_open|num }}</div>
+    <div class="kk-chesnist">{{ k.tasks_open|plural(_('завдання'),_('завдання'),_('завдань')) }}</div>
+  </div>
+  <div class="kk-plytka surf-panel nahyl vhid pidiym s-9498d66" data-nahyl>
+    <div class="zahol shar-1">{{ _("Прострочені завдання") }}</div>
+    <div class="chyslo shar-2">{{ k.tasks_overdue|num }}</div>
+    <div class="kk-chesnist">
+      {%- if k.tasks_overdue %}<span class="nepovno">{{ _("потребують дії") }}</span>
+      {%- else %}{{ _("немає") }}{% endif %}</div>
+  </div>
+  <div class="kk-plytka surf-panel nahyl vhid pidiym s-7af77a7" data-nahyl>
+    <div class="zahol shar-1">{{ _("Документів") }}</div>
+    <div class="chyslo shar-2">{{ k.docs_total|num }}</div>
+    <div class="kk-chesnist">{{ _("усього в системі") }}</div>
+  </div>
+  <div class="kk-plytka surf-panel nahyl vhid pidiym s-b77ccce" data-nahyl>
+    <div class="zahol shar-1">{{ _("Фінальних") }}</div>
+    <div class="chyslo shar-2">{{ k.docs_final|num }}</div>
+    <div class="kk-chesnist">{{ _("лише вони відкривають гейти") }}</div>
+  </div>
+</section>
+
+{# Стан «даних ще немає» присутній у розмітці завжди. #}
+<div class="k-banner s-497f315" data-stan="pershe" {% if k.deals_total %}hidden{% endif %}
+     role="note">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-parostok"></use></svg>
+  <div><b>{{ _("Угод ще немає") }}</b>
+    <div class="dim">{{ _("Показники заповняться, щойно почнете вести воронку.") }}</div></div>
+  <a class="k-btn shchilna s-8c5865f" href="/voronky">{{ _("До воронок") }}</a>
+</div>
+{% endblock %}

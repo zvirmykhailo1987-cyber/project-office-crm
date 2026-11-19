@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Обʼєкти — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Обʼєкти") }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K1 «Реєстр» (`dyzayn-ux/biblioteka/kompozytsiyi/reestr.html`).
+   Не переказ лекала, а його застосування: тулбар → фільтри → таблиця →
+   сторінкування, з тими самими класами `k-*`/`kk-*`. Усе, що тут дописано
+   поверх, — це доменні колонки, а не власні компоненти. #}
+
+<div class="kk-tulbar">
+  <form class="k-poshuk s-58dd065" method="get" action="/obyekty"
+        data-stan="spokiy" id="f-poshuk">
+    <span class="znak" aria-hidden="true">
+      <svg class="ik" width="15" height="15"><use href="/static/bib/ikony.svg#i-poshuk"></use></svg></span>
+    <label class="visually-hidden" for="q">{{ _("Пошук обʼєкта") }}</label>
+    <input class="k-pole" id="q" type="search" name="q" value="{{ q }}"
+           placeholder="{{ _('Назва обʼєкта або громада') }}">
+    {# Приховані поля тримають чинні фільтри при пошуку: без них пошук мовчки
+       скидав би область і тип, і людина бачила б «інші» результати. #}
+    {% if site_type %}<input type="hidden" name="site_type" value="{{ site_type }}">{% endif %}
+    {% if oblast %}<input type="hidden" name="oblast" value="{{ oblast }}">{% endif %}
+    {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+  <button type="submit" class="visually-hidden">{{ _("Шукати") }}</button>
+  </form>
+
+  <form class="k-filtry" method="get" action="/obyekty" id="f-filtry"
+        data-stan="{{ 'vybrano' if (oblast or member_status or site_type) else 'spokiy' }}"
+        data-sabmit-na-zminu>
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    <label class="visually-hidden" for="site_type">{{ _("Тип обʼєкта") }}</label>
+    <select class="k-vybir" id="site_type" name="site_type">
+      {% for k, v in site_types.items() %}
+      <option value="{{ k }}"{% if k == site_type %} selected{% endif %}>{{ v }}</option>
+      {% endfor %}
+    </select>
+
+    <label class="visually-hidden" for="oblast">{{ _("Область") }}</label>
+    <select class="k-vybir" id="oblast" name="oblast">
+      <option value="">{{ _("Область — усі") }}</option>
+      {% for o in oblasts %}
+      <option value="{{ o }}"{% if o == oblast %} selected{% endif %}>{{ o }}</option>
+      {% endfor %}
+    </select>
+
+    {% if site_type == 'biogaz_object' %}
+    <label class="visually-hidden" for="member_status">{{ _("Статус обдзвону") }}</label>
+    <select class="k-vybir" id="member_status" name="member_status">
+      <option value="">{{ _("Обдзвін — усі") }}</option>
+      {% for m in member_statuses %}
+      <option value="{{ m }}"{% if m == member_status %} selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+
+    <label class="visually-hidden" for="sort">{{ _("Сортування") }}</label>
+    <select class="k-vybir" id="sort" name="sort">
+      {% for k, v in sorts.items() %}
+      <option value="{{ k }}"{% if k == sort %} selected{% endif %}>{{ v }}</option>
+      {% endfor %}
+    </select>
+    {% if cluster_id %}<input type="hidden" name="cluster_id" value="{{ cluster_id }}">{% endif %}
+    <button class="k-btn shchilna" type="submit">{{ _("Знайти") }}</button>
+    {# Лічильник фільтрів словами: без нього короткий список читається як
+       «даних немає», а не як «ви їх відфільтрували». #}
+    <span class="lichylnyk">
+      {%- set aktyvnyh = (1 if oblast else 0) + (1 if member_status else 0) + (1 if q else 0) -%}
+      {{ (_('активних фільтрів: ') ~ aktyvnyh) if aktyvnyh else _('фільтрів немає') }}
+    </span>
+  </form>
+
+  <span class="roztyah"></span>
+  <span class="kk-chesnist">
+    {{ _("знайдено") }} <b class="chyslo s-a81c697">{{ total|num }}</b>
+    {{ _("· показано") }} {{ rows|length }}
+  </span>
+</div>
+
+{# ПОРОЖНІЙ СТАН ЖИВЕ В РОЗМІТЦІ ЗАВЖДИ, прихований за `hidden`.
+   Стан, який існує лише в рідкісну мить, неможливо ані показати замовнику, ані
+   перевірити гейтом: знімок сторінки його не застає, і «спроєктовано» від
+   «забули» не відрізнити. Ціна — один прихований вузол.
+   Тут порожнеча завжди означає «фільтр не дав»: база наповнюється імпортом і
+   порожньою не буває, тож другий варіант тексту («ще немає жодного») був би
+   брехнею про причину. #}
+<div class="surf-panel s-eab8806" data-stan="porozhno" {% if rows %}hidden{% endif %}
+    >
+  <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+    <use href="/static/bib/porozhni.svg#p-poshuk"></use></svg>
+  <b>{{ _("Обʼєктів за цими умовами немає") }}</b>
+  <div class="kk-chesnist">{{ _("Спробуйте зняти фільтр області або статусу обдзвону.") }}</div>
+  <a class="k-btn holovna" href="/obyekty">{{ _("Скинути фільтри") }}</a>
+</div>
+
+{% if rows %}
+
+<div class="k-tab-obh s-35823d2" data-stan="spokiy">
+<table class="k-tab kartky">
+  <thead>
+    <tr>
+      <th>{{ _("Назва") }}</th><th>{{ _("Де") }}</th>
+      {% if site_type == 'biogaz_object' %}
+      <th class="chyslo">{{ _("кВт") }}</th><th class="chyslo">{{ _("Сировина, т/рік") }}</th><th>{{ _("Обдзвін") }}</th>
+      {% else %}
+      <th class="chyslo">{{ _("Зерно, т/рік") }}</th><th>{{ _("Рішення ради") }}</th>
+      {% endif %}
+      <th class="chyslo">{{ _("Бал") }}</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+  {% set sc = scores.get(r.id) %}
+    <tr class="k-ryad">
+      <td data-holovne data-p="{{ _('Назва') }}">
+        <a href="/obyekty/{{ r.id }}">{{ r.name }}</a>
+        {% if r.is_anchor %}<span class="k-chip" title="{{ _('Якірне підприємство хабу') }}">{{ _("якір") }}</span>{% endif %}
+      </td>
+      <td data-p="{{ _('Де') }}">{{ r|misce }}</td>
+      {% if site_type == 'biogaz_object' %}
+      <td data-p="{{ _('кВт') }}" class="chyslo">{{ r.est_capacity_kw_el|num }}</td>
+      <td data-p="{{ _('Сировина') }}" class="chyslo">{{ r.est_feedstock_t_year|num }}</td>
+      <td data-p="{{ _('Обдзвін') }}">{{ r.member_status }}</td>
+      {% else %}
+      <td data-p="{{ _('Зерно') }}" class="chyslo">{{ r.c1_grain_t_yr|num }}</td>
+      <td data-p="{{ _('Рішення ради') }}">{{ r.rada_decision_status or '—' }}</td>
+      {% endif %}
+      <td data-p="{{ _('Бал') }}" class="chyslo">
+        {% if sc %}
+        {# СЕГМЕНТОВАНА `.shkala` з бібліотеки замість власної смужки: п'ять
+           поділок читаються як шкала 0–100 навіть без підпису. Суцільна смужка
+           без шкали не каже, «80 % чого», — і гейт-4 справедливо рахує її як
+           число без візуального доказу (у старій шкірі таких 142). #}
+        {% set podilok = ((sc.value + 19) // 20) %}
+        <span class="shkala mini" role="img"
+              aria-label="{{ _('Бал') }} {{ sc.value }} {{ _('зі 100 —') }} {{ sc.priority }}"
+              title="{{ sc.value }} {{ _('зі 100 —') }} {{ sc.priority }}">
+          {% for i in range(5) %}<i class="{{ 'on' if i < podilok else '' }}"></i>{% endfor %}
+        </span>
+        <span class="chyslo">{{ sc.value }}</span><span class="dim">/100</span>
+        {% else %}<span class="dim">{{ _("немає даних") }}</span>{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% set pages = ((total - 1) // page_size) + 1 %}
+{% if pages > 1 %}
+<nav class="k-storinky" aria-label="{{ _('Сторінки') }}">
+  {% if page > 1 %}
+  <a class="k-btn tykha shchilna" href="/obyekty?{{ base_qs }}&page={{ page - 1 }}">
+    <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-nazad"></use></svg>
+    {{ _("Назад") }}</a>
+  {% else %}
+  <span class="k-btn tykha shchilna" aria-disabled="true">
+    <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-nazad"></use></svg>
+    {{ _("Назад") }}</span>
+  {% endif %}
+  <span class="skilky">{{ _("сторінка") }} {{ page }} {{ _("з") }} {{ pages }}</span>
+  {% if page < pages %}
+  <a class="k-btn tykha shchilna" href="/obyekty?{{ base_qs }}&page={{ page + 1 }}">{{ _("Далі") }}
+    <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-dali"></use></svg></a>
+  {% else %}
+  <span class="k-btn tykha shchilna" aria-disabled="true">{{ _("Далі") }}
+    <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-dali"></use></svg></span>
+  {% endif %}
+</nav>
+{% endif %}
+{% endif %}
+{% endblock %}

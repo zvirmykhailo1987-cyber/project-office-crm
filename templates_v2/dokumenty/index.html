@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Документи — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Документи") }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K1 «Реєстр». Вкладки станів несуть ЛІЧИЛЬНИКИ: вкладка без числа не
+   каже, чи варто в неї заходити. #}
+
+<div class="kk-tulbar">
+  <div class="k-vkladky" role="tablist" aria-label="{{ _('Стан документа') }}">
+    <a class="k-vkladka" role="tab" href="/dokumenty"
+       aria-selected="{{ 'false' if status else 'true' }}">{{ _("Усі") }}</a>
+    {% for k, v in workflow.items() %}
+    <a class="k-vkladka" role="tab" href="/dokumenty?status={{ k }}"
+       aria-selected="{{ 'true' if status == k else 'false' }}">{{ v }}
+      <span class="lich">{{ counts.get(k, 0) }}</span></a>
+    {% endfor %}
+  </div>
+  <span class="roztyah"></span>
+  <a class="k-btn holovna" href="/shablony">
+    <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-plus"></use></svg>
+    {{ _("Створити з шаблону") }}</a>
+  <button class="k-btn shchilna" data-has-js data-vidkryty="#zavantazhennya" data-perem
+          data-fokus="[name=fayl]" data-fokus-v="#zavantazhennya">
+    <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-fayl"></use></svg>
+    {{ _("Прикріпити файл") }}</button>
+</div>
+
+<p class="kk-chesnist">{{ _("Версії живуть у групах — жодних") }}
+  <code>_v2</code>, <code>_v3</code>, <code>_final</code> {{ _("в іменах файлів.") }}</p>
+
+{% if err %}
+<div class="k-banner krytych s-3c19453" role="alert">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-uvaha"></use></svg>
+  <div>
+    {% if err == 'rozshyrennya' %}<b>{{ _("Такий тип файлу не приймається") }}</b>
+      <div class="dim">{{ _("Дозволені: PDF, PPTX, DOCX, XLSX, ODP, зображення, текст.") }}</div>
+    {% elif err == 'zavelykyi' %}<b>{{ _("Файл більший за 60 МБ") }}</b>
+      <div class="dim">{{ _("Стисніть або розділіть — інакше він не доїде до сервера.") }}</div>
+    {% elif err == 'bez-faylu' %}<b>{{ _("Файл не обрано") }}</b>
+      <div class="dim">{{ _("Оберіть файл у полі нижче.") }}</div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{# Презентації Марко робить назовні (Canva, PPTX) — без прикріплення готового
+   файлу їх нема чого затверджувати, і робота лишається поза системою. #}
+<details class="adddoc s-3c19453" id="zavantazhennya">
+  <summary>{{ _("Прикріпити готовий файл") }}</summary>
+  <form class="kk-forma s-26da15f" method="post" action="/dokumenty/zavantazhyty"
+        enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="k-hrupa-polya">
+      <label for="d-kind">{{ _("Вид") }}</label>
+      <input class="k-pole" id="d-kind" type="text" name="kind" list="vydy" required
+             value="prezentatsiya" placeholder="{{ _('напр. prezentatsiya') }}">
+      <datalist id="vydy">
+        {% for k, v in doc_kinds.items() %}<option value="{{ k }}" label="{{ v }}">{% endfor %}
+      </datalist>
+    </div>
+    <div class="k-hrupa-polya">
+      <label for="d-title">{{ _("Назва") }}</label>
+      <input class="k-pole" id="d-title" type="text" name="title"
+             placeholder="{{ _('залиште порожнім — візьмемо з імені файлу') }}">
+    </div>
+    <div class="k-hrupa-polya">
+      <label for="d-deal">{{ _("Проєкт (id угоди)") }}</label>
+      <input class="k-pole" id="d-deal" type="text" name="deal_id" inputmode="numeric"
+             placeholder="{{ _('необовʼязково') }}">
+    </div>
+    <div class="k-hrupa-polya">
+      <label for="d-cp">{{ _("Контрагент (id)") }}</label>
+      <input class="k-pole" id="d-cp" type="text" name="counterparty_id" inputmode="numeric"
+             placeholder="{{ _('необовʼязково') }}">
+    </div>
+    <div class="k-hrupa-polya">
+      <label for="d-fayl">{{ _("Файл") }}</label>
+      <input class="k-pole" id="d-fayl" type="file" name="fayl" required
+             aria-describedby="p-fayl"
+             accept=".pdf,.pptx,.ppt,.docx,.doc,.xlsx,.xls,.odt,.ods,.odp,.md,.txt,.csv,.png,.jpg,.jpeg,.webp">
+      <span class="pidkazka" id="p-fayl">{{ _("До 60 МБ. Далі документ проходить звичайний шлях: чернетка → на затвердження → узгоджено.") }}</span>
+    </div>
+    <button class="k-btn holovna" type="submit">{{ _("Прикріпити") }}</button>
+  </form>
+</details>
+
+<div class="surf-panel s-eab8806" data-stan="pershe" {% if rows %}hidden{% endif %}
+    >
+  <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+    <use href="/static/bib/porozhni.svg#p-dokument"></use></svg>
+  <b>{{ _("Документів ще немає") }}</b>
+  <div class="kk-chesnist s-742b679">{{ _("Документи створюються з шаблонів — 26 листів уже завантажено, кожен привʼязаний до стадії воронки.") }}</div>
+  <a class="k-btn holovna" href="/shablony">{{ _("Обрати шаблон") }}</a>
+</div>
+
+{% if rows %}
+<div class="k-tab-obh s-35823d2" data-stan="spokiy">
+<table class="k-tab kartky">
+  <thead><tr><th>{{ _("Документ") }}</th><th>{{ _("Вид") }}</th><th class="chyslo">{{ _("Версія") }}</th>
+    <th>{{ _("Стан") }}</th><th>{{ _("Автор") }}</th><th>{{ _("Створено") }}</th></tr></thead>
+  <tbody>
+  {% for d in rows %}
+    <tr class="k-ryad">
+      <td data-holovne data-p="{{ _('Документ') }}"><a href="/dokumenty/{{ d.id }}">{{ d.title }}</a>
+        {% if d.is_final %}<span class="k-chip s-d066582">{{ _("фінальний") }}</span>{% endif %}</td>
+      <td data-p="{{ _('Вид') }}"><span class="k-chip">{{ d.kind }}</span></td>
+      <td data-p="{{ _('Версія') }}" class="chyslo">v{{ d.version }}</td>
+      <td data-p="{{ _('Стан') }}"><span class="k-chip">{{ workflow.get(d.workflow_status, d.workflow_status) }}</span></td>
+      <td data-p="{{ _('Автор') }}" class="dim">{{ d.created_by }}</td>
+      <td data-p="{{ _('Створено') }}" class="dim chyslo">{{ d.created_at|dt }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

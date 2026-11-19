@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Вхід — ОФІС") }}{% endblock %}
+{% block body_gost %}
+{# Guest layout: no navigation rail and no list of accounts — the page reveals
+   nothing about who uses the system. #}
+<div class="vhid-shapka">
+  <b class="vhid-brend">{{ _("ОФІС") }}</b>
+  <span class="dim">{{ _("Платформа Проєктного офісу") }}</span>
+</div>
+
+{% if error %}
+<div class="k-banner krytych vhid-pomylka" role="alert">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-zamok"></use></svg>
+  <div>{{ error }}</div>
+</div>
+{% endif %}
+
+<form class="kk-forma surf-panel vhid-forma" method="post" action="/login">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="k-hrupa-polya">
+    <label for="l-login">{{ _("Логін") }}</label>
+    <input class="k-pole" id="l-login" name="login" required autocomplete="username"
+           autocapitalize="none" spellcheck="false" maxlength="64"
+           value="{{ login_value or '' }}"{% if not error %} autofocus{% endif %}>
+  </div>
+  <div class="k-hrupa-polya">
+    <label for="l-parol">{{ _("Пароль") }}</label>
+    <input class="k-pole" id="l-parol" type="password" name="password" required
+           autocomplete="current-password"
+           {% if error %}aria-invalid="true" aria-describedby="e-parol" autofocus{% endif %}>
+    {% if error %}<span class="pomylka" id="e-parol">{{ error }}</span>{% endif %}
+  </div>
+  <button class="k-btn holovna" type="submit">{{ _("Увійти") }}</button>
+</form>
+
+{% if demo %}
+<p class="dim vhid-demo">{{ _("Демо-версія з вигаданими даними. Облікові записи — у DEMO.md.") }}</p>
+{% endif %}
+{% include "_mova.html" %}
+{% endblock %}

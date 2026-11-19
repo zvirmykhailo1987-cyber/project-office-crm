@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block shapka %}{{ self.zagolovok() }}{% endblock %}
+{% block vmist %}
+<link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="/static/karta/karta.css?v={{ statyka_v }}">
+<script src="/static/vendor/leaflet/leaflet.js"></script>
+
+{# ЛЕКАЛО K9 «Карта з сигнальним шаром». Заголовок живе в шапці оболонки, а не
+   окремим H1 у тілі: на карті кожен піксель висоти — це видима територія, і
+   рядок заголовка коштує дорожче, ніж на будь-якому іншому екрані.
+
+   ⚠ ГАЧКИ JS. `biogaz.js` і `elevatory.js` слухають КОНКРЕТНІ id та класи:
+   #map · #q · #katRyady · #oblRyady · #minkw · #maxGas · #spysok · #spysokN ·
+   #spysokNK · #sort · #meta · #shuhlyada .telo · .k-panel.liva input ·
+   #spysokKnopka · #spysokPanel · .zakryty · .karta-obhortka.spysok-vidkryto.
+   Жоден із них перейменовувати не можна — карта мовчки перестане працювати.
+   Тому шкіра тут міняє ОБГОРТКУ й типографіку, а не структуру гачків. #}
+
+<div class="kk-tulbar vhid s-c5cbe49">
+  <div class="k-vkladky" role="tablist" aria-label="{{ _('Шар карти') }}">
+    <a class="k-vkladka" role="tab" href="/karta"
+       aria-selected="{{ 'true' if karta == 'biogaz' else 'false' }}">{{ _("Біоенергетика") }}</a>
+    <a class="k-vkladka" role="tab" href="/karta-elevatory"
+       aria-selected="{{ 'true' if karta == 'elevatory' else 'false' }}">{{ _("Елеватори") }}</a>
+  </div>
+  <span class="roztyah"></span>
+  {# Стан завантаження названий словом: карта на 21 тис. точок думає помітно
+     довго, і порожній екран без пояснення читається як поломка. #}
+  <span class="kk-chesnist" id="meta" role="status" aria-live="polite">{{ _("завантаження…") }}</span>
+  {# Повноекранна сцена (25.08.2026): панелі плавають поверх карти й
+     згортаються — кнопки нижче тримають їхній стан. #}
+  <button class="k-btn shchilna" id="filtryKnopka" type="button" data-has-js
+          aria-pressed="true">{{ _("Фільтри") }}</button>
+  <button class="k-spysok-knopka k-btn shchilna" id="spysokKnopka" data-has-js
+          aria-controls="spysokPanel" aria-expanded="false">
+    {{ _("Список") }} <b id="spysokNK">0</b>
+  </button>
+  <button class="k-btn shchilna" id="skynutyKnopka" type="button" data-has-js
+          title="{{ _('Прибрати всі фільтри й повернути типовий вид') }}">{{ _("Скинути") }}</button>
+  <button class="k-btn shchilna" id="fsKnopka" type="button" data-has-js
+          aria-pressed="false" title="{{ _('Карта на весь екран (Esc — вийти)') }}">
+    {{ _("На весь екран") }}</button>
+</div>
+
+<div class="karta-obhortka s-c5502a3">
+  {# `liva` — ГАЧОК ДЛЯ JS (biogaz.js:299, elevatory.js:186 слухають input),
+     а не клас зі стилями. Не прибирати як «клас без CSS». #}
+  <aside class="k-panel liva vhid hlyb-2 s-3ea8828" aria-label="{{ _('Фільтри') }}">
+    {% block filtry %}{% endblock %}
+  </aside>
+
+  <div id="map" role="application" aria-label="{{ _('Карта обʼєктів') }}"></div>
+
+  {# У fullscreen тулбар сторінки лишається ПОЗА сценою — без цієї кнопки
+     вийти можна було б лише клавішею Esc, а кнопка, якої не видно в режимі,
+     що вона вмикає, — глухий кут (правило №6 скіла). #}
+  <button class="k-btn shchilna karta-fs-vyhid" id="fsVyhid" type="button"
+          data-has-js hidden>{{ _("Вийти з повного екрана") }}</button>
+
+  <aside class="k-panel prava vhid hlyb-3 s-b9d41ce" id="spysokPanel" aria-label="{{ _('Список обʼєктів') }}">
+    <button class="zakryty k-btn tykha lyshe-ikona" data-has-js aria-label="{{ _('Закрити список') }}">
+      <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-zakryty"></use></svg>
+    </button>
+    <div class="k-grupa">
+      <div class="k-lbl">{{ _("Список") }} <b id="spysokN">0</b></div>
+      <label class="dim s-9942017" for="sort">{{ _("Сортувати") }}</label>
+      <select class="k-vybir" id="sort">
+        {% block sortuvannya %}{% endblock %}
+      </select>
+    </div>
+    <ul class="k-spysok" id="spysok"></ul>
+    <p class="kk-chesnist" id="spysokHint"></p>
+  </aside>
+
+  <div class="k-shuhlyada" id="shuhlyada" role="dialog" aria-label="{{ _('Картка обʼєкта') }}">
+    <button class="zakryty k-btn tykha lyshe-ikona" data-has-js aria-label="{{ _('Закрити картку') }}">
+      <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-zakryty"></use></svg>
+    </button>
+    {# `telo` — гачок для karta/yadro.js:204, куди рендериться картка обʼєкта #}
+    <div class="telo"></div>
+  </div>
+  <p class="karta-prymitka">{% block prymitka %}{% endblock %}</p>
+</div>
+
+{% block skrypt %}{% endblock %}
+
+<script nonce="{{ csp_nonce }}">
+  /* ── Повноекранна сцена: панелі, акордеон, fullscreen (25.08.2026) ─────────
+     Progressive enhancement поверх незмінних гачків: фільтри слухаються
+     делегованим 'input' на .k-panel.liva — <details> навколо груп bubbling
+     не міняє, тож логіка карт не чіпається. */
+  document.addEventListener('DOMContentLoaded', function () {
+    var obh = document.querySelector('.karta-obhortka');
+    if (!obh) return;
+    var KLYUCH = 'ofis-karta-paneli';
+
+    /* Акордеон лівої панелі: кожна .k-grupa → <details>. Відкриті типово —
+       перші дві групи (категорія підприємства) і ділянка; решта згорнуті.
+       Стан живе в localStorage. Маркер ● у summary показує, що всередині
+       згорнутої групи ДІЄ фільтр — інакше згорнутий фільтр стає невидимим
+       і «куди зникли точки» перетворюється на загадку. */
+    var liva = document.querySelector('.k-panel.liva');
+    var stan = {};
+    try { stan = JSON.parse(localStorage.getItem(KLYUCH) || '{}'); } catch (e) {}
+    var vidkryti_typovo = [T('Категорія підприємства'), T('Ділянка будівництва')];
+    liva.querySelectorAll(':scope > .k-grupa').forEach(function (g, i) {
+      var lbl = g.querySelector(':scope > .k-lbl');
+      if (!lbl) return;
+      var nazva = (lbl.childNodes[0] ? lbl.childNodes[0].textContent : lbl.textContent).trim();
+      var d = document.createElement('details');
+      d.className = 'k-akordeon';
+      var vidkryto = stan['g' + i] != null ? stan['g' + i]
+        : vidkryti_typovo.some(function (v) { return nazva.indexOf(v) === 0; });
+      d.open = !!vidkryto;
+      var s = document.createElement('summary');
+      s.appendChild(lbl);
+      var marker = document.createElement('span');
+      marker.className = 'akordeon-diye';
+      marker.title = T('у групі діє фільтр');
+      s.appendChild(marker);
+      g.parentNode.insertBefore(d, g);
+      d.appendChild(s);
+      d.appendChild(g);
+      d.addEventListener('toggle', function () {
+        stan['g' + i] = d.open;
+        try { localStorage.setItem(KLYUCH, JSON.stringify(stan)); } catch (e) {}
+      });
+    });
+
+    function onovyMarkery() {
+      liva.querySelectorAll('details.k-akordeon').forEach(function (d) {
+        var diye = [...d.querySelectorAll('input')].some(function (x) {
+          if (x.type === 'checkbox') {
+            // «діє» = відхилення від типового: незвично ВИМКНЕНИЙ прапорець
+            // категорій/областей або незвично УВІМКНЕНИЙ одиночний
+            return x.dataset.kat != null || x.dataset.obl != null ||
+                   x.dataset.kp != null || x.dataset.st != null
+              ? !x.checked
+              : (x.id === 'bezDanyh' || x.id === 'showPot' || x.id === 'showMajd'
+                 ? !x.checked : x.checked);
+          }
+          if (x.type === 'range') return +x.value !== +(x.defaultValue || 0);
+          if (x.type === 'search') return !!x.value;
+          return false;
+        }) || [...d.querySelectorAll('select')].some(function (x) { return !!x.value; });
+        d.classList.toggle('diye', diye);
+      });
+    }
+    liva.addEventListener('input', onovyMarkery);
+    onovyMarkery();
+
+    /* Згортання панелей + лічильник активних фільтрів на кнопці */
+    var fk = document.getElementById('filtryKnopka');
+    function pereklyuchPanel(klas, knopka, on) {
+      obh.classList.toggle(klas, !on);
+      knopka.setAttribute('aria-pressed', String(on));
+      try { localStorage.setItem(KLYUCH + ':' + klas, on ? '1' : '0'); } catch (e) {}
+    }
+    fk.addEventListener('click', function () {
+      pereklyuchPanel('filtry-zakryto', fk,
+        obh.classList.contains('filtry-zakryto'));
+    });
+    try {
+      if (localStorage.getItem(KLYUCH + ':filtry-zakryto') === '0') {
+        pereklyuchPanel('filtry-zakryto', fk, false);
+      }
+    } catch (e) {}
+
+    /* Скинути фільтри: чистий URL = чистий типовий стан. Дешевше й чесніше за
+       ручне відкручування кожного контрола — стан фільтрів і так живе в URL. */
+    document.getElementById('skynutyKnopka').addEventListener('click', function () {
+      location.href = location.pathname;
+    });
+
+    /* На весь екран: Fullscreen API з фолбеком position:fixed */
+    var fsk = document.getElementById('fsKnopka');
+    function fsAktyvnyi() {
+      return document.fullscreenElement === obh ||
+             obh.classList.contains('karta-fullscreen');
+    }
+    var fsVyhid = document.getElementById('fsVyhid');
+    function fsOnovy() {
+      var on = fsAktyvnyi();
+      fsk.setAttribute('aria-pressed', String(on));
+      fsk.textContent = on ? T('Вийти з повного екрана') : T('На весь екран');
+      fsVyhid.hidden = !on;
+    }
+    fsVyhid.addEventListener('click', function () {
+      if (document.fullscreenElement) document.exitFullscreen();
+      obh.classList.remove('karta-fullscreen');
+      setTimeout(fsOnovy, 120);
+    });
+    fsk.addEventListener('click', function () {
+      if (fsAktyvnyi()) {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else obh.classList.remove('karta-fullscreen');
+      } else if (obh.requestFullscreen) {
+        obh.requestFullscreen().catch(function () {
+          obh.classList.add('karta-fullscreen');
+        });
+      } else {
+        obh.classList.add('karta-fullscreen');
+      }
+      setTimeout(fsOnovy, 120);
+    });
+    document.addEventListener('fullscreenchange', fsOnovy);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && obh.classList.contains('karta-fullscreen')) {
+        obh.classList.remove('karta-fullscreen'); fsOnovy();
+      }
+    });
+  });
+</script>
+
+
+<script nonce="{{ csp_nonce }}">
+  // Контроли Leaflet (Zoom in/out, шари) отримують обробники ВСЕРЕДИНІ
+  // бібліотеки, тому в DOM вони виглядають мертвими: ані `onclick`, ані
+  // `hx-*`. Це не обхід гейта, а виправлення факту — обробник справді є,
+  // просто його не видно ззовні. Позначаємо після появи вузлів.
+  document.addEventListener('DOMContentLoaded', function () {
+    var koren = document.getElementById('map');
+    if (!koren) return;
+    function poznachyty() {
+      koren.querySelectorAll('.leaflet-control a, .leaflet-control button')
+        .forEach(function (el) { el.setAttribute('data-has-js', ''); });
+    }
+    poznachyty();
+    // Карта створює контроли асинхронно — стежимо, поки вони не зʼявляться.
+    new MutationObserver(poznachyty).observe(koren, { childList: true, subtree: true });
+  });
+</script>
+{% endblock %}

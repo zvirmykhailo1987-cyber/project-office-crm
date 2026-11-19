@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Довідник контактів — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Довідник контактів") }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K1 «Реєстр» з живим пошуком. Тулбар у СТАЛІЙ позиції: фільтри, які
+   стрибають при кожній зміні результатів, змушують шукати їх наново. #}
+<form class="kk-tulbar vhid s-c5cbe49" hx-get="/dovidnyk" hx-target="#rows"
+      hx-trigger="change, submit" hx-push-url="true" hx-indicator="#load">
+
+  <div class="k-poshuk s-ef4a8cc" data-stan="spokiy">
+    <span class="znak" aria-hidden="true">
+      <svg class="ik" width="15" height="15"><use href="/static/bib/ikony.svg#i-poshuk"></use></svg></span>
+    <label class="visually-hidden" for="q">{{ _("Пошук по довіднику") }}</label>
+    <input class="k-pole" id="q" type="search" name="q" value="{{ q }}" autofocus
+           placeholder="{{ _('Назва, ЄДРПОУ, місто, громада, ПІБ, телефон…') }}"
+           hx-get="/dovidnyk" hx-target="#rows" hx-push-url="true"
+           hx-trigger="keyup changed delay:300ms" hx-include="closest form">
+  </div>
+
+  {% set aktyvnyh = (1 if params.oblast else 0) + (1 if params.category else 0)
+                  + (1 if params.role else 0) + (1 if params.has else 0)
+                  + (1 if params.data_status else 0) + (1 if params.hromada else 0) %}
+  <div class="k-filtry" data-stan="{{ 'vybrano' if aktyvnyh else 'spokiy' }}">
+    <label class="visually-hidden" for="oblast">{{ _("Область") }}</label>
+    <select class="k-vybir" id="oblast" name="oblast">
+      <option value="">{{ _("Область — усі") }}</option>
+      {% for o in oblasts %}<option value="{{ o }}"{% if params.oblast == o %} selected{% endif %}>{{ o }}</option>{% endfor %}
+    </select>
+
+    <label class="visually-hidden" for="category">{{ _("Категорія") }}</label>
+    <select class="k-vybir" id="category" name="category">
+      <option value="">{{ _("Категорія — усі") }}</option>
+      {% for k, v in categories.items() %}<option value="{{ k }}"{% if params.category == k %} selected{% endif %}>{{ v }}</option>{% endfor %}
+    </select>
+
+    <label class="visually-hidden" for="role">{{ _("Роль сторони") }}</label>
+    <select class="k-vybir" id="role" name="role">
+      <option value="">{{ _("Роль сторони — усі") }}</option>
+      {% for k, v in party_roles.items() %}<option value="{{ k }}"{% if params.role == k %} selected{% endif %}>{{ v }}</option>{% endfor %}
+    </select>
+
+    <label class="visually-hidden" for="has">{{ _("Наявні контакти") }}</label>
+    <select class="k-vybir" id="has" name="has">
+      <option value="">{{ _("Контакти — байдуже") }}</option>
+      <option value="phone"{% if params.has == 'phone' %} selected{% endif %}>{{ _("Є телефон") }}</option>
+      <option value="email"{% if params.has == 'email' %} selected{% endif %}>{{ _("Є email") }}</option>
+      <option value="no_contact"{% if params.has == 'no_contact' %} selected{% endif %}>{{ _("Без контактів") }}</option>
+    </select>
+
+    <label class="visually-hidden" for="data_status">{{ _("Статус даних") }}</label>
+    <select class="k-vybir" id="data_status" name="data_status">
+      <option value="">{{ _("Статус — усі") }}</option>
+      <option value="verified"{% if params.data_status == 'verified' %} selected{% endif %}>{{ _("Перевірено") }}</option>
+      <option value="needs_check"{% if params.data_status == 'needs_check' %} selected{% endif %}>{{ _("Потребує перевірки") }}</option>
+    </select>
+
+    <label class="visually-hidden" for="hromada">{{ _("Громада") }}</label>
+    <input class="k-pole s-e4681f1" id="hromada" type="text" name="hromada"
+           value="{{ params.hromada }}" placeholder="{{ _('Громада') }}">
+
+    {# Число активних фільтрів словами: без нього короткий список читається як
+       «даних немає», а не як «ви їх відфільтрували» — і людина шукає баг там,
+       де його немає. #}
+    <span class="lichylnyk">{{ (_('активних фільтрів: ') ~ aktyvnyh) if aktyvnyh else _('фільтрів немає') }}</span>
+    {% if aktyvnyh or q %}
+    <a class="k-btn tykha shchilna" href="/dovidnyk">{{ _("Скинути") }}</a>
+    {% endif %}
+  </div>
+
+  <span class="roztyah"></span>
+  {# Індикатор завантаження — СКЕЛЕТ, а не три крапки: крапки не показують, що
+     саме зараз перебудовується, і при 300 мс затримці читаються як зависання. #}
+  <span id="load" class="htmx-indicator k-skelet s-11a1072"
+        role="status" aria-label="{{ _('Оновлюємо список') }}"></span>
+</form>
+
+<div class="s-35823d2" id="rows" data-skelet>
+  {% include "dovidnyk/_rows.html" %}
+</div>
+{% endblock %}

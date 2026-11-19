@@ -1,0 +1,450 @@
+/* ═══ KOMPONENTY-KERUVANNYA — те, що людина тисне ══════════════════════════
+   Дев'ять компонентів у ПОВНІЙ матриці станів (гейт-5 matrytsya_qa.py).
+
+   ЧОМУ ЦЕЙ ФАЙЛ ВЗАГАЛІ ЗʼЯВИВСЯ. Вимір 08.08.2026: у бібліотеці не було ані
+   кнопки, ані поля вводу — 17 класів середньою глибиною 1.2 стану. Норма
+   станів (produkt-dyzayn/references/stany-komponentiv.md) існувала з 04.08,
+   але матеріалу, що її виконує, не існувало. Причина не в ліні: жоден гейт не
+   міряв ПРИСУТНІСТЬ станів, тож компонент з одним станом проходив усі три.
+
+   ПРАВИЛА ШАРУ (успадковані від komponenty-base.css):
+   1. Жодного власного кольору — тільки токени; фолбеки тримають шар поза
+      системою токенів.
+   2. Жодного селектора по тегу. `button{}`, `input{}` не чіпаємо ніколи:
+      саме на цьому продукт зі своїми 250 класами зламався б у день підключення.
+   3. Порядок: movy/<мова>.css → yadro.css → komponenty-base.css → цей файл.
+
+   ЧОТИРИ НАСКРІЗНІ РІШЕННЯ
+
+   ▸ Фокус УСЕРЕДИНУ. `outline-offset` відʼємний. У щільному інструменті
+     кільце назовні перекриває сусіда: на рядку заввишки 32 px із проміжком
+     4 px кільце +2 px лягає на сусідній рядок. Виміряно на провідних
+     платформах: Carbon −2 px, Radix +2 зовні / −1 усередину. Мова А — робоча,
+     тому всередину.
+   ▸ Кільце ПРИЇЖДЖАЄ, а не блимає: `outline-color` анімується. Прийом узято з
+     Carbon (119 переходів на outline).
+   ▸ Стан читається БЕЗ КОЛЬОРУ. Помилка, недоступність і вибір несуть ще й
+     форму — рамку, курсор або гліф. Інакше стан гине на дальтонії та в
+     чорно-білому друці; гейт-5 це перевіряє окремо.
+   ▸ Рух — `--d-fast` (90 мс у мові А). За 40 заходів на день 300 мс Stripe
+     коштували б 12 секунд чекання.
+
+   ЗМІСТ: §1 Кнопка · §2 Група кнопок · §3 Поле · §4 Багаторядкове ·
+          §5 Вибір зі списку · §6 Прапорець · §7 Радіо · §8 Тумблер · §9 Повзунок
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── СПІЛЬНЕ ────────────────────────────────────────────────────────────────
+   Одна модель фокуса на всі керування: описана раз, успадкована всіма.
+   Розсинхрон фокуса між компонентами — найпомітніша ознака зібраності
+   «з різних місць». */
+.k-btn, .k-pole, .k-bahato, .k-vybir, .k-praporets, .k-radio,
+.k-tumbler, .k-povzunok {
+  font: inherit;
+  font-size: var(--kegl-bazovyi, 14px);
+  letter-spacing: var(--trekink, 0);
+  color: var(--tilo, #262219);
+  border-radius: var(--r-sm, 7px);
+  transition: background-color var(--d-fast, 90ms) var(--ease, ease),
+              border-color var(--d-fast, 90ms) var(--ease, ease),
+              color var(--d-fast, 90ms) var(--ease, ease),
+              outline-color var(--d-fast, 90ms) var(--ease, ease),
+              box-shadow var(--d-fast, 90ms) var(--ease, ease),
+              translate var(--d-instant, 50ms) var(--ease, ease);
+  outline: var(--fokus-tovshchyna, 2px) solid transparent;   /* місце під кільце
+      тримаємо ЗАВЖДИ: інакше поява outline зсуває сусідів у щільному рядку */
+  outline-offset: calc(-1 * var(--fokus-tovshchyna, 2px));
+}
+.k-btn:focus-visible, .k-pole:focus-visible, .k-bahato:focus-visible,
+.k-vybir:focus-visible, .k-praporets:focus-visible, .k-radio:focus-visible,
+.k-tumbler:focus-visible, .k-povzunok:focus-visible {
+  outline-color: var(--akcent, #0f7568);
+}
+
+/* ── §1 КНОПКА ──────────────────────────────────────────────────────────────
+   Чотири тональності × три розміри × три форми.
+
+   ЧОМУ ТОНАЛЬНОСТЕЙ РІВНО ЧОТИРИ. Виміряний стан продукту 08.08.2026 — пʼять
+   різновидів, з них «небезпечна» існувала ЛИШЕ тихою. Тобто видалення
+   виглядало непомітнішим за збереження. Тут небезпечна є і суцільною.
+
+   ЧОМУ РОЗМІРИ, А НЕ ОДНА ВИСОТА. У продукті всі кнопки мали 34 px, тому
+   тулбар над таблицею важив стільки ж, скільки головна дія форми. Ієрархія
+   не може існувати, поки все однакове. */
+.k-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--sp2, 8px);
+  min-height: var(--vysota-cili, 32px);
+  padding: 0 var(--pad-x-btn, 16px);
+  border: 1px solid var(--mezha-m, #e6e2da);
+  background: var(--poverhnya, #fff);
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 500;
+  text-decoration: none;                      /* коли кнопка — це <a> */
+}
+.k-btn:hover { background: var(--tlo-2, #f0ede7); border-color: var(--mezha, #d8d4cb) }
+.k-btn:active { translate: 0 1px; background: var(--mezha-m, #e6e2da) }
+
+/* Тональності */
+.k-btn.holovna {
+  background: var(--akcent, #0f7568); border-color: var(--akcent, #0f7568);
+  color: var(--na-akcenti, #fff);
+}
+.k-btn.holovna:hover { background: var(--akcent-2, #0c5b50); border-color: var(--akcent-2, #0c5b50) }
+.k-btn.holovna:active { background: var(--akcent-2, #0c5b50); translate: 0 1px }
+
+.k-btn.tykha { background: transparent; border-color: transparent }
+.k-btn.tykha:hover { background: var(--tlo-2, #f0ede7); border-color: var(--mezha-m, #e6e2da) }
+
+.k-btn.nebezpechna {
+  background: var(--krytych, #b3261e); border-color: var(--krytych, #b3261e);
+  color: var(--na-akcenti, #fff);
+}
+.k-btn.nebezpechna.tykha {
+  background: transparent; color: var(--krytych, #b3261e);
+  border-color: var(--mezha-m, #e6e2da);
+}
+.k-btn.nebezpechna.tykha:hover { border-color: var(--krytych, #b3261e) }
+
+/* Розміри */
+.k-btn.shchilna { min-height: 24px; padding: 0 var(--pad-x-sm, 12px); font-size: var(--kegl-dribnyi, 12.5px) }
+.k-btn.velyka  { min-height: var(--vysota-cili-l, 36px); padding: 0 var(--sp5, 20px) }
+
+/* Форма «лише іконка» — квадрат, бо прямокутник з однією іконкою читається
+   як обрізана кнопка з текстом. */
+.k-btn.lyshe-ikona { padding: 0; width: var(--vysota-cili, 32px) }
+.k-btn.lyshe-ikona.shchilna { width: 24px }
+.k-btn.lyshe-ikona.velyka { width: var(--vysota-cili-l, 36px) }
+
+/* ЗАЙНЯТА. Обовʼязкова там, де дія довша за 300 мс — без неї людина тисне
+   вдруге. Текст ЛИШАЄТЬСЯ на місці (не підміняється на «Зачекайте»), інакше
+   кнопка стрибає в ширині й ряд перебудовується. Індикатор — обертове кільце
+   в псевдоелементі; при `--ruh:0` воно просто стоїть, і це теж стан. */
+/* ПРОЗОРІСТЬ ТЕКСТУ ПРИБРАНА 08.08.2026. `currentColor 55%` гасила підпис до
+   Lc 24–28 при потрібних 60: на тихій і небезпечній кнопках «Зберігаю…» ставало
+   нечитним саме тоді, коли людина найуважніше дивиться на кнопку, чекаючи
+   відповіді. Стан «зайнята» вже позначений ТРЬОМА каналами — курсор `progress`,
+   обертове кільце в псевдоелементі й `aria-busy` для читача екрана; четвертий
+   канал за рахунок читабельності зайвий. Спіймано гейтом контрасту на вітрині. */
+.k-btn[aria-busy="true"] {
+  cursor: progress; pointer-events: none;
+}
+.k-btn[aria-busy="true"]::before {
+  content: ""; width: 1em; height: 1em; flex: none;
+  border: 2px solid currentColor; border-top-color: transparent;
+  border-radius: var(--r-full, 999px);
+  animation: k-obert calc(700ms / max(var(--ruh, 1), .01)) linear infinite;
+}
+@keyframes k-obert { to { rotate: 360deg } }
+
+/* НЕДОСТУПНА. Курсор і приглушення — але не лише вони: рамка стає пунктиром,
+   щоб стан читався в чорно-білому й на дальтонії. Пояснення «чому» — обовʼязок
+   розмітки (`title`/`aria-describedby`), і гейт-5 його перевіряє. */
+.k-btn[disabled], .k-btn[aria-disabled="true"] {
+  cursor: not-allowed; opacity: .55;
+  border-style: dashed;
+  background: var(--tlo-2, #f0ede7); color: var(--prygl, #6f6759);
+  pointer-events: auto;                      /* щоб `title` читався при наведенні */
+}
+.k-btn[disabled]:hover, .k-btn[aria-disabled="true"]:hover {
+  background: var(--tlo-2, #f0ede7); border-color: var(--mezha-m, #e6e2da); translate: 0;
+}
+.k-btn[disabled]:active, .k-btn[aria-disabled="true"]:active { translate: 0 }
+
+/* ── §2 ГРУПА КНОПОК ────────────────────────────────────────────────────────
+   Суміжна група (сегмент) і split. Внутрішні межі не подвоюються —
+   зʼїдаємо сусідню відʼємним полем, а не прибираємо рамку: прибрана рамка
+   ламає висоту на 1 px і група перестає бути рівною з полем поруч. */
+/* Група ПРОКРУЧУЄТЬСЯ, а не штовхає сторінку. Пʼять сегментів фізично не
+   влазять у 375 px, і без цієї межі вони розсували всю верстку: на телефоні
+   з'їжджала вбік уся сторінка, а не сама група (гейт спіймав на трьох
+   композиціях 08.08.2026). Смуга прокрутки схована — під групою кнопок вона
+   читається як зайва межа. */
+.k-hrupa {
+  display: inline-flex; isolation: isolate;
+  max-inline-size: 100%; overflow-x: auto; scrollbar-width: none;
+}
+.k-hrupa::-webkit-scrollbar { block-size: 0 }
+.k-hrupa > .k-btn { flex: none }
+.k-hrupa > .k-btn { border-radius: 0; position: relative }
+.k-hrupa > .k-btn + .k-btn { margin-left: -1px }
+.k-hrupa > .k-btn:first-child { border-start-start-radius: var(--r-sm, 7px); border-end-start-radius: var(--r-sm, 7px) }
+.k-hrupa > .k-btn:last-child  { border-start-end-radius: var(--r-sm, 7px);  border-end-end-radius: var(--r-sm, 7px) }
+.k-hrupa > .k-btn:hover, .k-hrupa > .k-btn:focus-visible { z-index: 1 }
+
+/* Обрано — не заливка акцентом: у групі з пʼяти сегментів це пʼята кольорова
+   пляма на екрані. Піднята поверхня + вага тексту, колір лишається текстовим. */
+.k-hrupa > .k-btn[aria-pressed="true"],
+.k-hrupa > .k-btn[aria-selected="true"] {
+  background: var(--poverhnya-2, #fff); border-color: var(--mezha, #d8d4cb);
+  font-weight: 600; box-shadow: var(--tin-1, 0 1px 2px rgba(38,34,25,.07));
+  z-index: 2;
+}
+
+/* ── §3 ПОЛЕ ────────────────────────────────────────────────────────────────
+   Шість станів. `font-size` НЕ менший за 16 px на дотику — інакше iOS зумить
+   сторінку при фокусі; на десктопі лишається 14. */
+.k-pole {
+  display: block; width: 100%;
+  min-height: var(--vysota-cili, 32px);
+  padding: var(--pad-y, 8px) var(--pad-x, 12px);
+  border: 1px solid var(--mezha-m, #e6e2da);
+  background: var(--poverhnya, #fff);
+}
+.k-pole:hover { border-color: var(--mezha, #d8d4cb) }
+.k-pole:focus-visible { border-color: var(--akcent, #0f7568) }
+.k-pole::placeholder { color: var(--prygl, #6f6759) }
+.k-pole.shchilne { min-height: 24px; padding: 2px var(--pad-x-sm, 12px) }
+
+/* ПОМИЛКА. Колір рамки + подвоєна товщина + гліф — три канали, бо один
+   кольоровий не працює для 8 % чоловіків і в друку. */
+.k-pole[aria-invalid="true"] {
+  border-color: var(--krytych, #b3261e); border-width: 2px;
+  padding-inline-end: calc(var(--pad-x, 12px) + 1.2em);
+  background-image: radial-gradient(circle at calc(100% - 0.75em) 50%,
+                    var(--krytych, #b3261e) 0 2px, transparent 2px);
+}
+.k-pole[disabled] {
+  cursor: not-allowed; opacity: .55; border-style: dashed;
+  background: var(--tlo-2, #f0ede7);
+}
+/* ЛИШЕ ЧИТАННЯ — це НЕ недоступність: значення актуальне, його можна виділити
+   й скопіювати. Тому без пунктиру й без приглушення; знімаємо лише рамку. */
+.k-pole[readonly] {
+  background: transparent; border-color: transparent;
+  padding-inline-start: 0; cursor: text;
+}
+.k-pole[readonly]:hover { border-color: var(--mezha-svitla, rgba(0,0,0,.05)) }
+
+/* ── §4 БАГАТОРЯДКОВЕ ───────────────────────────────────────────────────────
+   Успадковує поле; додає власну поведінку росту. */
+.k-bahato {
+  display: block; width: 100%; resize: vertical;
+  min-height: calc(var(--vysota-cili, 32px) * 2.5);
+  padding: var(--pad-y, 8px) var(--pad-x, 12px);
+  border: 1px solid var(--mezha-m, #e6e2da);
+  background: var(--poverhnya, #fff);
+  line-height: 1.5;
+}
+.k-bahato:hover { border-color: var(--mezha, #d8d4cb) }
+.k-bahato:focus-visible { border-color: var(--akcent, #0f7568) }
+.k-bahato[aria-invalid="true"] { border-color: var(--krytych, #b3261e); border-width: 2px }
+.k-bahato[disabled] { cursor: not-allowed; opacity: .55; border-style: dashed; background: var(--tlo-2, #f0ede7) }
+.k-bahato[readonly] { background: transparent; border-color: transparent; resize: none; cursor: text }
+
+/* ── §5 ВИБІР ЗІ СПИСКУ ─────────────────────────────────────────────────────
+   Рідний `select` лишається рідним: власний випадайник коштує клавіатури,
+   читача екрана й мобільного колеса, а виграє лише вигляд стрілки.
+   Стрілку малюємо фоном, щоб не тягнути ще один елемент у розмітку. */
+.k-vybir {
+  display: block; width: 100%;
+  min-height: var(--vysota-cili, 32px);
+  padding: var(--pad-y, 8px) calc(var(--pad-x, 12px) + 1.1em) var(--pad-y, 8px) var(--pad-x, 12px);
+  border: 1px solid var(--mezha-m, #e6e2da);
+  background: var(--poverhnya, #fff);
+  cursor: pointer;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: right 1em center, right calc(1em - 4px) center;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+}
+.k-vybir:hover { border-color: var(--mezha, #d8d4cb) }
+.k-vybir:focus-visible { border-color: var(--akcent, #0f7568) }
+/* ВІДКРИТИЙ — стрілка перевертається. Стан, який зазвичай забувають, і через
+   це список виглядає однаково відкритим і закритим. */
+.k-vybir[data-vidkrytyi="true"] {
+  border-color: var(--akcent, #0f7568);
+  background-image: linear-gradient(135deg, transparent 50%, currentColor 50%),
+                    linear-gradient(45deg, currentColor 50%, transparent 50%);
+}
+.k-vybir[aria-invalid="true"] { border-color: var(--krytych, #b3261e); border-width: 2px }
+.k-vybir[disabled] { cursor: not-allowed; opacity: .55; border-style: dashed; background: var(--tlo-2, #f0ede7) }
+
+/* ── §6 ПРАПОРЕЦЬ ───────────────────────────────────────────────────────────
+   Три стани вибору, а не два: без «частково» неможливе «обрати всі на
+   сторінці», а без нього — масові дії над 46 тисячами записів. */
+.k-praporets {
+  appearance: none; flex: none;
+  inline-size: 16px; block-size: 16px;
+  border: 1px solid var(--mezha, #d8d4cb);
+  border-radius: var(--r-xs, 4px);
+  background: var(--poverhnya, #fff);
+  cursor: pointer; display: inline-grid; place-content: center;
+}
+.k-praporets::before {                        /* галочка — форма, не колір */
+  content: ""; inline-size: 9px; block-size: 5px;
+  border-inline-start: 2px solid var(--na-akcenti, #fff);
+  border-block-end: 2px solid var(--na-akcenti, #fff);
+  rotate: -45deg; translate: 0 -1px; scale: 0;
+  transition: scale var(--d-instant, 50ms) var(--ease, ease);
+}
+.k-praporets:hover { border-color: var(--akcent, #0f7568) }
+.k-praporets:checked { background: var(--akcent, #0f7568); border-color: var(--akcent, #0f7568) }
+.k-praporets:checked::before { scale: 1 }
+/* Частково — риска, а не галочка: форма мусить відрізнятись від «обрано»
+   й у чорно-білому. */
+.k-praporets:indeterminate, .k-praporets[data-chastkovo="true"] {
+  background: var(--akcent, #0f7568); border-color: var(--akcent, #0f7568);
+}
+.k-praporets:indeterminate::before, .k-praporets[data-chastkovo="true"]::before {
+  inline-size: 9px; block-size: 0; rotate: 0deg; scale: 1; translate: 0;
+  border-inline-start: 0; border-block-end: 2px solid var(--na-akcenti, #fff);
+}
+.k-praporets[disabled] { cursor: not-allowed; opacity: .55; border-style: dashed }
+
+/* ── §7 РАДІО ───────────────────────────────────────────────────────────────
+   Кругле — і це не оздоба: форма несе сенс «один із», на відміну від
+   квадратного «кілька з». */
+.k-radio {
+  appearance: none; flex: none;
+  inline-size: 16px; block-size: 16px;
+  border: 1px solid var(--mezha, #d8d4cb);
+  border-radius: var(--r-full, 999px);
+  background: var(--poverhnya, #fff);
+  cursor: pointer; display: inline-grid; place-content: center;
+}
+.k-radio::before {
+  content: ""; inline-size: 8px; block-size: 8px;
+  border-radius: var(--r-full, 999px);
+  background: var(--na-akcenti, #fff); scale: 0;
+  transition: scale var(--d-instant, 50ms) var(--ease, ease);
+}
+.k-radio:hover { border-color: var(--akcent, #0f7568) }
+.k-radio:checked { background: var(--akcent, #0f7568); border-color: var(--akcent, #0f7568) }
+.k-radio:checked::before { scale: 1 }
+.k-radio[disabled] { cursor: not-allowed; opacity: .55; border-style: dashed }
+
+/* ── §8 ТУМБЛЕР ────────────────────────────────────────────────────────────
+   Окремий стан «зайнятий»: перемикач, що зберігається на сервер, мусить
+   показати очікування — інакше людина клацає туди-сюди, поки не зрозуміє,
+   що нічого не відбувається. */
+.k-tumbler {
+  appearance: none; flex: none;
+  inline-size: 34px; block-size: 20px;
+  border: 1px solid var(--mezha, #d8d4cb);
+  border-radius: var(--r-full, 999px);
+  background: var(--tlo-2, #f0ede7);
+  cursor: pointer; position: relative;
+}
+.k-tumbler::before {
+  content: ""; position: absolute; inset-block: 2px; inset-inline-start: 2px;
+  inline-size: 14px; border-radius: var(--r-full, 999px);
+  background: var(--poverhnya, #fff);
+  box-shadow: var(--tin-1, 0 1px 2px rgba(38,34,25,.07));
+  transition: translate var(--d-fast, 90ms) var(--ease, ease);
+}
+.k-tumbler:hover { border-color: var(--akcent, #0f7568) }
+.k-tumbler:checked { background: var(--akcent, #0f7568); border-color: var(--akcent, #0f7568) }
+.k-tumbler:checked::before { translate: 14px 0 }
+.k-tumbler[aria-busy="true"] {
+  cursor: progress;
+  background-image: repeating-linear-gradient(45deg,
+    var(--mezha, #d8d4cb) 0 4px, transparent 4px 8px);   /* смужки = форма, не колір */
+}
+.k-tumbler[disabled] { cursor: not-allowed; opacity: .55; border-style: dashed }
+
+/* ── §9 ПОВЗУНОК ───────────────────────────────────────────────────────────
+   ДОРІЖКА МАЛЮЄТЬСЯ НА САМОМУ ЕЛЕМЕНТІ, не на `::-webkit-slider-runnable-track`.
+   Причина практична: стани, описані на псевдоелементах бігунка, змінюють лише
+   бігунок — при наведенні на весь повзунок нічого не відбувається, поки курсор
+   не потрапить рівно в 16 px бігунка. Людина водить мишею по доріжці й не
+   бачить реакції. Коли доріжка — фон хоста, наведення відповідає всією
+   довжиною; заразом стан стає вимірюваним (гейт-5 знімає обчислений стиль
+   елемента, а не його псевдоелементів).
+
+   Псевдоелементи лишаються там, де їх не обійти — сам бігунок. */
+.k-povzunok {
+  appearance: none; inline-size: 100%; block-size: var(--vysota-cili, 32px);
+  cursor: pointer; padding: 0;
+  background-image: linear-gradient(var(--mezha-m, #e6e2da), var(--mezha-m, #e6e2da));
+  background-size: 100% 4px; background-position: 0 50%; background-repeat: no-repeat;
+  border-radius: var(--r-full, 999px);
+}
+.k-povzunok:hover {
+  background-image: linear-gradient(var(--mezha, #d8d4cb), var(--mezha, #d8d4cb));
+}
+.k-povzunok:active {
+  background-image: linear-gradient(var(--akcent-tlo, #e0efec), var(--akcent-tlo, #e0efec));
+  background-size: 100% 6px;
+}
+.k-povzunok::-webkit-slider-runnable-track { block-size: 4px; background: transparent }
+.k-povzunok::-moz-range-track { block-size: 4px; background: transparent }
+.k-povzunok::-webkit-slider-thumb {
+  appearance: none; inline-size: 16px; block-size: 16px; margin-block-start: -6px;
+  border-radius: var(--r-full, 999px); background: var(--akcent, #0f7568);
+  border: 2px solid var(--poverhnya, #fff);
+  box-shadow: var(--tin-1, 0 1px 2px rgba(38,34,25,.07));
+  transition: scale var(--d-instant, 50ms) var(--ease, ease);
+}
+.k-povzunok::-moz-range-thumb {
+  inline-size: 16px; block-size: 16px; border-radius: var(--r-full, 999px);
+  background: var(--akcent, #0f7568); border: 2px solid var(--poverhnya, #fff);
+}
+.k-povzunok:hover::-webkit-slider-thumb { scale: 1.15 }
+.k-povzunok:active::-webkit-slider-thumb { scale: 1.3 }
+.k-povzunok:hover::-moz-range-thumb { border-color: var(--akcent-tlo, #e0efec) }
+.k-povzunok[disabled] {
+  cursor: not-allowed; opacity: .55;
+  background-image: repeating-linear-gradient(45deg,
+    var(--mezha, #d8d4cb) 0 3px, transparent 3px 6px);   /* смужка = форма, не колір */
+}
+
+/* ── ЯРУС ДОТИКУ ───────────────────────────────────────────────────────────
+   На дотику й вузькому — 44 px (Apple HIG). Десктопна щільність не міняється:
+   інструмент на 8 годин і телефон у полі — різні задачі, і мова А тримає
+   32–36 px саме для першої. */
+@media (max-width: 600px), (pointer: coarse) {
+  .k-btn, .k-pole, .k-bahato, .k-vybir { min-height: 44px }
+  .k-btn.lyshe-ikona { width: 44px }
+  .k-praporets, .k-radio { inline-size: 20px; block-size: 20px }
+  .k-tumbler { inline-size: 44px; block-size: 26px }
+  .k-tumbler::before { inline-size: 20px }
+  .k-tumbler:checked::before { translate: 18px 0 }
+  /* iOS зумить сторінку, якщо поле дрібніше за 16 px */
+  .k-pole, .k-bahato, .k-vybir { font-size: max(16px, var(--kegl-bazovyi, 14px)) }
+}
+
+/* Наведення лише там, де курсор існує: на дотику `:hover` залипає після тапу
+   й лишається до наступного дотику деінде. */
+@media (hover: none) {
+  .k-btn:hover { background: var(--poverhnya, #fff); border-color: var(--mezha-m, #e6e2da) }
+  .k-btn.holovna:hover { background: var(--akcent, #0f7568) }
+}
+
+/* ── ПРОМАЛЬОВАНІ КОНТРОЛИ (v7) ────────────────────────────────────────────
+   Системні сині повзунки/радіо — найпомітніша «дірка» промальовки
+   (benchmark-v7). Мінімум для ВСІХ форм: брендовий accent-color. */
+input[type=radio],input[type=checkbox],input[type=range]{
+  accent-color:var(--akcent, #0f7568)}
+
+/* Повний кастом повзунка — опт-ін клас .k-range.
+   Заливка прогресу через --_pct (0..100): оновлює той, хто слухає input
+   (один рядок у обробнику). Без JS: заливка стоїть на початковому значенні —
+   чесна деградація, трек і ручка все одно брендові. */
+.k-range{appearance:none;-webkit-appearance:none;height:auto;
+  background:transparent;cursor:pointer}
+.k-range::-webkit-slider-runnable-track{height:6px;border-radius:var(--r-full,999px);
+  background:linear-gradient(90deg,
+    var(--akcent, #0f7568) calc(var(--_pct, 50) * 1%),
+    var(--mezha-m, #e3e0da) 0);
+  box-shadow:inset 0 1px 2px oklch(0 0 0 / .10)}
+.k-range::-moz-range-track{height:6px;border-radius:var(--r-full,999px);
+  background:var(--mezha-m, #e3e0da);
+  box-shadow:inset 0 1px 2px oklch(0 0 0 / .10)}
+.k-range::-moz-range-progress{height:6px;border-radius:var(--r-full,999px);
+  background:var(--akcent, #0f7568)}
+.k-range::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;
+  width:20px;height:20px;border-radius:50%;margin-top:-7px;
+  background:linear-gradient(180deg,
+    color-mix(in oklab, var(--poverhnya, #fff) 100%, white), var(--poverhnya, #fff));
+  border:1px solid color-mix(in oklab, var(--akcent, #0f7568) 55%, var(--mezha, #ccc));
+  box-shadow:0 1px 3px oklch(0 0 0 / .22), inset 0 1px 0 white}
+.k-range::-moz-range-thumb{width:18px;height:18px;border-radius:50%;
+  background:var(--poverhnya, #fff);
+  border:1px solid color-mix(in oklab, var(--akcent, #0f7568) 55%, var(--mezha, #ccc));
+  box-shadow:0 1px 3px oklch(0 0 0 / .22)}
+.k-range:focus-visible{outline:var(--fokus-tovshchyna,3px) solid
+    color-mix(in oklab, var(--akcent, #0f7568) 55%, transparent);
+  outline-offset:4px;border-radius:var(--r-full,999px)}

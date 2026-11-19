@@ -1,0 +1,61 @@
+{% from "_ava.html" import ava with context %}
+{# АРХЕТИП «ПОТІК» на каркасі `kk-strichka`: часова вісь замість плаского
+   списку. Вісь дає стрічці напрямок і показує щільність — де густо, там був
+   робочий день.
+   Мітка «нове» — для режиму заходів по кілька разів на день: без неї щоразу
+   доводиться згадувати, докуди дочитав. #}
+
+{# Порожній стан присутній ЗАВЖДИ (прихований): стан, який зʼявляється лише в
+   рідкісну мить, неможливо ані показати замовнику, ані перевірити гейтом. #}
+<div class="surf-panel s-eab8806" data-stan="porozhno" {% if items %}hidden{% endif %}
+    >
+  <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+    <use href="/static/bib/porozhni.svg#p-strichka"></use></svg>
+  <b>{{ _("Тут поки тихо") }}</b>
+  <div class="kk-chesnist s-561e182">
+    {{ _("Щойно хтось із команди щось зробить — це зʼявиться тут. Стрічка оновлюється сама, перезавантажувати не треба.") }}</div>
+  <a class="k-btn holovna" href="/zavdannya">{{ _("Поставити завдання") }}</a>
+</div>
+
+{% if items %}
+{# Межа ставиться ЛИШЕ між новим і вже баченим. Якщо нового немає — межі теж
+   немає: рядок «досі ви бачили» над найпершою подією нічого не розділяє й
+   лише збиває з пантелику. #}
+{% set ns = namespace(bulo_nove=false, mezha_pokazana=false) %}
+<ul class="kk-strichka">
+  {% for i in items %}
+  {% set nove = bachyv_do and i.at > bachyv_do %}
+  {% if nove %}{% set ns.bulo_nove = true %}{% endif %}
+  {% if not nove and ns.bulo_nove and not ns.mezha_pokazana %}
+    {% set ns.mezha_pokazana = true %}
+  <li class="mezha s-7ae6672" aria-hidden="true">
+    <span class="s-5b2386e"></span>
+    {{ _("досі ви бачили") }}
+    <span class="s-5b2386e"></span>
+  </li>
+  {% endif %}
+  <li{% if i.is_decision %} data-ton="dobre"{% elif i.tier == 3 %} data-ton="uvaha"{% endif %}>
+    <div class="s-c0dfb61">
+      {{ ava(i.actor, "sm") }}
+      <div class="s-d1d9f56">
+        <div class="s-509a426">
+          <b>{{ i.actor }}</b>
+          <span>{{ i.phrase }}</span>
+          {% if i.entity_label %}<span class="k-chip">{{ i.entity_label }}</span>{% endif %}
+          {% if nove %}<span class="k-chip s-354c52c">{{ _("нове") }}</span>{% endif %}
+          <time class="chyslo dim s-8c5865f" datetime="{{ i.at }}"
+               >{{ i.at|dt('%d.%m %H:%M') }}</time>
+        </div>
+        {% if i.detail %}
+        <div class="dim s-331847c">{{ i.detail }}</div>
+        {% endif %}
+        {% if i.url %}
+        <a class="s-9942017" href="{{ i.url }}">{{ _("відкрити") }}
+          <svg class="ik" width="12" height="12" aria-hidden="true"><use href="/static/bib/ikony.svg#i-dali"></use></svg></a>
+        {% endif %}
+      </div>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}

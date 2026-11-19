@@ -1,0 +1,119 @@
+{# Фрагмент реєстру довідника — ціль HTMX. Живе окремо, бо пошук і сортування
+   перемальовують ЛИШЕ його; повна сторінка при кожній літері була б і повільна,
+   і губила б фокус у полі пошуку. #}
+<div class="kk-tulbar s-07d8cde">
+  <span class="kk-chesnist">
+    {{ _("знайдено") }} <b class="chyslo">{{ total|num }}</b>
+    {%- if total > page_size %} {{ _("· сторінка") }} {{ page }} {{ _("з") }} {{ ((total - 1) // page_size) + 1 }}{% endif %}
+  </span>
+</div>
+
+{# Порожній стан присутній ЗАВЖДИ (прихований): інакше довести, що він
+   спроєктований, неможливо — знімок сторінки його не застає. #}
+<div class="surf-panel s-eab8806" data-stan="porozhno" {% if rows %}hidden{% endif %}
+    >
+  <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+    <use href="/static/bib/porozhni.svg#p-poshuk"></use></svg>
+  <b>{{ _("Нічого не знайдено") }}</b>
+  <div class="kk-chesnist">{{ _("За цим запитом і фільтрами в довіднику порожньо. Спробуйте коротший запит або зніміть фільтр області.") }}</div>
+  <a class="k-btn holovna" href="/dovidnyk">{{ _("Скинути пошук і фільтри") }}</a>
+</div>
+
+{% if rows %}
+<div class="k-tab-obh" data-stan="spokiy">
+<table class="k-tab kartky">
+  {# Сортування кліком по шапці. `aria-sort` — не оздоба: без нього читач екрана
+     каже «Назва, посилання» і не повідомляє ані що колонка сортована, ані в
+     який бік. Колонки «Де» й «Контакти» склеєні з кількох полів, тож
+     сортування для них не заявляємо: обіцяти впорядкування там, де немає
+     однозначного ключа, гірше, ніж не мати кнопки.
+     Напрямок показує ІКОНКА зі спрайта, а не текстовий гліф «↑↓↕»: гліф
+     малюється системним шрифтом, не тримає одну руку з рештою іконок і
+     ловиться гейтом-4 як «гліф у керуванні». #}
+  {% macro shapka(kod, pidpys, tytul='') %}
+    {% set aktyvna = sort == kod %}
+    {% set nastupnyi = 'desc' if aktyvna and dir == 'asc' else 'asc' %}
+    <th {% if aktyvna %}aria-sort="{{ 'ascending' if dir == 'asc' else 'descending' }}"
+        {% else %}aria-sort="none"{% endif %}>
+      <a class="k-sort{% if aktyvna %} on{% endif %}"
+         href="/dovidnyk?{{ base_qs_bez_sort }}&sort={{ kod }}&dir={{ nastupnyi }}"
+         hx-get="/dovidnyk?{{ base_qs_bez_sort }}&sort={{ kod }}&dir={{ nastupnyi }}"
+         hx-target="#rows" hx-push-url="true"
+         {% if tytul %}title="{{ tytul }}"{% endif %}>{{ pidpys }}<span class="znak">
+        <svg class="ik" width="13" height="13" aria-hidden="true"><use href="/static/bib/ikony.svg#{{
+          'i-sort-vhoru' if (aktyvna and dir == 'asc') else ('i-sort-vnyz' if aktyvna else 'i-sort') }}"></use></svg>
+      </span></a>
+    </th>
+  {% endmacro %}
+  <thead>
+    <tr>
+      {{ shapka('name', _('Назва')) }}
+      {{ shapka('edrpou', _('ЄДРПОУ')) }}
+      {{ shapka('oblast', _('Де')) }}
+      <th>{{ _("Контакти") }}</th>
+      {{ shapka('category', _('Категорія')) }}
+      {{ shapka('povnota', _('Повнота'), _('Повнота картки')) }}
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr class="k-ryad">
+      <td data-holovne data-p="{{ _('Назва') }}">
+        <a href="/dovidnyk/{{ r.id }}">{{ r.name }}</a>
+        {% if r.data_status == 'needs_check' %}
+        {# Позначка потребує ТЕКСТУ, а не знака питання: «?» сам по собі не
+           каже, що саме не так, і читач екрана озвучує його як «знак питання». #}
+        <span class="k-chip s-93827eb" title="{{ _('Дані потребують перевірки') }}">
+          <svg class="ik" width="12" height="12" aria-hidden="true"><use href="/static/bib/ikony.svg#i-uvaha"></use></svg>
+          {{ _("перевірити") }}</span>
+        {% endif %}
+      </td>
+      <td data-p="{{ _('ЄДРПОУ') }}">{% if r.edrpou %}<span class="k-chip">{{ r.edrpou }}</span>
+        {%- else %}<span class="dim">{{ _("немає даних") }}</span>{% endif %}</td>
+      <td data-p="{{ _('Де') }}">{{ r|misce }}</td>
+      <td data-p="{{ _('Контакти') }}">
+        {% if r.phone %}<a href="tel:{{ r.phone }}">{{ r.phone }}</a>{% endif %}
+        {% if r.email %}{% if r.phone %}<br>{% endif %}<a class="dim" href="mailto:{{ r.email }}">{{ r.email }}</a>{% endif %}
+        {% if not r.phone and not r.email %}<span class="dim">{{ _("немає контактів") }}</span>{% endif %}
+      </td>
+      <td data-p="{{ _('Категорія') }}" class="dim">{{ categories.get(r.category, r.category) }}</td>
+      <td data-p="{{ _('Повнота') }}">
+        <span class="shkala mini" role="img"
+              aria-label="{{ _('повнота картки') }} {{ r.completeness }} {{ _('зі 100') }}"
+              title="{{ _('повнота картки') }} {{ r.completeness }} {{ _('зі 100') }}">
+          {% set part = ((r.completeness / 20) | round | int) %}
+          {% for n in range(5) %}<i class="{{ 'on' if n < part else '' }}"></i>{% endfor %}
+        </span>
+        <span class="chyslo">{{ r.completeness }}</span><span class="dim">/100</span>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% set pages = ((total - 1) // page_size) + 1 %}
+{% if pages > 1 %}
+<nav class="k-storinky" aria-label="{{ _('Сторінки') }}">
+  {% if page > 1 %}
+  <a class="k-btn tykha shchilna" href="/dovidnyk?{{ base_qs }}&page={{ page - 1 }}"
+     hx-get="/dovidnyk?{{ base_qs }}&page={{ page - 1 }}" hx-target="#rows" hx-push-url="true">
+    <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-nazad"></use></svg>
+    {{ _("Назад") }}</a>
+  {% else %}
+  <span class="k-btn tykha shchilna" aria-disabled="true">
+    <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-nazad"></use></svg>
+    {{ _("Назад") }}</span>
+  {% endif %}
+  <span class="skilky">{{ _("сторінка") }} {{ page }} {{ _("з") }} {{ pages }}</span>
+  {% if page < pages %}
+  <a class="k-btn tykha shchilna" href="/dovidnyk?{{ base_qs }}&page={{ page + 1 }}"
+     hx-get="/dovidnyk?{{ base_qs }}&page={{ page + 1 }}" hx-target="#rows" hx-push-url="true">{{ _("Далі") }}
+    <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-dali"></use></svg></a>
+  {% else %}
+  <span class="k-btn tykha shchilna" aria-disabled="true">{{ _("Далі") }}
+    <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-dali"></use></svg></span>
+  {% endif %}
+</nav>
+{% endif %}
+{% endif %}

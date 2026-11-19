@@ -1,0 +1,191 @@
+{% extends "karta/_karkas.html" %}
+{% block title %}{{ _("Карта біоенергетики — ОФІС") }}{% endblock %}
+{% block zagolovok %}{{ _("Карта біоенергетики") }}{% endblock %}
+
+{% block filtry %}
+<div class="k-poshuk">
+  <input type="search" id="q" placeholder="{{ _('Назва або ЄДРПОУ') }}" autocomplete="off"
+         aria-label="{{ _('Пошук за назвою або ЄДРПОУ') }}">
+</div>
+
+{# Категорія ПІДПРИЄМСТВА (ТЗ Богдана) — не плутати з категорією сировини
+   нижче: та каже «що з цього взяти», ця — «що це за господарство».
+   СУГОБО за ОСНОВНИМ КВЕД (рішення 27.08.2026): ВРХ=01.41/42, Свинарство=01.46,
+   Птахівництво=01.47, Агропереробка(підтипи), Рослинництво. Реальні тваринницькі
+   потужності (ДПСС/поголівʼя) — ОКРЕМА вісь «Реальна операція» нижче. #}
+<div class="k-grupa">
+  <div class="k-lbl">{{ _("Категорія підприємства (осн. КВЕД)") }} <b id="kpN"></b></div>
+  <div id="kpRyady"></div>
+  <p class="kk-chesnist s-1169661">{{ _("За основним КВЕД. Джерело — у картці обʼєкта.") }}</p>
+</div>
+
+{# Реальна операція — окрема вісь від категорії: рослинник із поголівʼям ВРХ
+   лишається Рослинництвом у категорії, але тут світиться як ВРХ. Керує шаром
+   майданчиків ДПСС (у них КВЕД немає — вони і є «реальні операції»). #}
+<div class="k-grupa">
+  <div class="k-lbl">{{ _("Реальна операція (ДПСС/поголівʼя)") }} <b id="opN"></b></div>
+  <div id="opRyady"></div>
+  <p class="kk-chesnist s-1169661">{{ _("Реальні тваринницькі потужності з держреєстру ДПСС і поголівʼя — окремо від категорії за КВЕД.") }}</p>
+</div>
+
+<div class="k-grupa">
+  <div class="k-lbl">{{ _("Категорія сировини") }} <b id="katN"></b></div>
+  <div id="katRyady"></div>
+</div>
+
+<div class="k-grupa">
+  <div class="k-lbl">{{ _("Область") }} <b id="oblN">{{ _("усі") }}</b></div>
+  <div id="oblRyady"></div>
+</div>
+
+<div class="k-grupa">
+  <div class="k-lbl">{{ _("Статус переговорів") }} <b id="stN"></b></div>
+  <div id="stRyady"></div>
+</div>
+
+{# Дашборд громади — пункт 2 наради 15.07: «обираємо громаду — зʼявляються всі
+   агрокомпанії та їх енергетичний потенціал». #}
+<div class="k-grupa">
+  <div class="k-lbl">{{ _("Громада") }}</div>
+  <select class="k-vybir" id="hromadaSel" aria-label="{{ _('Обрати громаду') }}">
+    <option value="">{{ _("— уся вибірка —") }}</option>
+  </select>
+  <div id="hromadaZvit" hidden></div>
+</div>
+
+{# Радіус від ділянки будівництва — «кластерний фільтр, ДУЖЕ ВАЖЛИВИЙ» (ТЗ).
+   Точка ставиться кліком по карті; підсумок по колу рахується чесно — лише по
+   заповнених полях, із числом «без даних». #}
+<div class="k-grupa">
+  <div class="k-lbl">{{ _("Ділянка будівництва") }}</div>
+  <button class="k-btn shchilna" id="dilyankaBtn" type="button" data-has-js
+          aria-pressed="false">{{ _("Поставити точку на карті") }}</button>
+  <div class="k-povzunok">
+    <label for="dilyankaR">{{ _("Радіус") }} <b><span id="dilyankaRV">20</span> {{ _("км") }}</b></label>
+    <input type="range" id="dilyankaR" min="5" max="50" step="5" value="20"
+           list="dilyankaKroky">
+    <datalist id="dilyankaKroky">
+      <option value="5"><option value="10"><option value="20">
+      <option value="30"><option value="40"><option value="50">
+    </datalist>
+  </div>
+  <label class="k-ryad"><input type="checkbox" id="dilyankaFiltr" disabled>
+    <span class="nm">{{ _("Лише в радіусі") }}</span></label>
+  <div id="dilyankaZvit" hidden></div>
+</div>
+
+<div class="k-grupa">
+  <div class="k-lbl">{{ _("Пороги") }}</div>
+  <div class="k-povzunok">
+    <label for="minkw">{{ _("Мін. потужність") }} <b><span id="minkwV">0</span> {{ _("кВт") }}</b></label>
+    <input type="range" id="minkw" min="0" max="2000" step="25" value="0">
+  </div>
+  <div class="k-povzunok">
+    <label for="maxGas">{{ _("Макс. до газу") }} <b><span id="maxGasV">{{ _("будь-яка") }}</span></b></label>
+    <input type="range" id="maxGas" min="0" max="60" step="5" value="0">
+  </div>
+  <div class="k-povzunok">
+    <label for="maxPower">{{ _("Макс. до е-мережі") }} <b><span id="maxPowerV">{{ _("будь-яка") }}</span></b></label>
+    <input type="range" id="maxPower" min="0" max="60" step="5" value="0">
+  </div>
+  {# Порогові фільтри ТЗ. Канон Г15 на кожному: «невідомо» ≠ «нуль» — поріг
+     відсіює лише тих, у кого ДАНІ Є і вони нижчі; без даних лишаються видимі,
+     а їхнє число назване поруч. Інакше поріг «від 500 голів» мовчки сховав би
+     98% бази, де поголівʼя ще не верифіковане. #}
+  <div class="k-povzunok">
+    <label for="minVrh">{{ _("Голів ВРХ від") }} <b><span id="minVrhV">—</span></b>
+      <span class="n" id="minVrhND"></span></label>
+    <input type="range" id="minVrh" min="0" max="3000" step="100" value="0">
+  </div>
+  <div class="k-povzunok">
+    <label for="minSvyni">{{ _("Свиней від") }} <b><span id="minSvyniV">—</span></b>
+      <span class="n" id="minSvyniND"></span></label>
+    <input type="range" id="minSvyni" min="0" max="20000" step="500" value="0">
+  </div>
+  <div class="k-povzunok">
+    <label for="minPtytsia">{{ _("Птиці від") }} <b><span id="minPtytsiaV">—</span></b>
+      <span class="n" id="minPtytsiaND"></span></label>
+    <input type="range" id="minPtytsia" min="0" max="500000" step="10000" value="0">
+  </div>
+  <div class="k-povzunok">
+    <label for="minBiometan">{{ _("Біометан від") }} <b><span id="minBiometanV">—</span></b>
+      <span class="n" id="minBiometanND"></span></label>
+    <input type="range" id="minBiometan" min="0" max="10" step="1" value="0"
+           list="biometanKroky">
+    <datalist id="biometanKroky">
+      <option value="1"><option value="3"><option value="5"><option value="10">
+    </datalist>
+  </div>
+  <div class="k-povzunok">
+    <label for="minZemlya">{{ _("Земфонд від") }} <b><span id="minZemlyaV">—</span></b>
+      <span class="n" id="minZemlyaND"></span></label>
+    <input type="range" id="minZemlya" min="0" max="10000" step="500" value="0">
+  </div>
+  <label class="k-ryad"><input type="checkbox" id="bezDanyh" checked>
+    <span class="nm">{{ _("Показувати «немає даних» при порогах") }}</span></label>
+  <label class="k-ryad"><input type="checkbox" id="finOnly">
+    <span class="nm">{{ _("Лише фінансово активні") }}</span></label>
+  <label class="k-ryad"><input type="checkbox" id="showPot" checked>
+    <span class="nm">{{ _("Потенційні (потужність н/д)") }}</span><span class="n" id="potN"></span></label>
+  <label class="k-ryad"><input type="checkbox" id="showHrubi">
+    <span class="romb"></span><span class="nm">{{ _("Без точної локації") }}</span>
+    <span class="n" id="hrubiN"></span></label>
+</div>
+
+<div class="k-grupa">
+  <div class="k-lbl">{{ _("Придатність майданчика") }}</div>
+  <p class="kk-chesnist s-1169661">{{ _("Ваги задаєте самі — бал і колір перераховуються одразу.") }}</p>
+  <div class="k-povzunok">
+    <label for="wGas">{{ _("Газова мережа") }} <b><span id="wGasV">35</span></b></label>
+    <input type="range" id="wGas" min="0" max="100" value="35">
+  </div>
+  <div class="k-povzunok">
+    <label for="wPow">{{ _("Електромережа") }} <b><span id="wPowV">30</span></b></label>
+    <input type="range" id="wPow" min="0" max="100" value="30">
+  </div>
+  <div class="k-povzunok">
+    <label for="wRoad">{{ _("Автошляхи") }} <b><span id="wRoadV">15</span></b></label>
+    <input type="range" id="wRoad" min="0" max="100" value="15">
+  </div>
+  <div class="k-povzunok">
+    <label for="wFeed">{{ _("Обсяг сировини") }} <b><span id="wFeedV">20</span></b></label>
+    <input type="range" id="wFeed" min="0" max="100" value="20">
+  </div>
+  <label class="k-ryad"><input type="checkbox" id="colorScore">
+    <span class="nm">{{ _("Фарбувати за придатністю") }}</span></label>
+</div>
+
+<div class="k-grupa">
+  <div class="k-lbl">{{ _("Шари") }}</div>
+  {# Виробничі майданчики — модель «компанія → майданчики» (Богдан,
+     25.08.2026). Чесна межа названа тут же, а не замовчана. #}
+  <label class="k-ryad"><input type="checkbox" id="showMajd" checked>
+    <span class="romb"></span><span class="nm">{{ _("Виробничі майданчики (ДПСС)") }}</span>
+    <span class="n" id="majdN"></span></label>
+  <p class="kk-chesnist s-1169661">{{ _("Майданчики є лише для операторів із держреєстру ДПСС (тваринництво, 5 областей). Для решти компаній точка — юридична адреса. Поголівʼя по майданчиках реєстр не публікує.") }}</p>
+  <label class="k-ryad"><input type="checkbox" id="lyrHaby">
+    <span class="nm">{{ _("Хаби (точки концентрації)") }}</span><span class="n" id="habyN"></span></label>
+  {# Infrastructure overlays (gas, power, roads) are not shipped in the public demo:
+     a public map of a country's critical infrastructure is an OPSEC risk. #}
+</div>
+
+<div class="k-grupa">
+  <div class="k-lbl">{{ _("Дії") }}</div>
+  <button class="k-btn shchilna" id="expBtn" type="button" data-has-js>{{ _("Експорт CSV") }}</button>
+  <button class="k-btn shchilna" id="shareBtn" type="button" data-has-js>{{ _("Копіювати вид") }}</button>
+</div>
+{% endblock %}
+
+{% block sortuvannya %}
+<option value="bal">{{ _("за придатністю") }}</option>
+<option value="kw">{{ _("за потужністю") }}</option>
+<option value="nazva">{{ _("за назвою") }}</option>
+{% endblock %}
+
+{% block prymitka %}
+{{ _("Підложка — OpenStreetMap (потрібен інтернет). Дані точок беруться з вашої бази. Оцінки ТЕО попередні — не використовувати як проєктне рішення чи оферту.") }}
+{% endblock %}
+
+{% block skrypt %}
+<script type="module" src="/static/karta/biogaz.js?v={{ statyka_v }}"></script>
+{% endblock %}

@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Воронки — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Воронка «") }}{{ prog.title }}»{% endblock %}
+{% block vmist %}
+{% from "_ava.html" import ava with context %}
+
+{# ЛЕКАЛО K6 «Дошка» — збудоване 08.08.2026 саме під цей екран
+   (`dyzayn-ux/biblioteka/kompozytsiyi/doshka.html`). До того лекала дошки в
+   бібліотеці не існувало, і кожен продукт малював канбан заново. #}
+
+<div class="kk-tulbar">
+  <div class="k-vkladky" role="tablist" aria-label="{{ _('Напрями') }}">
+    {% for p in programs %}
+    <a class="k-vkladka" role="tab" href="/voronky?program={{ p.code }}"
+       aria-selected="{{ 'true' if p.id == prog.id else 'false' }}">{{ p.title }}</a>
+    {% endfor %}
+  </div>
+
+  <form class="k-filtry" method="get" action="/voronky" data-sabmit-na-zminu
+        data-stan="{{ 'vybrano' if cur_owner else 'spokiy' }}">
+    <input type="hidden" name="program" value="{{ prog.code }}">
+    <label class="visually-hidden" for="owner">{{ _("Відповідальний") }}</label>
+    <select class="k-vybir" id="owner" name="owner">
+      <option value="">{{ _("Відповідальний — усі") }}</option>
+      {% for o in owners %}<option value="{{ o }}"{% if o == cur_owner %} selected{% endif %}>{{ o }}</option>{% endfor %}
+    </select>
+    <span class="lichylnyk">{{ _('фільтр по власнику') if cur_owner else _('фільтрів немає') }}</span>
+  </form>
+
+  <span class="roztyah"></span>
+  {# Підсумок воронки — не прикраса: дошка показує РУХ, але без підсумку не
+     показує обсяг. Прострочені названі окремим числом, бо саме вони й є
+     робота на сьогодні. #}
+  {% set prostrochenyh = [] %}
+  {% for st in stages %}{% for d in by_stage.get(st.id, []) %}
+    {% if d.action_overdue %}{% set _ = prostrochenyh.append(1) %}{% endif %}
+  {% endfor %}{% endfor %}
+  <span class="kk-chesnist">
+    {{ _("угод") }} <b class="chyslo">{{ total|num }}</b>
+    {%- if prostrochenyh %} · <span class="nepovno">{{ _("прострочено") }} {{ prostrochenyh|length }}</span>{% endif %}
+  </span>
+  <a class="k-btn holovna" href="/voronky/nova?program={{ prog.code }}">
+    <svg class="ik" width="15" height="15" aria-hidden="true"><use href="/static/bib/ikony.svg#i-plus"></use></svg>
+    {{ _("Угода") }}</a>
+</div>
+
+{# «Ще жодної» ≠ «фільтр не дав» — різні тексти й різні дії. Стан присутній у
+   розмітці завжди, прихований при непорожній воронці. #}
+<div class="surf-panel s-eab8806" data-stan="pershe" {% if total %}hidden{% endif %}
+    >
+  <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+    <use href="/static/bib/porozhni.svg#p-voronka"></use></svg>
+  <b>{{ _("Угод у цьому напрямі ще немає") }}</b>
+  <div class="kk-chesnist s-accfd9e">
+    {{ _("Угода веде контрагента по стадіях і тримає наступну дію. Почніть із першої — або заведіть її з картки в довіднику.") }}</div>
+  <div class="k-hrupa">
+    <a class="k-btn holovna" href="/voronky/nova?program={{ prog.code }}">{{ _("Створити угоду") }}</a>
+    <a class="k-btn shchilna" href="/dovidnyk">{{ _("Відкрити довідник") }}</a>
+  </div>
+</div>
+
+{% if total %}
+{# `.scena` — спільна точка сходу для всіх карток дошки. Без неї кожна картка
+   в «польоті» мала б власну перспективу, і ряд читався б розсипаним. #}
+<div class="kk-doshka scena" id="doshka" role="list" aria-label="{{ _('Стадії воронки') }}">
+  {% for st in stages %}
+  {% set items = by_stage.get(st.id, []) %}
+  <div data-kolonka="{{ st.id }}" role="listitem" aria-label="{{ st.title }}">
+    <div class="zahol">
+      <b>{{ st.title }}</b>
+      <span class="skilky">{{ items|length }}</span>
+    </div>
+
+    {% if st.gate_criteria %}
+    {# Умова переходу видима, а не в підказці: гейт стадії — це правило роботи,
+       і воно має читатись без наведення миші (з телефону наведення немає). #}
+    <div class="kk-chesnist s-0486f78">
+      <svg class="ik s-553be6c" width="13" height="13" aria-hidden="true">
+        <use href="/static/bib/ikony.svg#i-zamok"></use></svg>
+      <span>{{ st.gate_criteria }}</span>
+    </div>
+    {% endif %}
+
+    {# Порожня стадія лишається ЦІЛЛЮ перетягування й пояснює, що робити.
+       Вузол присутній ЗАВЖДИ (прихований при непорожній колонці): коли з
+       колонки заберуть останню картку, підказка мусить зʼявитись без
+       перезавантаження — а вузла, якого немає в DOM, показати нічим. #}
+    <div class="porozhnya" data-stan="porozhno" {% if items %}hidden{% endif %}>
+      <div>{{ _("Порожньо.") }}<br>{{ _("Перетягніть сюди картку —") }}</div>
+      {# Дія обовʼязкова: «перетягніть» не працює ні з клавіатури, ні на дотику,
+         і без другого шляху порожня колонка стає глухим кутом. #}
+      <a class="k-btn shchilna" href="/voronky/nova?program={{ prog.code }}">
+        {{ _("або створити тут") }}</a>
+    </div>
+    {% if items %}
+    {% for d in items %}
+    {# Картка — DIV із посиланням усередині, а не сама посилання: `Пробіл` бере
+       картку в руку (перенесення з клавіатури), а `Enter` на назві відкриває
+       угоду. На `<a>` ці дві дії конфліктували б за одну клавішу. #}
+    {# Партитура входу — індексом у розмітці, без JS: порядок карток відомий
+       тут, і стеля stagger у `rukh.css` не дасть довгій колонці розтягнути
+       вхід екрана. `pidiym` — підйом при наведенні: картка під рукою мусить
+       відрізнятись від решти ще до натиснення. #}
+    {# Нахил за вказівником — на КАРТКАХ дошки, а не на рядках реєстру: карток
+       на екрані десятки, а рядків бувають сотні, і сотня слухачів вказівника
+       коштувала б більше, ніж дає. Назву піднято по Z, тож при нахилі картка
+       читається як обʼєм, а не як нахилена картинка. #}
+    <div data-kartka="{{ d.id }}" tabindex="0" draggable="true"
+         class="vhid pidiym nahyl" data-styl="--i:{{ loop.index0 }}" data-nahyl
+         data-stadiya="{{ st.id }}"
+         aria-label="{{ d.title }}{% if d.action_overdue %}{{ _(', прострочено') }}{% endif %}{{ _('. Пробіл — взяти, стрілки — перенести') }}">
+      <div class="nazva shar-1"><a href="/voronky/{{ d.id }}">{{ d.title }}</a></div>
+      {% if d.counterparty_id and names.get(d.counterparty_id) %}
+      <div class="dim s-9942017">{{ names[d.counterparty_id] }}</div>
+      {% endif %}
+      <div class="pid">
+        {% if d.owner %}{{ ava(d.owner, "sm") }}{% endif %}
+        {% if d.action_overdue %}
+        <span class="k-chip s-81e863b" title="{{ d.next_action_note }}">
+          <svg class="ik" width="12" height="12" aria-hidden="true"><use href="/static/bib/ikony.svg#i-uvaha"></use></svg>
+          {{ _("прострочено") }}</span>
+        {% elif d.next_action_date %}
+        <span class="k-chip">{{ d.next_action_date|dt('%d.%m') }}</span>
+        {% endif %}
+        {% if d.is_stale %}
+        <span class="k-chip s-93827eb" title="{{ _('Без активності понад 21 день') }}">{{ _("завмерло") }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<script nonce="{{ csp_nonce }}">
+/* ШАР ПОВЕДІНКИ ДОШКИ.
+ *
+ * ЧОМУ НЕ ОПТИМІСТИЧНО. Перехід стадії проходить через ГЕЙТ на сервері
+ * (`gates.check`): він може ВІДМОВИТИ, якщо не вистачає підписаних документів.
+ * Показати картку в новій колонці, а потім тихо повернути її — це збрехати про
+ * стан угоди. Тому послідовність чесна: перенесли в DOM → спитали сервер →
+ * лишили або повернули з поясненням.
+ *
+ * Undo пропонується лише для того, що СЕРВЕР ПРИЙНЯВ, і сам відкат теж іде
+ * через сервер: локальний «відкат» без запиту показував би одне, а база
+ * містила б інше. */
+document.addEventListener('DOMContentLoaded', function () {
+  var doshka = document.getElementById('doshka');
+  if (!doshka || !window.PV || !PV.dnd) return;
+
+  function nazvaKolonky(kol) {
+    return (kol && kol.getAttribute('aria-label')) || T('іншу стадію');
+  }
+
+  function perenesty(kartka, kudy, zvidky, tykho) {
+    var id = kartka.getAttribute('data-kartka');
+    var stageId = kudy.getAttribute('data-kolonka');
+    var fd = new FormData();
+    fd.append('stage_id', stageId);
+    kartka.setAttribute('data-stan', 'zaynyata');
+
+    return fetch('/voronky/' + id + '/stage', { method: 'POST', body: fd })
+      .then(function (r) {
+        kartka.removeAttribute('data-stan');
+        // Сервер відповідає редиректом; `?gate=1` означає «гейт не пустив».
+        if (r.url && r.url.indexOf('gate=1') >= 0) {
+          if (zvidky) zvidky.appendChild(kartka);
+          PV.toast({
+            ton: 'krytych', trymaty: 0,
+            tekst: T('Гейт не пустив у «') + nazvaKolonky(kudy) + T('»: не вистачає ')
+                 + T('підписаних документів.'),
+            diya: { pidpys: T('Що саме'), fn: function () {
+              location.href = '/voronky/' + id + '?gate=1'; } }
+          });
+          return false;
+        }
+        kartka.setAttribute('data-stadiya', stageId);
+        onovytyLichylnyky();
+        if (!tykho) {
+          PV.toast({
+            tekst: T('Перенесено в «') + nazvaKolonky(kudy) + '»',
+            diya: { pidpys: T('Скасувати'), fn: function () {
+              // Відкат — теж ЧЕРЕЗ СЕРВЕР: інакше екран і база розійдуться.
+              if (zvidky) perenesty(kartka, zvidky, kudy, true).then(function (ok) {
+                if (ok) PV.toast({ tekst: T('Повернуто в «') + nazvaKolonky(zvidky) + '»' });
+              });
+            } }
+          });
+        }
+        return true;
+      })
+      .catch(function () {
+        kartka.removeAttribute('data-stan');
+        if (zvidky) zvidky.appendChild(kartka);
+        PV.toast({ ton: 'krytych', trymaty: 0,
+                   tekst: T('Немає звʼязку — картку повернуто на місце.') });
+        return false;
+      });
+  }
+
+  // Лічильники читаються з ЖИВОГО DOM, а не з моделі: після перенесення
+  // мишею вузол уже переставив PV.dnd, і сторінка не перемальовується.
+  function onovytyLichylnyky() {
+    doshka.querySelectorAll('[data-kolonka]').forEach(function (kol) {
+      var n = kol.querySelectorAll('[data-kartka]').length;
+      var sk = kol.querySelector('.zahol > .skilky');
+      if (sk) sk.textContent = n;
+      var por = kol.querySelector('.porozhnya');
+      if (por) por.hidden = n > 0;
+    });
+  }
+
+  PV.dnd(doshka, { onPerenos: function (kartka, kudy, zvidky) {
+    perenesty(kartka, kudy, zvidky, false);
+  } });
+});
+</script>
+{% endblock %}

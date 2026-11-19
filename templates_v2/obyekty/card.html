@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}{{ site.name }} {{ _("— Обʼєкт") }}{% endblock %}
+{% block shapka %}{{ site.name|truncate(60) }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K2 «Сторінка сутності» (`kompozytsiyi/sutnist.html`):
+   крихти → шапка з бейджами → тіло + сайдбар фактів → стрічка активності. #}
+
+<nav class="k-krykhty" aria-label="{{ _('Шлях') }}">
+  <a href="/obyekty?site_type={{ site.site_type }}">{{ _("Обʼєкти") }}</a>
+  <span aria-hidden="true">·</span>
+  <span aria-current="page">{{ site.name|truncate(48) }}</span>
+</nav>
+
+<div class="kk-sutnist">
+  <header class="shapka">
+    <h1 class="s-1169661">{{ site.name }}</h1>
+    <div class="k-krykhty s-4c77968">
+      <span class="k-chip">{{ site.type_label }}</span>
+      {% if site.is_anchor %}<span class="k-chip s-d066582">{{ _("якір хабу") }}</span>{% endif %}
+      {% if score %}
+      <span class="k-chip" title="{{ _('Пріоритет обчислюється з балу — вручну не змінюється') }}">
+        {{ score.priority }}</span>
+      {% endif %}
+    </div>
+  </header>
+
+  <div class="telo">
+    <section>
+      <h2 class="metryka-h">{{ _("Бал") }}</h2>
+      {% if score %}
+      <div class="metryka s-c9996a7">
+        <div class="metryka-znach">{{ score.value }}<span class="od">{{ _("зі 100") }}</span></div>
+      </div>
+      {% endif %}
+
+      {% if comps %}
+      <p class="kk-chesnist">{{ _("Розклад показує,") }} <b>{{ _("чому") }}</b> {{ _("бал саме такий.") }}</p>
+
+      {# ЧАРТ, А НЕ ЛИШЕ ТАБЛИЦЯ. Таблиця відповідає на «скільки дав цей
+         компонент», чарт — на «що саме тягне бал донизу»: це видно лише із
+         зіставлення внесків між собою, а не з читання стовпчика чисел.
+         Компоненти БЕЗ ДАНИХ у чарт не входять — інакше «ще не питали»
+         намалювалося б як нуль і читалося як «погано» (Г15). #}
+      <div class="s-c9996a7" id="chart-bal"></div>
+      <script type="application/json" id="dani-bal">
+        [{% for c in comps if not c.missing %}
+          {"label": {{ c.label|tojson }}, "value": {{ c.contribution }}}{{ "," if not loop.last }}
+        {% endfor %}]
+      </script>
+      <script nonce="{{ csp_nonce }}">
+        document.addEventListener('DOMContentLoaded', function () {
+          var v = document.getElementById('chart-bal');
+          var s = document.getElementById('dani-bal');
+          if (!v || !s) return;
+          if (typeof CH === 'undefined') {
+            v.innerHTML = '<div class="kk-chesnist"><span class="nepovno">'
+                        + T('чарт не побудовано: charts.js не завантажився</span></div>');
+            return;
+          }
+          var dani = [];
+          try { dani = JSON.parse(s.textContent); } catch (e) {}
+          if (dani.length < 2) {
+            v.innerHTML = T('<div class="kk-chesnist">Розклад видно від двох ')
+                        + T('компонентів із даними.</div>');
+            return;
+          }
+          try {
+            v.innerHTML = CH.bar({
+              dani: dani, w: 760,
+              // Вісь до 100: внесок міряється в балах ЗІ СТА, і стеля мусить
+              // бути сталою — інакше однаковий бал на різних обʼєктах
+              // виглядав би по-різному.
+              vis: { domain: [0, 100], unit: T('балів'), ticks: [0, 25, 50, 75, 100] }
+            });
+          } catch (e) {
+            v.innerHTML = '<div class="kk-chesnist"><span class="nepovno">'
+                        + T('чарт не побудовано: ') + String(e.message || e) + '</span></div>';
+          }
+        });
+      </script>
+      <div class="k-tab-obh" data-stan="spokiy">
+      <table class="k-tab kartky">
+        <thead><tr><th>{{ _("Компонент") }}</th><th class="chyslo">{{ _("Сире") }}</th><th>{{ _("Внесок") }}</th></tr></thead>
+        <tbody>
+        {% for c in comps %}
+          <tr class="k-ryad">
+            <td data-holovne data-p="{{ _('Компонент') }}">{{ c.label }}
+              <div class="dim s-9942017">
+                {{ c.source }} {{ _("· вага") }} {{ (c.weight * 100)|round|int }}%</div></td>
+            <td data-p="{{ _('Сире') }}" class="chyslo">
+              {%- if c.missing %}<span class="dim">{{ _("немає даних") }}</span>
+              {%- else %}{{ c.raw|num }}{% endif %}</td>
+            <td data-p="{{ _('Внесок') }}">
+              <span class="shkala" role="img"
+                    aria-label="{{ _('внесок') }} {{ c.contribution }} {{ _('з') }} {{ (c.weight*100)|round|int }} {{ _('можливих') }}"
+                    title="{{ c.contribution }} {{ _('з') }} {{ (c.weight*100)|round|int }} {{ _('можливих балів') }}">
+                {% set part = ((c.normalized * 5) | round | int) %}
+                {% for n in range(5) %}<i class="{{ 'on' if n < part else '' }}"></i>{% endfor %}
+              </span>
+              <span class="chyslo">{{ c.contribution }}</span>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+
+      {% set miss = comps | selectattr('missing') | list %}
+      {% if miss %}
+      {# «Немає даних» ≠ «погано». Без цього рядка занижений бал читається як
+         оцінка обʼєкта, і рішення ухвалюють по відсутності даних (Г15). #}
+      <p class="kk-chesnist s-c5502a3">
+        <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-uvaha"></use></svg>
+        <span class="nepovno">{{ _("Без даних:") }}</span>
+        {{ miss | map(attribute='label') | join(' · ') }}{{ _(". Бал занижений рівно на суму їхніх ваг — це не «погано», це «ще не питали».") }}
+      </p>
+      {% endif %}
+      {% endif %}
+
+      {# Стан «ще не рахувався» присутній завжди, прихований за наявності балу. #}
+      <div class="surf-panel s-47ffdd9" data-stan="porozhno" {% if comps %}hidden{% endif %}
+          >
+        <b>{{ _("Бал ще не рахувався") }}</b>
+        <div class="kk-chesnist">{{ _("Він зʼявиться після першого прогону скорингу.") }}</div>
+        <a class="k-btn shchilna" href="/obyekty?site_type={{ site.site_type }}">{{ _("До реєстру") }}</a>
+      </div>
+
+      {% if site.site_type == 'biogaz_object' %}
+      <h2 class="metryka-h s-a52c42b">{{ _("Сировина й потужність") }}</h2>
+      <div class="kk-fakty">
+        <div><span>{{ _("Рекомендована станція") }}</span><span>{{ site.recommended_station or '—' }}</span></div>
+        <div><span>{{ _("Потужність, кВт ел.") }}</span><span class="chyslo">{{ site.est_capacity_kw_el|num }}</span></div>
+        <div><span>{{ _("Сировина, т/рік") }}</span><span class="chyslo">{{ site.est_feedstock_t_year|num }}</span></div>
+        <div><span>{{ _("Біогаз, м³/рік") }}</span><span class="chyslo">{{ site.est_biogas_m3_year|num }}</span></div>
+        <div><span>{{ _("Енергія, МВт·год/рік") }}</span><span class="chyslo">{{ site.est_energy_mwh_year|num }}</span></div>
+        <div><span>{{ _("ВРХ / птиця / свині") }}</span><span class="chyslo">{{ site.vrh_head|num }} · {{ site.poultry_head|num }} · {{ site.pigs_head|num }}</span></div>
+        <div><span>{{ _("До дороги / мережі / газу, км") }}</span><span class="chyslo">{{ site.dist_road_km|num }} · {{ site.dist_power_km|num }} · {{ site.dist_gas_km|num }}</span></div>
+      </div>
+
+      <h2 class="metryka-h s-a52c42b">
+        {{ _("Перед-ТЕО") }} <span class="k-chip s-93827eb">PRELIMINARY</span></h2>
+      <div class="kk-fakty">
+        <div><span>{{ _("Тип станції") }}</span><span>{{ site.tz_plant or '—' }}</span></div>
+        <div><span>CAPEX</span><span class="chyslo">{{ site.tz_capex|num }}</span></div>
+        <div><span>{{ _("Дохід/рік") }}</span><span class="chyslo">{{ site.tz_revenue|num }}</span></div>
+        <div><span>{{ _("OPEX/рік") }}</span><span class="chyslo">{{ site.tz_opex|num }}</span></div>
+        <div><span>{{ _("Окупність, років") }}</span><span class="chyslo">{{ site.tz_payback|num }}</span></div>
+        <div><span>IRR, %</span><span class="chyslo">{{ site.tz_irr|num }}</span></div>
+      </div>
+      <p class="kk-chesnist s-c5502a3">
+        <span class="nepovno">PRELIMINARY:</span>
+        {{ _("оцінки з явних коефіцієнтів — не проєктні рішення.") }}</p>
+      {% endif %}
+
+      {% if site.site_type == 'hromada_lokatsiya' %}
+      <h2 class="metryka-h s-a52c42b">{{ _("Анкета скринінгу C1–C9") }}</h2>
+      {# Єдине місце, де дані вводяться руками. Порожнє поле = «ще не питали»,
+         а не «нуль»: злиття цих двох станів уже коштувало половини бази (Г15). #}
+      <div class="k-banner s-bdbf926" role="note">
+        <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-uvaha"></use></svg>
+        <div>{{ _("Порожнє поле означає") }} <b>{{ _("«ще не питали»") }}</b>{{ _(", а не «нуль».") }}</div>
+      </div>
+      <form class="kk-forma" method="post" action="/obyekty/{{ site.id }}/kryterii"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        {% set flds = [
+          ('c1_grain_t_yr',_('C1 Зерно від фермерів, т/рік'),'100 000–200 000'),
+          ('c2_underserved_ha',_('C2 Недообслуговувані землі, га'),'13 000–16 000'),
+          ('c3_ind_park',_('C3 Індустріальний парк (1/0)'),_('4 га наявний або 12 га новий')),
+          ('c4_rail',_('C4 Залізниця (1/0)'),_('доступ до колії')),
+          ('c5_road',_('C5 Дороги (1/0)'),_('якісний підʼїзд')),
+          ('c6_power_mw',_('C6 Вільна потужність, МВт'),'1–2'),
+          ('c7_guarantee_ready',_('C7 Готовність гарантувати (1/0)'),_('$3–5 млн')),
+          ('c8_ahc_ready',_('C8 Готовність створити АНС (1/0)'),_('комунальне ТОВ')),
+          ('c9_transparency',_('C9 Згода на перевірки (1/0)'),_('аудит EIFO'))
+        ] %}
+        {% for key, label, note in flds %}
+        <div class="k-hrupa-polya">
+          <label for="f-{{ key }}">{{ label }}</label>
+          <input class="k-pole" id="f-{{ key }}" type="text" name="{{ key }}"
+                 value="{{ site[key] if site[key] is not none else '' }}"
+                 placeholder="{{ note }}" aria-describedby="p-{{ key }}">
+          <span class="pidkazka" id="p-{{ key }}">{{ note }}</span>
+        </div>
+        {% endfor %}
+        <button class="k-btn holovna" type="submit">{{ _("Зберегти анкету") }}</button>
+      </form>
+
+      <h2 class="metryka-h s-a52c42b">{{ _("Стан громади") }}</h2>
+      <div class="kk-fakty">
+        <div><span>{{ _("Район") }}</span><span>{{ site.raion or '—' }}</span></div>
+        <div><span>{{ _("Центр") }}</span><span>{{ site.center_guess or '—' }}</span></div>
+        <div><span>{{ _("Рішення ради") }}</span><span>{{ site.rada_decision_status or '—' }}</span></div>
+        <div><span>{{ _("Обсяг LOI фермерів, т") }}</span><span class="chyslo">{{ site.farmer_volume_committed_t|num }}</span></div>
+        <div><span>{{ _("GAP зібрано, $") }}</span><span class="chyslo">{{ site.gap_funding_secured_usd|num }}</span></div>
+        <div><span>{{ _("Сума зобовʼязання, $") }}</span><span class="chyslo">{{ site.guarantee_amount_usd|num }}
+          <span class="k-chip s-81e863b" title="{{ _('Зміна — незворотна дія') }}">Tier3</span></span></div>
+      </div>
+      {% endif %}
+    </section>
+
+    <aside class="sayidbar surf-panel">
+      {% if site.site_type == 'biogaz_object' %}
+      <h2 class="metryka-h">{{ _("Статус обдзвону") }}</h2>
+      <form class="s-b3f4ba9" method="post" action="/obyekty/{{ site.id }}/status"
+           ><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label class="visually-hidden" for="member_status">{{ _("Статус обдзвону") }}</label>
+        <select class="k-vybir" id="member_status" name="member_status">
+          {% for m in member_statuses %}<option{% if m == site.member_status %} selected{% endif %}>{{ m }}</option>{% endfor %}
+        </select>
+        <button class="k-btn holovna" type="submit">{{ _("Зберегти") }}</button>
+      </form>
+      {% endif %}
+
+      <h2 class="metryka-h">{{ _("Розташування") }}</h2>
+      <div class="kk-fakty">
+        <div><span>{{ _("Область") }}</span><span>{{ site.oblast or '—' }}</span></div>
+        <div><span>{{ _("Район") }}</span><span>{{ site.raion or '—' }}</span></div>
+        <div><span>{{ _("Громада") }}</span><span>{{ site.hromada or '—' }}</span></div>
+        <div><span>{{ _("Місто / село") }}</span><span>{{ site.city or '—' }}</span></div>
+        <div><span>{{ _("Координати") }}</span><span class="chyslo">
+          {%- if site.lat %}{{ site.lat }}, {{ site.lon }}
+          <a href="/karta">{{ _("на карті") }}</a>{% else %}<span class="dim">{{ _("немає даних") }}</span>{% endif %}</span></div>
+        <div><span>{{ _("Джерело") }}</span><span class="dim">{{ site.source }}</span></div>
+      </div>
+
+      {% if cp %}
+      <h2 class="metryka-h s-497f315">{{ _("Контрагент") }}</h2>
+      <p class="s-1169661"><a href="/dovidnyk/{{ cp.id }}">{{ cp.name }}</a>
+        {% if cp.phone %}<br><a class="dim" href="tel:{{ cp.phone }}">{{ cp.phone }}</a>{% endif %}</p>
+
+      {# Угоди контрагента — щоб з обʼєкта було видно, чи вже ведеться угода,
+         і не заводити дубль. Порожньо → пропонуємо завести. #}
+      <h3 class="s-7a98cae">{{ _("Угоди") }}
+        {% if ugody %}<span class="dim">({{ ugody|length }})</span>{% endif %}</h3>
+      {% if ugody %}
+      <ul class="s-e716b57">
+        {% for u in ugody[:6] %}
+        <li class="s-e150c64">
+          <a href="/voronky/{{ u.id }}">{{ u.title|truncate(30) }}</a>
+          {% set st = stadiyi.get(u.stage_id) %}
+          {% if st %}<span class="k-chip">{{ st.title }}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="kk-chesnist s-1169661">{{ _("Угод із цим контрагентом ще немає.") }}
+        <a href="/voronky/nova?counterparty_id={{ cp.id }}">{{ _("Завести") }}</a>.</p>
+      {% endif %}
+      {% endif %}
+
+      {% if cluster %}
+      <h2 class="metryka-h s-497f315">{{ _("Хаб") }}</h2>
+      <p class="s-1169661"><a href="/haby/{{ cluster.id }}">{{ cluster.site_code }}</a>
+        <span class="dim">— {{ cluster.type_label }}, {{ cluster.total_mw|num }} {{ _("МВт,") }}
+        {{ cluster.n_donors }} {{ _("донорів") }}</span></p>
+      {% endif %}
+    </aside>
+  </div>
+</div>
+
+{% with entity='site', entity_id=site.id %}{% include "_spivpratsya.html" %}{% endwith %}
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Сповіщення — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Сповіщення") }}{% endblock %}
+{% block vmist %}
+
+<div class="kk-tulbar">
+  <span class="kk-chesnist">
+    {%- if unread %}{{ _("непрочитаних") }} <b class="chyslo">{{ unread }}</b>
+    {%- else %}{{ _("усе прочитано") }}{% endif %}
+  </span>
+  <span class="roztyah"></span>
+  {% if unread %}
+  <form method="post" action="/spovishchennya/prochytano"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button class="k-btn shchilna" type="submit">
+      <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-hotovo"></use></svg>
+      {{ _("Позначити всі прочитаними (") }}{{ unread }})</button>
+  </form>
+  {% endif %}
+</div>
+
+{# «Сповіщень ще не було» — це `pershe`, а не «нічого не знайдено»: інший текст
+   і інша дія. Стан присутній у розмітці завжди. #}
+<div class="surf-panel s-eab8806" data-stan="pershe" {% if rows %}hidden{% endif %}
+    >
+  <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+    <use href="/static/bib/porozhni.svg#p-strichka"></use></svg>
+  <b>{{ _("Сповіщень немає") }}</b>
+  <div class="kk-chesnist s-561e182">
+    {{ _("Сюди прийде, коли вас згадають, поставлять завдання або ухвалять рішення по вашій роботі.") }}</div>
+  <a class="k-btn holovna" href="/strichka">{{ _("Подивитись, що робить команда") }}</a>
+</div>
+
+{% if rows %}
+<ul class="kk-strichka s-35823d2">
+  {% for r in rows %}
+  {# Непрочитане відрізняється ШТРИХОМ і словом, не лише кольором: у списку з
+     20 рядків суцільний колір перестає щось означати. #}
+  <li class="s-711d762"{% if r.is_unread %} data-stan="nove"
+     {% endif %}>
+    <div class="s-509a426">
+      <span class="k-chip">{{ r.kind_label }}</span>
+      {% if r.is_unread %}<span class="k-chip s-354c52c">{{ _("нове") }}</span>{% endif %}
+      <time class="chyslo dim s-8c5865f">{{ r.created_at|dt('%d.%m %H:%M') }}</time>
+    </div>
+    <div class="s-348d633">{{ r.text }}</div>
+    {% if r.url %}
+    <a class="s-9942017" href="{{ r.url }}">{{ _("перейти") }}
+      <svg class="ik" width="12" height="12" aria-hidden="true"><use href="/static/bib/ikony.svg#i-dali"></use></svg></a>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

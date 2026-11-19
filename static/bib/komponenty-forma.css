@@ -1,0 +1,196 @@
+/* ═══ KOMPONENTY-FORMA — поле в оточенні, дата, файли, пошук ════════════════
+   Чотири компоненти. Вимагає komponenty-keruvannya.css (використовує .k-pole).
+
+   ГОЛОВНЕ РІШЕННЯ ШАРУ: помилка живе БІЛЯ ПОЛЯ, не банером угорі.
+   Виміряно 08.08.2026 у робочому продукті: інлайнові помилки були на 4 полях
+   зі ~130, решта показувалась банером над формою. На формі з дев'яти полів це
+   означає «щось не так десь тут» — людина шукає очима, а не читає. Механіка
+   звʼязку вже є в `interaktyvnist/scripts/interactions.js` (`IX.validateForm`:
+   `:user-invalid` + `aria-describedby` на blur), тут — її візуальна половина.
+
+   ЗМІСТ: §1 Група поля · §2 Дата й діапазон · §3 Дропзона · §4 Пошук
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── §1 ГРУПА ПОЛЯ ──────────────────────────────────────────────────────────
+   Підпис + підказка + обовʼязковість + помилка + лічильник навколо одного поля.
+
+   ЧОМУ ЦЕ КОМПОНЕНТ, А НЕ «просто label поруч». Пʼять частин мають узгоджену
+   поведінку: підказка ховається, коли зʼявляється помилка (два пояснення
+   одночасно змагаються за увагу); лічильник червоніє разом із полем; зірочка
+   обовʼязковості має текстову альтернативу для читача екрана. Зібрати це
+   заново в кожній формі означає зібрати по-різному. */
+.k-hrupa-polya { display: grid; gap: var(--sp1, 4px) }
+
+.k-hrupa-polya > .pidpys {
+  font-size: var(--kegl-dribnyi, 12.5px);
+  font-weight: 500; color: var(--tilo, #262219);
+  display: flex; align-items: baseline; gap: var(--sp1, 4px);
+}
+/* Обовʼязковість — зірочка З ТЕКСТОВОЮ АЛЬТЕРНАТИВОЮ. Сама по собі «*» для
+   читача екрана — це «зірочка», а не «обовʼязкове». */
+.k-hrupa-polya > .pidpys > .treba { color: var(--krytych, #b3261e); font-weight: 700 }
+.k-hrupa-polya > .pidpys > .treba::after { content: ""; }
+
+.k-hrupa-polya > .pidkazka,
+.k-hrupa-polya > .pomylka,
+.k-hrupa-polya > .lichylnyk {
+  font-size: var(--kegl-dribnyi, 12.5px); color: var(--prygl, #6f6759);
+}
+.k-hrupa-polya > .lichylnyk { justify-self: end; font-variant-numeric: tabular-nums }
+
+/* Помилка: гліф + колір + вага. Три канали, бо кольоровий один не працює. */
+.k-hrupa-polya > .pomylka {
+  color: var(--krytych, #b3261e); font-weight: 500;
+  display: none; align-items: baseline; gap: var(--sp1, 4px);
+}
+.k-hrupa-polya > .pomylka::before { content: "!"; font-weight: 700; flex: none }
+
+.k-hrupa-polya[data-stan="pomylka"] > .pomylka { display: flex }
+.k-hrupa-polya[data-stan="pomylka"] > .pidkazka { display: none }   /* одне пояснення за раз */
+.k-hrupa-polya[data-stan="pomylka"] > .lichylnyk { color: var(--krytych, #b3261e) }
+.k-hrupa-polya[data-stan="pomylka"] .k-pole,
+.k-hrupa-polya[data-stan="pomylka"] .k-bahato,
+.k-hrupa-polya[data-stan="pomylka"] .k-vybir {
+  border-color: var(--krytych, #b3261e); border-width: 2px;
+}
+
+/* Фокус усередині групи підсвічує ПІДПИС — так видно, де ти, коли форма довга
+   і поле вже прокрутилось до краю екрана. */
+.k-hrupa-polya:focus-within > .pidpys { color: var(--akcent, #0f7568) }
+
+.k-hrupa-polya[data-stan="nedostupna"] > .pidpys,
+.k-hrupa-polya[data-stan="nedostupna"] > .pidkazka { opacity: .55 }
+.k-hrupa-polya[data-stan="nedostupna"] > .pidpys { text-decoration: line-through }
+
+/* ── §2 ДАТА Й ДІАПАЗОН ─────────────────────────────────────────────────────
+   РІДНИЙ `type=date`, а не власний календар.
+
+   Власний календар-місяць коштує: клавіатурної навігації по сітці, читача
+   екрана, локалі, мобільного колеса вибору — і виграє лише вигляд. У CRM
+   дата вводиться сотнями разів, і рідний ввід з клавіатури «08.08.2026»
+   швидший за будь-яку сітку. Додаємо те, чого рідному бракує: пресети. */
+.k-data { display: inline-flex; align-items: center; gap: var(--sp2, 8px); flex-wrap: wrap }
+.k-data > .k-pole { width: auto; min-width: 9.5em }
+.k-data > .presety { display: inline-flex; gap: var(--sp1, 4px) }
+
+/* Діапазон: два поля з рискою, яка НЕ є дефісом у тексті — це елемент
+   інтерфейсу, тому має власний колір і не копіюється разом зі значенням. */
+.k-data.diapazon > .ryska {
+  color: var(--prygl, #6f6759); user-select: none; flex: none;
+}
+.k-data[data-stan="vidkrytyi"] > .k-pole { border-color: var(--akcent, #0f7568) }
+.k-data[data-stan="pomylka"] > .k-pole { border-color: var(--krytych, #b3261e); border-width: 2px }
+.k-data[data-stan="nedostupna"] { opacity: .55; cursor: not-allowed }
+.k-data[data-stan="nedostupna"] > .k-pole { border-style: dashed; pointer-events: none }
+
+/* ── §3 ДРОПЗОНА ───────────────────────────────────────────────────────────
+   Сім станів. Найважливіший — «ціль»: поки файл тягнуть над вікном, людина
+   мусить бачити, КУДИ його можна кинути. Без цього стану drag&drop існує
+   лише в голові розробника.
+
+   «Зайнята» тут не крутилка, а відсоток зі скасуванням: файл на 40 МБ у
+   польовому інтернеті вантажиться хвилини, і скасування — не розкіш. */
+.k-dropzona {
+  display: grid; place-items: center; gap: var(--sp2, 8px);
+  padding: var(--sp6, 24px);
+  border: 2px dashed var(--mezha, #d8d4cb);
+  border-radius: var(--r, 10px);
+  background: var(--tlo-2, #f0ede7);
+  color: var(--prygl, #6f6759);
+  text-align: center; cursor: pointer;
+  transition: border-color var(--d-fast, 90ms) var(--ease, ease),
+              background-color var(--d-fast, 90ms) var(--ease, ease),
+              color var(--d-fast, 90ms) var(--ease, ease);
+  outline: var(--fokus-tovshchyna, 2px) solid transparent;
+  outline-offset: calc(-1 * var(--fokus-tovshchyna, 2px));
+}
+.k-dropzona:hover { border-color: var(--akcent, #0f7568); color: var(--tilo, #262219) }
+.k-dropzona:focus-visible { outline-color: var(--akcent, #0f7568) }
+
+/* ЦІЛЬ — суцільна рамка замість пунктиру: пунктир каже «сюди можна», суцільна
+   каже «сюди зараз». Різниця форми, не лише кольору. */
+.k-dropzona[data-stan="tsil"] {
+  border-style: solid; border-color: var(--akcent, #0f7568);
+  background: var(--akcent-tlo, #e0efec); color: var(--tilo, #262219);
+}
+.k-dropzona[data-stan="zaynyata"] {
+  cursor: progress; border-style: solid;
+  background-image: repeating-linear-gradient(45deg,
+    var(--mezha-m, #e6e2da) 0 6px, transparent 6px 12px);
+}
+.k-dropzona[data-stan="pomylka"] {
+  border-style: solid; border-color: var(--krytych, #b3261e);
+  color: var(--krytych, #b3261e);
+}
+.k-dropzona[data-stan="nedostupna"] {
+  cursor: not-allowed; opacity: .55; border-style: dotted; pointer-events: auto;
+}
+
+/* Смуга прогресу всередині дропзони — тонка, без власного кольору-акценту:
+   вона супроводжує дію, а не оголошує її. */
+.k-dropzona > .postup {
+  inline-size: 100%; block-size: 4px; border-radius: var(--r-full, 999px);
+  background: var(--mezha-m, #e6e2da); overflow: hidden;
+}
+.k-dropzona > .postup > i {
+  display: block; block-size: 100%; inline-size: var(--chastka, 0%);
+  background: var(--akcent, #0f7568);
+  transition: inline-size var(--d, 180ms) var(--ease, ease);
+}
+
+/* ── §4 ПОШУК ──────────────────────────────────────────────────────────────
+   Поле з іконкою, очищенням і власним станом «шукаю».
+
+   ЧОМУ ОКРЕМО ВІД ПОЛЯ. Пошук у реєстрі на 46 тисяч записів має три речі,
+   яких звичайне поле не має: індикатор запиту в дорозі (інакше при затримці
+   здається, що нічого не сталось), кнопка очищення (виділяти й тиснути
+   Delete — три дії замість однієї) і власний порожній результат просто в полі. */
+.k-poshuk { position: relative; display: block }
+.k-poshuk > .k-pole { padding-inline: 2.2em 2.2em }
+
+.k-poshuk > .znak,
+.k-poshuk > .k-ochystyty {
+  position: absolute; inset-block: 0; inline-size: 2.2em;
+  display: grid; place-items: center; color: var(--prygl, #6f6759);
+}
+.k-poshuk > .znak { inset-inline-start: 0; pointer-events: none }
+.k-poshuk > .k-ochystyty {
+  inset-inline-end: 0; border: 0; background: none; cursor: pointer;
+  border-radius: var(--r-sm, 7px); padding: 0;
+  outline: var(--fokus-tovshchyna, 2px) solid transparent;
+  outline-offset: calc(-1 * var(--fokus-tovshchyna, 2px));
+  transition: color var(--d-fast, 90ms) var(--ease, ease);
+}
+.k-poshuk > .k-ochystyty:hover { color: var(--tilo, #262219) }
+.k-poshuk > .k-ochystyty:focus-visible { outline-color: var(--akcent, #0f7568) }
+/* Порожнє поле — очищати нема чого, тож кнопки немає взагалі, а не «сірою». */
+.k-poshuk:not([data-stan="zapovnene"]):not([data-stan="zavantazhennya"]):not([data-stan="porozhno"])
+  > .k-ochystyty { display: none }
+
+.k-poshuk[data-stan="zavantazhennya"] > .znak {
+  border-radius: var(--r-full, 999px);
+  animation: k-pulse calc(900ms / max(var(--ruh, 1), .01)) ease-in-out infinite;
+}
+@keyframes k-pulse { 50% { opacity: .35 } }
+
+/* Порожній результат ПРЯМО В ПОЛІ — коротка правда там, де очі вже стоять.
+   Розгорнутий порожній стан із дією лишається під списком. */
+/* Повідомлення МУСИТЬ ЗАЙМАТИ МІСЦЕ. Перша версія ставила його
+   `position:absolute` під полем — і воно наклалось на наступний елемент
+   (видно на контактному аркуші 08.08.2026). Абсолютний елемент не має висоти
+   в потоці, тож у формі текст ліг би поверх наступного поля. Тому зона під
+   полем резервується падінгом самого компонента, і повідомлення падає рівно
+   в неї. */
+.k-poshuk[data-stan="porozhno"] { padding-block-end: 1.5em }
+.k-poshuk[data-stan="porozhno"] > .k-pole { border-color: var(--uvaha, #a8620a) }
+.k-poshuk[data-stan="porozhno"]::after {
+  content: attr(data-porozhno);
+  position: absolute; inset-block-end: 0; inset-inline: 0;
+  font-size: var(--kegl-dribnyi, 12.5px); color: var(--uvaha, #a8620a);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+@media (max-width: 600px), (pointer: coarse) {
+  .k-dropzona { padding: var(--sp8, 32px) }
+  .k-poshuk > .k-ochystyty { inline-size: 44px }
+}

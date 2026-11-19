@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Стрічка команди — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Що зараз робиться") }}{% endblock %}
+{% block vmist %}
+
+<div class="kk-tulbar">
+  <div class="k-vkladky" role="tablist" aria-label="{{ _('Чиї дії') }}">
+    <a class="k-vkladka" role="tab" href="/strichka"
+       aria-selected="{{ 'false' if hto else 'true' }}">{{ _("Уся команда") }}</a>
+    <a class="k-vkladka" role="tab" href="/strichka?hto=moyi"
+       aria-selected="{{ 'true' if hto == 'moyi' else 'false' }}">{{ _("Тільки мої") }}</a>
+  </div>
+  <span class="roztyah"></span>
+  {# Оновлення саме по собі — це обіцянка, і її треба назвати, інакше людина
+     тисне F5 і думає, що екран завис. #}
+  <span class="kk-chesnist">
+    {{ _("оновлюється саме, раз на 60 с") }}
+    {%- if bachyv_do %} {{ _("· востаннє ви були") }} <b>{{ bachyv_do|dt('%d.%m %H:%M') }}</b>{% endif %}
+  </span>
+</div>
+
+<div class="s-35823d2" id="strichka"
+     hx-get="/strichka{% if hto %}?hto={{ hto }}{% endif %}"
+     hx-trigger="every 60s" hx-swap="innerHTML" aria-live="polite">
+  {% include "_strichka_rows.html" %}
+</div>
+{% endblock %}

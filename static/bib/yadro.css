@@ -1,0 +1,196 @@
+/* ═══ ЯДРО БІБЛІОТЕКИ ГЛИБИНИ ═══════════════════════════════════════════════
+   Шрифти · база · типографіка · простір · фокус · примітиви глибини й руху.
+   КОЛЬОРІВ І ЧИСЕЛ ХАРАКТЕРУ ТУТ НЕМАЄ — все через токени мови (movy/*.css),
+   яка підключається ПЕРЕД цим файлом.
+
+   Порядок підключення: movy/<одна-мова>.css → yadro.css → <компоненти проєкту>
+   Підміна файла мови міняє характер продукту; ядро й компоненти не чіпаються.
+   Архітектура доведена на робочому продукті: 24 екрани перемикали напрям
+   одним файлом токенів.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── ШРИФТИ (параметр проєкту) ──────────────────────────────────────────────
+   Ядро НЕ вшиває шляхи до шрифтів: у різних продуктах вони лежать по-різному,
+   а деякі продукти забороняють зовнішні запити (CSP). Тому @font-face —
+   ШАБЛОН нижче: розкоментуй і підстав свій шлях замість «<шлях-до-шрифтів>».
+   Підмножини за unicode-range обовʼязкові: кирилиця тягнеться лише коли
+   потрібна. Ліцензія SIL OFL — тримай DZHERELO.txt поруч зі шрифтами.
+
+@font-face{font-family:Inter;font-style:normal;font-weight:400 700;font-display:swap;
+  src:url(<шлях-до-шрифтів>/inter-cyrillic.woff2) format("woff2");
+  unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:Inter;font-style:normal;font-weight:400 700;font-display:swap;
+  src:url(<шлях-до-шрифтів>/inter-latin.woff2) format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,
+    U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,
+    U+FEFF,U+FFFD}
+@font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:400 600;
+  font-display:swap;src:url(<шлях-до-шрифтів>/jbmono-cyrillic.woff2) format("woff2");
+  unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+   …і так само для дисплейного шрифту мови (--f-dysplei), якщо він не системний.
+   Поки шрифти не вкладені — працюють системні фолбеки зі стеків нижче. */
+
+/* ── ПРОСТІР, ЩІЛЬНІСТЬ ─────────────────────────────────────────────────────
+   Щільність — перемикач для ЛЮДИНИ (компактно / просторо), а не для дизайнера:
+   замість вгадувати середнє, даємо регулятор. Множник входить у КОЖЕН відступ,
+   тому екран стискається цілісно, а не шматками. */
+:root{
+  --shchilnist:1;
+
+  /* Внутрішні відступи КЕРУВАНЬ — окрема шкала, кратна 4. Виміряно 06.08.2026
+     на шести екранах робочого продукту: коли ці числа розсипані літералами,
+     48.4 % обчислених відступів не лягали на крок 4px. Числа в керуваннях
+     мусять ЗБІГАТИСЯ, а не бути «майже однаковими»: інакше кнопка й поле поруч
+     стоять на різній висоті, і око бачить це раніше, ніж людина усвідомлює. */
+  --pad-y:8px;    --pad-x:12px;      /* поле, пункт меню, рядок списку */
+  --pad-y-sm:4px; --pad-x-sm:12px;   /* сегмент, дрібні кнопки */
+  --pad-x-btn:16px;                  /* кнопка ширша за поле — так і має бути */
+
+  --sp1:calc(4px * var(--shchilnist));   --sp2:calc(8px * var(--shchilnist));
+  --sp3:calc(12px * var(--shchilnist));  --sp4:calc(16px * var(--shchilnist));
+  --sp5:calc(20px * var(--shchilnist));  --sp6:calc(24px * var(--shchilnist));
+  --sp8:calc(32px * var(--shchilnist));  --sp12:calc(48px * var(--shchilnist));
+  --sp16:calc(64px * var(--shchilnist));
+
+  --f-tilo:Inter,system-ui,"Segoe UI",sans-serif;
+  --f-kod:"JetBrains Mono",ui-monospace,Consolas,monospace;
+
+  --mira:68ch;   /* міра рядка тексту — довші рядки втомлюють */
+}
+:root[data-shchilnist=kompaktno]{--shchilnist:.8}
+:root[data-shchilnist=prostoro]{--shchilnist:1.15}
+
+/* ── ШКАЛА ШИРИН ────────────────────────────────────────────────────────────
+   ТРИ брейкпойнти на всю систему — не шість «по місцю»: коли в кожного екрана
+   свої числа, на проміжній ширині одне вже перебудувалось, а сусіднє ще ні,
+   і вигляд читається як «недоперебудувалось».
+
+     600  — телефон: одна колонка, ключ-значення стовпчиком
+     900  — планшет: бічна панель стає накладною
+     1200 — вузький ноутбук: другорядна панель стає шухлядою
+
+   ЧЕСНО ПРО ОБМЕЖЕННЯ: `@media (max-width: var(--shyr-s))` у CSS не працює —
+   медіа-запит обчислюється ДО каскаду й змінних не бачить (`@custom-media`
+   досі не в жодному браузері). Тому в самих запитах числа лишаються
+   літералами, а ці токени — джерело правди для JS і для звірки тестом. */
+:root{--shyr-s:600px;--shyr-m:900px;--shyr-l:1200px}
+
+/* ── РУХ: ВИМИКАЧ ───────────────────────────────────────────────────────────
+   Рух вимикається або людиною, або системно. Обидва шляхи ведуть в ОДНУ
+   змінну, щоб компоненти не перевіряли дві умови окремо.
+   Тривалості (--t-*) задає МОВА; тут — лише множення на вимикач: при
+   вимкненому русі переходи стають нульовими, але САМІ ПЕРЕХОДИ лишаються
+   описаними — елементи не «стрибають» з проміжного стану, а досягають
+   кінцевого миттєво. */
+:root{--ruh:1}
+:root[data-ruh=min]{--ruh:0}
+@media (prefers-reduced-motion:reduce){:root{--ruh:0}}
+:root{
+  --d-instant:calc(var(--t-instant,80ms) * var(--ruh));
+  --d-fast:calc(var(--t-fast,140ms) * var(--ruh));
+  --d:calc(var(--t,220ms) * var(--ruh));
+  --d-slow:calc(var(--t-slow,360ms) * var(--ruh));
+}
+
+/* ── БАЗА ─────────────────────────────────────────────────────────────────── */
+*{box-sizing:border-box}
+
+/* `hidden` мусить ховати НАВІТЬ поверх інлайнового `display`. Правило браузера
+   за замовчуванням має найнижчу вагу, тож будь-який `style="display:grid"`
+   мовчки його перебиває — і елемент із атрибутом `hidden` лишається на екрані.
+   08.08.2026 саме через це в ОФІСі над дошкою з шістьма угодами світився банер
+   «угод ще немає»: розмітка була правильна, ховання — ні.
+   `!important` тут доречний: це не стиль, а семантика «цього немає». */
+[hidden]{display:none !important}
+html{-webkit-text-size-adjust:100%;scrollbar-gutter:stable}
+/* Кегль і трекінг тіла — токени МОВИ: робоча тримає щільніше, гостьова —
+   більший кегль і додатний трекінг. Фолбеки — безпечний середній випадок. */
+body{margin:0;background:var(--tlo);color:var(--tilo);
+  font:var(--kegl-bazovyi,16px)/1.55 var(--f-tilo);
+  letter-spacing:var(--trekink,0);
+  font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  min-height:100vh}
+
+h1,h2,h3{margin:0;font-family:var(--f-dysplei,var(--f-tilo));font-weight:600;
+  line-height:1.18;letter-spacing:var(--trekink-zaholovok,-.018em);text-wrap:balance}
+h1{font-size:clamp(23px,1.4vw + 18px,30px)}
+h2{font-size:20px;margin:var(--sp6) 0 var(--sp3)}
+h3{font-size:16px;margin:var(--sp4) 0 var(--sp2)}
+p{margin:0 0 var(--sp3);max-width:var(--mira);text-wrap:pretty}
+
+/* Підкреслення завжди на місці, але прозоре. Якщо його додавати на ховері,
+   рядок сіпається: `text-decoration` впливає на розкладку рядка. Анімуємо лише
+   колір — найдешевший прийом «зробленості», який тут узагалі є. */
+a{color:var(--akcent);text-decoration:underline;
+  text-decoration-color:transparent;text-decoration-thickness:1px;
+  text-underline-offset:3px;
+  transition:text-decoration-color var(--d-instant) var(--ease,ease)}
+a:hover{text-decoration-color:currentColor}
+code,.mono,.kod{font-family:var(--f-kod);font-variant-numeric:tabular-nums}
+code{font-size:.88em;background:var(--mezha-m);color:var(--tilo);padding:1px 4px;
+  border-radius:var(--r-xs);word-break:break-all}
+.kod{font-size:11.5px;letter-spacing:.06em;color:var(--prygl);text-transform:uppercase}
+
+::selection{background:var(--akcent-tlo);color:var(--tilo)}
+
+/* ── ФОКУС ──────────────────────────────────────────────────────────────────
+   Кільце зібране з ОДНОГО токена товщини: відступ рахується формулою від
+   товщини, а не дублює число (змінили товщину — відступ поїхав слідом).
+   Товщину може перевизначити мова (гостьова тримає товще кільце).
+
+   Двосторонній відступ. Позитивний добрий на самотній кнопці, але в щільному
+   ряду — таблиця, канбан, стрічка — зовнішнє кільце залазить на сусіда й
+   читається як «виділено два». Там воно йде ВСЕРЕДИНУ: та сама товщина,
+   протилежний знак. Позначай щільні контейнери класом `.shchilnyi-ryad`.
+
+   Анімуємо колір і відступ, а НЕ `outline` цілком: інакше браузер анімує й
+   товщину, і кільце «набрякає» замість приїхати. */
+:focus-visible{
+  outline:var(--fokus-tovshchyna,2px) solid var(--akcent);
+  outline-offset:var(--fokus-tovshchyna,2px);
+  border-radius:var(--r-xs);
+  transition:outline-color var(--d-instant) var(--ease,ease),
+             outline-offset var(--d-instant) var(--ease,ease)}
+.shchilnyi-ryad :focus-visible{
+  outline-offset:calc(0px - var(--fokus-tovshchyna,2px))}
+
+.dim{color:var(--prygl)}
+.small{font-size:var(--kegl-dribnyi,13.5px)}
+.hint{color:var(--prygl);font-size:var(--kegl-dribnyi,13.5px);max-width:var(--mira)}
+.sub{color:var(--prygl);margin:0 0 var(--sp5)}
+
+/* ── ПРИМІТИВИ ГЛИБИНИ ──────────────────────────────────────────────────────
+   Скло — окремий примітив, а не властивість картки: backdrop-filter коштує
+   кадрів, тому він має бути свідомим рішенням у кожному місці, а не типовим.
+   Мова, якій скло чуже (операторська), просто задає --sklo-blur:0. */
+.sklo{background:var(--sklo);
+  backdrop-filter:blur(var(--sklo-blur,0px)) saturate(var(--sklo-nasych,1));
+  -webkit-backdrop-filter:blur(var(--sklo-blur,0px)) saturate(var(--sklo-nasych,1))}
+.tin-1{box-shadow:var(--tin-1)} .tin-2{box-shadow:var(--tin-2)}
+.tin-3{box-shadow:var(--tin-3)}
+
+/* Верхнє світле ребро — імітація освітлення згори. Один рядок, а панель
+   перестає бути пласким прямокутником. */
+.rebro{box-shadow:inset 0 1px 0 var(--mezha-svitla)}
+
+/* Поява при в'їзді у видиму область — без жодного JS, на таймлайні прокрутки.
+   ЗАСТАРІЛЕ: новий канон — .zjava в efekty.css (подвійний шлях view()+IO,
+   без-JS-безпека через :root.je-rh).
+   ФІКС 10.08.2026 (Г32 у scroll-гілці): було `fill: both` і `to{transform:
+   none}` — після проїзду range after-фаза НАЗАВЖДИ тримала transform, і
+   .pidiym/.nahyl на тому ж елементі помирали мовчки. Тепер: рух їде окремими
+   властивостями translate/scale (поза збіркою --t-*), кінцевий кадр декларує
+   лише opacity, fill=backwards. Ловиться гейтом-7: zamorozheni_skrol. */
+@media (prefers-reduced-motion:no-preference){
+  .zyavlyayetsya{animation:zyava linear backwards;animation-timeline:view();
+    animation-range:entry 0% entry 42%}
+  :root[data-ruh=min] .zyavlyayetsya{animation:none}
+}
+@keyframes zyava{from{opacity:0;translate:0 10px;scale:.985}
+  to{opacity:1}}
+
+/* Анімовані числа: групування розрядів CSS не вміє — лічильник відкручує JS.
+   Тут лише резерв місця табличними цифрами: без нього рядок стрибає, коли
+   число зʼявляється. */
+.chyslo-anim{font-variant-numeric:tabular-nums}

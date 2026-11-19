@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Склад глибини — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Склад глибини") }}{% endblock %}
+{% block vmist %}
+
+{# ВІТРИНА ШКІРИ «hlybyna». Показує не «як гарно», а СКЛАД: скільки
+   компонентів, у скількох станах, якими мовами. Числа беруться з контракту
+   бібліотеки (`komponenty.json`) скриптом `dyzayn-ux/scripts/sklad_hlybyny.py`,
+   а не пишуться руками — інакше вітрина застаріє першою (Г9).
+
+   Кожен зразок нижче — ЖИВИЙ компонент бібліотеки, а не картинка: те, що тут
+   видно, і є те, що стоїть на робочих екранах. #}
+
+<div class="k-banner s-d4ce0c2" role="note">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-sitka"></use></svg>
+  <div>{{ _("Це") }} <b>{{ _("вітрина шкіри «hlybyna»") }}</b> {{ _("— живі компоненти бібліотеки глибини, не знімки. Стара шкіра «studiya» має власну вітрину: перемкніть шкіру в шапці.") }}
+    <div class="dim s-348d633">{{ _("Числа складу — з прогону") }}
+      <code>sklad_hlybyny.py</code> {{ _("по контракту") }} <code>komponenty.json</code>.</div></div>
+</div>
+
+<h2 class="metryka-h s-b5e8626">{{ _("Мови") }}</h2>
+<p class="kk-chesnist">{{ _("Мова — це ОДИН файл токенів. Компоненти не переписуються: підміна файла міняє характер усього продукту. Обрана мова застосується до цієї сторінки одразу.") }}</p>
+<div class="k-hrupa s-d4ce0c2" role="group" aria-label="{{ _('Дизайн-мова') }}">
+  <button class="k-btn shchilna" data-mova="a-robocha" aria-pressed="true" data-has-js>
+    {{ _("А · робоча") }}</button>
+  <button class="k-btn shchilna" data-mova="b-hostiova" aria-pressed="false" data-has-js>
+    {{ _("Б · гостьова") }}</button>
+  <button class="k-btn shchilna" data-mova="v-operatorska" aria-pressed="false" data-has-js>
+    {{ _("В · операторська") }}</button>
+</div>
+
+<h2 class="metryka-h s-a52c42b">{{ _("Кнопка · повна матриця") }}</h2>
+<p class="kk-chesnist">{{ _("Найглибший компонент системи: 4 варіанти × 6 станів × 3 розміри × 3 форми =") }} <b>216</b> {{ _("комбінацій. Тут — зріз по станах.") }}</p>
+<div class="k-tab-obh" data-stan="spokiy">
+<table class="k-tab">
+  <thead><tr><th>{{ _("Варіант") }}</th><th>{{ _("Спокій") }}</th><th>{{ _("Зайнята") }}</th><th>{{ _("Недоступна") }}</th></tr></thead>
+  <tbody>
+  {% for variant, pidpys in [('holovna',_('основна')), ('',_('типова')), ('tykha',_('тиха')), ('nebezpechna',_('небезпечна'))] %}
+    <tr>
+      <td data-holovne>{{ pidpys }}</td>
+      <td><button class="k-btn {{ variant }}" data-komponent="knopka" data-stan="spokiy"
+                  data-has-js>{{ _("Зберегти") }}</button></td>
+      <td><button class="k-btn {{ variant }}" data-komponent="knopka" data-stan="zaynyata"
+                  aria-busy="true" data-has-js>{{ _("Зберігаю…") }}</button></td>
+      {# `aria-disabled`, а не `disabled`: до вимкненої кнопки не дійти з
+         клавіатури й не дізнатись, ЧОМУ вона недоступна. #}
+      <td><button class="k-btn {{ variant }}" data-komponent="knopka" data-stan="nedostupna"
+                  aria-disabled="true" data-has-js
+                  title="{{ _('Немає прав на цю дію') }}">{{ _("Зберегти") }}</button></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2 class="metryka-h s-a52c42b">{{ _("Поле · стани") }}</h2>
+<div class="kk-forma s-a91af5f">
+  <div class="k-hrupa-polya">
+    <label for="v-spokiy">{{ _("Спокій") }}</label>
+    <input class="k-pole" id="v-spokiy" data-komponent="pole" data-stan="spokiy"
+           value="ПАП «Дзвін»">
+  </div>
+  <div class="k-hrupa-polya">
+    <label for="v-pomylka">{{ _("Помилка") }}</label>
+    <input class="k-pole" id="v-pomylka" data-komponent="pole" data-stan="pomylka"
+           aria-invalid="true" aria-describedby="v-e" value="3105400">
+    {# Помилка називає НАСЛІДОК, а не факт: «невірний формат» не каже, що робити. #}
+    <span class="pomylka" id="v-e">{{ _("ЄДРПОУ має 8 цифр — цей на одну коротший, і за ним не знайдеться жодного запису в реєстрі.") }}</span>
+  </div>
+  <div class="k-hrupa-polya">
+    <label for="v-nedostupne">{{ _("Недоступне") }}</label>
+    <input class="k-pole" id="v-nedostupne" data-komponent="pole" data-stan="nedostupna"
+           readonly aria-describedby="v-n" value="Змінює лише адміністратор">
+    <span class="pidkazka" id="v-n">{{ _("Поле лише для читання — і сказано ЧОМУ.") }}</span>
+  </div>
+</div>
+
+<h2 class="metryka-h s-a52c42b">{{ _("Шкала · замість смужки") }}</h2>
+<p class="kk-chesnist">{{ _("Суцільна смужка не каже, «80 % чого». Сегментована — каже: пʼять поділок читаються як 0–100 навіть у сірому друці. У старій шкірі таких смужок без шкали було") }} <b>142</b>.</p>
+<div class="s-be7d1dc">
+  {% for znach in [92, 64, 38, 12] %}
+  <div class="s-aea6d5f">
+    <span class="shkala" role="img" aria-label="{{ znach }} {{ _('зі 100') }}">
+      {% set part = ((znach / 20) | round | int) %}
+      {% for n in range(5) %}<i class="{{ 'on' if n < part else '' }}"></i>{% endfor %}
+    </span>
+    <span class="chyslo">{{ znach }}</span><span class="dim">/100</span>
+  </div>
+  {% endfor %}
+</div>
+
+<h2 class="metryka-h s-a52c42b">{{ _("Стани даних") }}</h2>
+<p class="kk-chesnist">{{ _("Пʼять станів, які продукти забувають малювати. Кожен має СВІЙ текст і СВОЮ дію: спільне «нічого немає» робить екран безпорадним.") }}</p>
+<div class="kk-plytky">
+  {% for stan, ikona, zahol, opys, diya in [
+      ('pershe', 'p-arkush', _('Ще не заводили'), _('Інша причина, ніж «не знайшлось» — тому інша дія.'), _('Створити перший')),
+      ('porozhno', 'p-poshuk', _('Фільтр не дав'), _('Дані є, але не за цими умовами.'), _('Скинути фільтри')),
+      ('pomylka', 'p-import', _('Не вдалося завантажити'), _('Дані не втрачені — не дійшла відповідь.'), _('Спробувати ще раз')),
+      ('chastkovo', 'p-aktyvnist', _('Показано частину'), _('Решта є, але не влізла — і це сказано числом.'), _('Показати всі')),
+    ] %}
+  <div class="kk-plytka surf-panel s-05c4d07" data-stan="{{ stan }}"
+      >
+    <svg class="ik s-7bdef09" width="24" height="24" aria-hidden="true">
+      <use href="/static/bib/porozhni.svg#{{ ikona }}"></use></svg>
+    <b>{{ zahol }}</b>
+    <div class="kk-chesnist">{{ opys }}</div>
+    <button class="k-btn shchilna" data-has-js>{{ diya }}</button>
+  </div>
+  {% endfor %}
+  <div class="kk-plytka surf-panel s-0a75448">
+    <div class="zahol">{{ _("Завантаження") }}</div>
+    <div class="k-skelet kartka"></div>
+    <div class="k-skelet kartka"></div>
+    <div class="kk-chesnist">{{ _("Скелет, а не спінер: він показує ФОРМУ того, що їде.") }}</div>
+  </div>
+</div>
+
+<h2 class="metryka-h s-a52c42b">{{ _("Іконографія") }}</h2>
+<p class="kk-chesnist">{{ _("69 іконок одним спрайтом. У старій шкірі на їхньому місці стояв") }} <b>61</b> {{ _("emoji на 11 екранах: emoji малюється шрифтом системи, різний на кожній ОС і не тримає одну руку з рештою інтерфейсу.") }}</p>
+<div class="s-e7a3d5e">
+  {% for i in ['i-obyekt','i-dovidnyk','i-voronka','i-kanban','i-dokument','i-lyst',
+               'i-chat','i-karta','i-hab','i-reaktor','i-elevator','i-uhoda',
+               'i-zavdannya','i-kpi','i-trend','i-ai','i-zamok','i-uvaha'] %}
+  <span class="s-4350231">
+    <svg class="ik" width="20" height="20" aria-hidden="true"><use href="/static/bib/ikony.svg#{{ i }}"></use></svg>
+    <span class="dim chyslo s-9942017">{{ i }}</span>
+  </span>
+  {% endfor %}
+</div>
+
+<h2 class="metryka-h s-a52c42b">{{ _("Чарти") }}</h2>
+<p class="kk-chesnist">{{ _("Вісь має жорсткий контракт: без") }} <code>domain</code>,
+  <code>unit</code> {{ _("і числових позначок чарт") }} <b>{{ _("не рендериться взагалі") }}</b>{{ _(". «Сітка без чисел» і стовпчик не від нуля заборонені — стовпчик, що починається не з нуля, бреше довжиною.") }}</p>
+<div class="surf-panel s-0519a0a"><div id="chart-vitryna"></div></div>
+
+<script nonce="{{ csp_nonce }}">
+  document.addEventListener('DOMContentLoaded', function () {
+    // ── перемикач мов: підміна ОДНОГО файла токенів ──────────────────────
+    var posylannya = document.querySelector('link[href*="/static/bib/movy/"]');
+    document.querySelectorAll('[data-mova]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        document.querySelectorAll('[data-mova]').forEach(function (x) {
+          x.setAttribute('aria-pressed', String(x === b)); });
+        if (posylannya) posylannya.setAttribute('href',
+          '/static/bib/movy/' + b.dataset.mova + '.css');
+      });
+    });
+
+    // ── чарт: contract-first ─────────────────────────────────────────────
+    var v = document.getElementById('chart-vitryna');
+    if (!v) return;
+    if (typeof CH === 'undefined') {
+      v.innerHTML = '<div class="kk-chesnist"><span class="nepovno">'
+                  + T('чарт не побудовано: charts.js не завантажився</span></div>');
+      return;
+    }
+    try {
+      v.innerHTML = CH.funnel({
+        stadii: [{ label: T('Кваліфікація'), value: 34 },
+                 { label: T('Переговори'), value: 19 },
+                 { label: T('Пропозиція'), value: 11 },
+                 { label: T('Угода'), value: 4 }],
+        unit: T('угод'), w: 900
+      });
+    } catch (e) {
+      v.innerHTML = T('<div class="kk-chesnist"><span class="nepovno">чарт не побудовано: ')
+                  + String(e.message || e) + '</span></div>';
+    }
+  });
+</script>
+{% endblock %}

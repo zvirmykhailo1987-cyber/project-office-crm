@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Воронки — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Воронки") }}{% endblock %}
+{% block vmist %}
+
+{# Раніше цей стан був 500-ю: `_program()` брав перший активний напрям без
+   перевірки. Заархівувати обидва напрями на `/napryamy` — і вся воронка
+   віддавала помилку сервера. Тепер це намальований стан із дією. #}
+<div class="surf-panel s-eab8806" data-stan="pershe"
+    >
+  <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+    <use href="/static/bib/porozhni.svg#p-voronka"></use></svg>
+  <b>{{ _("Немає жодного чинного напряму") }}</b>
+  <div class="kk-chesnist s-742b679">
+    {% if progs %}{{ _("Усі напрями в архіві. Поверніть потрібний у роботу — угоди в ньому нікуди не поділись.") }}{% else %}{{ _("Воронка живе всередині напряму: спершу заведіть напрям, і його стадії стануть колонками цієї дошки.") }}{% endif %}
+  </div>
+  <a class="k-btn holovna" href="/napryamy">{{ _("Відкрити напрями") }}</a>
+</div>
+{% endblock %}

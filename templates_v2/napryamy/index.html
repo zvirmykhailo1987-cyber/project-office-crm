@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Напрями угод — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Напрями угод") }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K1 «Реєстр» + форма створення поруч. Головне попередження стоїть
+   ПЕРШИМ і банером, а не дрібним підписом: воронка — опис процесу, і зміна
+   діє на вже заведені угоди. #}
+<div class="k-banner s-c9996a7" role="note">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-voronka"></use></svg>
+  <div>{{ _("Кожен напрям має власну воронку: свої стадії, гейти й правила. Воронка — це") }} <b>{{ _("опис процесу") }}</b>{{ _(", а не налаштування: зміна діє на вже заведені угоди, тому небезпечні дії показують, скільки угод зачеплять.") }}</div>
+</div>
+
+{% if request.query_params.get('err') == 'zaynyato' %}
+<div class="k-banner krytych s-c9996a7" role="alert">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-uvaha"></use></svg>
+  <div><b>{{ _("Такий код уже зайнятий") }}</b>
+    <div class="dim">{{ _("Коди мають бути унікальні — на них посилаються шаблони листів.") }}</div></div>
+</div>
+{% elif request.query_params.get('err') %}
+<div class="k-banner krytych s-c9996a7" role="alert">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-uvaha"></use></svg>
+  <div><b>{{ _("Не вдалося створити напрям") }}</b>
+    <div class="dim">{{ _("Перевірте назву й код: код — з малої латиниці, від двох символів.") }}</div></div>
+</div>
+{% endif %}
+
+<div class="kk-splyt">
+  <div>
+    <h2 class="metryka-h s-b5e8626">
+      {{ _("Наявні") }} <span class="k-chip">{{ dani|length }}</span></h2>
+
+    <div class="surf-panel s-eab8806" data-stan="pershe" {% if dani %}hidden{% endif %}
+        >
+      <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+        <use href="/static/bib/porozhni.svg#p-voronka"></use></svg>
+      <b>{{ _("Напрямів ще немає") }}</b>
+      <div class="kk-chesnist">{{ _("Створіть перший — праворуч є заготовки.") }}</div>
+      <button class="k-btn holovna" data-has-js data-fokus="[name=nazva]">{{ _("Створити напрям") }}</button>
+    </div>
+
+    {% if dani %}
+    <ul class="kk-strichka">
+      {% for d in dani %}
+      <li class="s-1b91978"{% if not d.p.active %}{% endif %}>
+        <div class="s-c0dfb61">
+          {# Колір напряму — ознака ідентичності, тому квадратик, а не крапка:
+             крапка 8 px у сірому друці зникає взагалі. #}
+          <span aria-hidden="true" data-styl="inline-size:12px;block-size:12px;flex:none;
+                border-radius:3px;margin-block-start:5px;background:{{ d.p.color }}"></span>
+          <div class="s-d1d9f56">
+            <div class="s-509a426">
+              <a href="/napryamy/{{ d.p.code }}"><b>{{ d.p.title }}</b></a>
+              <span class="k-chip">{{ d.p.code }}</span>
+              {% if not d.p.active %}<span class="k-chip">{{ _("архів") }}</span>{% endif %}
+            </div>
+            {% if d.p.opys %}<div class="dim">{{ d.p.opys }}</div>{% endif %}
+            <div class="dim s-9942017">
+              {{ d.stadiy }} {{ d.stadiy|plural(_('стадія'),_('стадії'),_('стадій')) }} ·
+              {{ d.ugod|num }} {{ d.ugod|plural(_('угода'),_('угоди'),_('угод')) }} {{ _("· бал:") }} {{ d.model }}
+            </div>
+          </div>
+          <a class="k-btn shchilna" href="/napryamy/{{ d.p.code }}">{{ _("Воронка") }}
+            <svg class="ik" width="13" height="13" aria-hidden="true"><use href="/static/bib/ikony.svg#i-dali"></use></svg></a>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+
+  <aside class="detali surf-panel">
+    <h2 class="metryka-h">{{ _("Новий напрям") }}</h2>
+    <form class="kk-forma" method="post" action="/napryamy" id="novyi" data-vartovyi><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="k-hrupa-polya">
+        <label for="n-nazva">{{ _("Назва") }}</label>
+        <input class="k-pole" id="n-nazva" name="nazva" required autocomplete="off"
+               placeholder="{{ _('напр. Завод HPL') }}">
+      </div>
+      <div class="k-hrupa-polya">
+        <label for="n-kod">{{ _("Код") }} <span class="dim">{{ _("— незмінний") }}</span></label>
+        <input class="k-pole" id="n-kod" name="kod" autocomplete="off"
+               pattern="[a-z][a-z0-9_]{1,29}" placeholder="hpl"
+               aria-describedby="p-kod">
+        <span class="pidkazka" id="p-kod">{{ _("Мала латиниця, від двох символів. На код посилаються шаблони листів — потім його не змінити.") }}</span>
+      </div>
+      <div class="k-hrupa-polya">
+        <label for="n-opys">{{ _("Опис — чим цей напрям відрізняється") }}</label>
+        <textarea class="k-pole" id="n-opys" name="opys" rows="2"
+                  placeholder="{{ _('Для кого це, який результат вважається виграшем') }}"></textarea>
+      </div>
+      <div class="k-hrupa-polya">
+        <label for="n-color">{{ _("Колір") }}</label>
+        <input class="k-pole s-472660f" id="n-color" type="color" name="color" value="#0f6fc4"
+              >
+      </div>
+      <div class="k-hrupa-polya">
+        <label for="n-model">{{ _("Модель балу") }}</label>
+        <select class="k-vybir" id="n-model" name="model_balu">
+          {% for k, v in {'':_('балу немає'),'fat_score':_('FAT_SCORE — біогаз-обʼєкт'),'hromada_screening':_('Скринінг громади C1–C9'),'elevator_ranking':_('Рейтинг кандидата під елеватор')}.items() %}
+          <option value="{{ k }}">{{ v }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <fieldset class="s-c9f0ddb">
+        <legend class="s-341045d">{{ _("Звідки взяти стадії") }}</legend>
+
+        <label class="s-02b0b21">
+          <input class="k-radio" type="radio" name="dzherelo" value="kopiya" checked>
+          <span>{{ _("Копія наявної воронки — з усіма гейтами") }}</span></label>
+        <label class="visually-hidden" for="n-kopiya">{{ _("Яку воронку копіювати") }}</label>
+        <select class="k-vybir" id="n-kopiya" name="kopiya_id">
+          {% for p in programy %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}
+        </select>
+
+        <label class="s-02b0b21">
+          <input class="k-radio" type="radio" name="dzherelo" value="zagotovka">
+          <span>{{ _("Готова заготовка") }}</span></label>
+        <label class="visually-hidden" for="n-zag">{{ _("Яку заготовку взяти") }}</label>
+        <select class="k-vybir" id="n-zag" name="zagotovka">
+          {% for k, z in zagotovky.items() %}
+          <option value="{{ k }}">{{ z.nazva }} — {{ z.opys }}</option>
+          {% endfor %}
+        </select>
+
+        <label class="s-02b0b21">
+          <input class="k-radio" type="radio" name="dzherelo" value="z_nulya">
+          <span>{{ _("З нуля — одна стадія «Новий», далі додаю сам") }}</span></label>
+      </fieldset>
+
+      {# Заготовки — МАТЕРІАЛ, а не істина. Без цього застереження чужі назви
+         стадій приймають за галузевий стандарт і не перейменовують. #}
+      <p class="kk-chesnist">{{ _("Заготовки —") }} <b>{{ _("матеріал, а не істина") }}</b>{{ _(": назви стадій типові для процесу, ви їх перейменуєте під свою мову. Жодних сум і термінів у них немає, бо чужі цифри виглядали б як досвід, якого не було.") }}</p>
+
+      <button class="k-btn holovna" type="submit">{{ _("Створити напрям") }}</button>
+    </form>
+  </aside>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+  document.addEventListener('DOMContentLoaded', function () {
+    var f = document.querySelector('[data-vartovyi]');
+    if (f && window.PV && PV.vartovyi) PV.vartovyi(f);
+  });
+</script>
+{% endblock %}

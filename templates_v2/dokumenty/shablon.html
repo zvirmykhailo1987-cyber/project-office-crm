@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ t.code }} {{ _("— Шаблон") }}{% endblock %}
+{% block vmist %}
+<p class="k-krykhty"><a href="/shablony">{{ _("← Шаблони") }}</a></p>
+
+<div class="kk-tulbar">
+  <b>{{ t.code }} · {{ t.title }}</b>
+  <div class="k-krykhty">
+    <span class="k-chip">{{ t.group }}</span>
+    {% if t.stage_code %}<span class="k-chip">{{ _("стадія") }} {{ t.stage_code }}</span>{% endif %}
+    <span class="k-chip">{{ t.lang }}</span>
+  </div>
+</div>
+
+<div class="kk-splyt">
+  <div>
+    <h2 class="metryka-h">{{ _("Під кого готуємо") }}</h2>
+    <form method="get" action="/shablony/{{ t.id }}" class="kk-forma" data-sabmit-na-zminu>
+      <label>{{ _("Громада") }}
+        <select class="k-vybir" name="site_id">
+          <option value="">{{ _("— не обрано —") }}</option>
+          {% for h in hromady %}
+          <option value="{{ h.id }}" {% if site and h.id == site.id %}selected{% endif %}>{{ h.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <p class="kk-chesnist">{{ _("Оберіть громаду — і система підставить назву у правильному відмінку, область та реквізити офісу.") }}</p>
+    </form>
+
+    <h2 class="metryka-h s-bdbc1ed">{{ _("Що підставилось") }}</h2>
+    {# Стан «нічого не підставилось» присутній ЗАВЖДИ (прихований): він
+       зʼявляється рівно доти, доки не обрано громаду, і довести його
+       спроєктованість інакше неможливо. #}
+    <div class="s-8d86065" data-stan="porozhno" {% if filled.resolved %}hidden{% endif %}
+        >
+      <b>{{ _("Поки нічого не підставилось") }}</b>
+      <div class="kk-chesnist">{{ _("Оберіть громаду вище — і поля заповняться з бази.") }}</div>
+      <button class="k-btn shchilna" data-has-js data-fokus="[name=site_id]">{{ _("Обрати громаду") }}</button>
+    </div>
+    {% if filled.resolved %}
+    <div class="kk-fakty">
+      {% for k, v in filled.resolved.items() %}
+      <div><span class="chyslo">[{{ k }}]</span><span>{{ v }}</span></div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if filled.unresolved %}
+    <h2 class="metryka-h s-bdbc1ed">{{ _("Заповнити руками") }} <span class="k-chip s-93827eb">{{ filled.unresolved|length }}</span></h2>
+    <ul class="s-c615513">
+      {% for u in filled.unresolved %}<li><code>[{{ u }}]</code></li>{% endfor %}
+    </ul>
+    <p class="kk-chesnist">{{ _("Система свідомо не вигадує цих значень — у діловому листі порожнє місце краще за вигадане. Заповніть у згенерованому файлі.") }}</p>
+    {% else %}
+    <p class="kk-chesnist">
+      <svg class="ik s-8232744" width="14" height="14" aria-hidden="true">
+        <use href="/static/bib/ikony.svg#i-hotovo"></use></svg>
+      {{ _("Усі місця заповнені — лист готовий до вичитки.") }}</p>
+    {% endif %}
+
+    <h2 class="metryka-h s-bdbc1ed">{{ _("Створити документ") }}</h2>
+    <form method="post" action="/shablony/{{ t.id }}/generate" class="kk-forma"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="site_id" value="{{ site.id if site else '' }}">
+      <label>{{ _("Назва документа") }}
+        <input type="text" name="title"
+               value="{{ t.code }} — {{ site.name if site else '' }}">
+      </label>
+      <button class="k-btn holovna" type="submit">{{ _("Згенерувати чернетку (DOCX + PDF)") }}</button>
+      <p class="kk-chesnist">{{ _("Створиться чернетка. Нікуди не надсилається — надсилає людина.") }}</p>
+    </form>
+  </div>
+
+  <aside class="detali surf-panel">
+    <h2 class="metryka-h">{{ _("Попередній перегляд") }}</h2>
+    <pre class="s-610be8a">{{ filled.text }}</pre>
+  </aside>
+</div>
+{% endblock %}

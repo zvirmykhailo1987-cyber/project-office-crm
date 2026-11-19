@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Шаблони — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Шаблони документів") }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K1 «Реєстр». #}
+<div class="kk-tulbar">
+  <form class="k-filtry" method="get" action="/shablony" data-sabmit-na-zminu
+        data-stan="{{ 'vybrano' if group else 'spokiy' }}">
+    <label class="visually-hidden" for="group">{{ _("Група шаблонів") }}</label>
+    <select class="k-vybir" id="group" name="group">
+      <option value="">{{ _("Група — усі") }}</option>
+      {% for g in groups %}<option value="{{ g }}"{% if g == group %} selected{% endif %}>{{ g }}</option>{% endfor %}
+    </select>
+    <span class="lichylnyk">{{ _('фільтр групи активний') if group else _('фільтрів немає') }}</span>
+  </form>
+  <span class="roztyah"></span>
+  <span class="kk-chesnist">{{ _("шаблонів") }} <b class="chyslo">{{ rows|length|num }}</b></span>
+</div>
+
+<p class="kk-chesnist">{{ _("Готові листи, привʼязані до стадій воронки.") }}</p>
+
+<div class="surf-panel s-eab8806" data-stan="porozhno" {% if rows %}hidden{% endif %}
+    >
+  <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+    <use href="/static/bib/porozhni.svg#p-lyst"></use></svg>
+  <b>{{ _("Шаблонів у цій групі немає") }}</b>
+  <div class="kk-chesnist">{{ _("Зніміть фільтр групи — можливо, лист лежить в іншій.") }}</div>
+  <a class="k-btn holovna" href="/shablony">{{ _("Показати всі групи") }}</a>
+</div>
+
+{% if rows %}
+<div class="k-tab-obh s-35823d2" data-stan="spokiy">
+<table class="k-tab kartky">
+  <thead><tr><th>{{ _("Код") }}</th><th>{{ _("Назва") }}</th><th>{{ _("Кому") }}</th><th>{{ _("Стадія") }}</th><th>{{ _("Мова") }}</th>
+    <th class="chyslo">{{ _("Заповнити") }}</th></tr></thead>
+  <tbody>
+  {% for t in rows %}
+    <tr class="k-ryad">
+      <td data-holovne data-p="{{ _('Код') }}"><a href="/shablony/{{ t.id }}"><b>{{ t.code }}</b></a></td>
+      <td data-p="{{ _('Назва') }}">{{ t.title }}</td>
+      <td data-p="{{ _('Кому') }}" class="dim">{% if t.group == 'INV' %}{{ _("інвестор") }}{% elif t.group == 'COM' %}{{ _("громада") }}
+        {%- elif t.group == 'FARM' %}{{ _("фермери") }}{% else %}{{ _("інші") }}{% endif %}</td>
+      <td data-p="{{ _('Стадія') }}" class="dim">{{ t.stage_code or '—' }}</td>
+      <td data-p="{{ _('Мова') }}" class="dim">{{ t.lang }}</td>
+      <td data-p="{{ _('Заповнити') }}" class="chyslo">{{ t.placeholder_list|length }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="kk-chesnist s-c5502a3">
+  {{ _("Колонка «Заповнити» — скільки місць у листі підставляються даними або потребують ручного вводу.") }}</p>
+{% endif %}
+{% endblock %}

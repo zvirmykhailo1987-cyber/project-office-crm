@@ -1,0 +1,179 @@
+{% from "_ava.html" import ava with context %}
+{# ═══ Універсальний блок співпраці (Ф8) ══════════════════════════════════════
+   Підключати в кінці КОЖНОЇ картки:
+     {% with entity='deal', entity_id=d.id %}{% include "_spivpratsya.html" %}{% endwith %}
+   Дає: затвердження · коментарі й рекомендації · доручення колезі · стрічка сутності.
+   Дані приходять із контексту роута (див. deps.spivpratsya_context).
+   ═══════════════════════════════════════════════════════════════════════════ #}
+<section class="surf-panel s-42c1404" id="spivpratsya">
+  <h2 class="metryka-h">{{ _("Співпраця") }}</h2>
+
+  {# ── ЗАТВЕРДЖЕННЯ ────────────────────────────────────────────────────────── #}
+  <div class="kartka shtryh {% if sp_approval and sp_approval.is_open %}diya
+       {% elif sp_approval and sp_approval.status == 'zatverdzheno' %}dobre
+       {% elif sp_approval and sp_approval.status == 'na_doopratsyuvannya' %}uvaha{% endif %}">
+    <span class="k-chip">{{ _("Затвердження") }}</span>
+
+    {% if sp_approval %}
+    <div class="s-8a77e5a">
+      <span class="chip {% if sp_approval.status == 'zatverdzheno' %}ok
+        {% elif sp_approval.status == 'na_doopratsyuvannya' %}warn{% endif %}">
+        {{ sp_approval.status_label }}</span>
+      <span class="dim s-9942017">
+        {{ _("подання від") }} {{ sp_approval.submitted_by }} · {{ sp_approval.submitted_at|dt('%d.%m %H:%M') }}
+        {% if sp_approval.decided_at %} {{ _("· рішення") }} {{ sp_approval.approver }},
+          {{ sp_approval.decided_at|dt('%d.%m %H:%M') }}{% endif %}
+      </span>
+      {% if sp_approval.note %}<div class="s-9942017 s-96ad609">{{ sp_approval.note }}</div>{% endif %}
+      {% if sp_approval.decision_note %}
+      <div class="shtryh {% if sp_approval.status == 'na_doopratsyuvannya' %}uvaha{% else %}dobre{% endif %} s-8a77e5a"
+          ><b>{{ _("Що сказано:") }}</b> {{ sp_approval.decision_note }}</div>
+      {% endif %}
+    </div>
+
+    {% if sp_approval.is_open and user.can('approve') and sp_approval.submitted_by != user.name %}
+    <form method="post" action="/zatverdzhennya/{{ sp_approval.id }}/rishennya" class="kk-forma s-56f4356"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>{{ _("Коментар") }} <span class="dim">{{ _("(обовʼязковий для «на доопрацювання»)") }}</span>
+        <input type="text" name="note" placeholder="{{ _('Що саме поміняти') }}">
+      </label>
+      <div class="k-hrupa">
+        <button type="submit" name="status" value="zatverdzheno">{{ _("Затвердити") }}</button>
+        <button type="submit" name="status" value="na_doopratsyuvannya" class="k-btn shchilna">
+          {{ _("На доопрацювання") }}</button>
+      </div>
+    </form>
+    {% elif sp_approval.is_open and sp_approval.submitted_by == user.name %}
+    <p class="kk-chesnist">{{ _("Чекає рішення. Власну роботу не затверджують — це зробить колега.") }}</p>
+    <form class="s-8a77e5a" method="post" action="/zatverdzhennya/{{ sp_approval.id }}/vidklykaty"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="k-btn shchilna" type="submit">{{ _("Відкликати") }}</button>
+    </form>
+    {% elif sp_approval.is_open %}
+    <p class="kk-chesnist">{{ _("Чекає рішення Богдана.") }}</p>
+    {% endif %}
+    {% endif %}
+
+    {% if not sp_approval or not sp_approval.is_open %}
+    <form method="post" action="/zatverdzhennya/podaty" class="k-hrupa s-56f4356"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="entity" value="{{ entity }}">
+      <input type="hidden" name="entity_id" value="{{ entity_id }}">
+      <input type="text" name="note" aria-label="{{ _('На що звернути увагу') }}"
+           placeholder="{{ _('На що звернути увагу (необовʼязково)') }}">
+      <button type="submit" class="k-btn shchilna">{% if sp_approval %}{{ _("Подати ще раз") }}{% else %}{{ _("Подати на затвердження") }}{% endif %}</button>
+    </form>
+    {% endif %}
+  </div>
+
+  {# ── КОМЕНТАРІ Й РЕКОМЕНДАЦІЇ ───────────────────────────────────────────── #}
+  <h3>{{ _("Обговорення") }} <span class="dim">({{ sp_comments|length }})</span></h3>
+  {% if sp_comments %}
+  <ul class="kk-strichka">
+    {% for c in sp_comments %}
+    <li class="{% if c.kind == 'rekomendatsiya' %}shtryh diya{% elif c.kind == 'pytannya' %}shtryh uvaha{% endif %}"
+        id="k{{ c.id }}">
+      <div class="trow">
+        <div>
+          <span class="k-chip">{{ c.kind_label }}</span>
+          {{ ava(c.author, "sm") }}<b>{{ c.author }}</b>
+          <span class="dim s-9942017">{{ c.created_at|dt('%d.%m %H:%M') }}</span>
+          {% if c.resolution %}<span class="k-chip" data-styl="--stan:{% if c.resolution == 'vrahovano' %}var(--dobre){% else %}var(--uvaha){% endif %}">
+            {{ resolutions[c.resolution] }}</span>{% endif %}
+          <div class="s-96ad609">{{ c.text }}</div>
+          {% if c.resolution_note %}<div class="dim s-9942017">— {{ c.resolved_by }}: {{ c.resolution_note }}</div>{% endif %}
+        </div>
+      </div>
+
+      {% if c.is_open_recommendation %}
+      <div class="k-hrupa s-8a77e5a">
+        <form method="post" action="/komentar/{{ c.id }}/vyrishyty" class="k-hrupa"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="resolution" value="vrahovano">
+          <button type="submit" class="k-btn shchilna">{{ _("Врахувати") }}</button>
+        </form>
+        <form method="post" action="/komentar/{{ c.id }}/vyrishyty" class="k-hrupa"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="resolution" value="ne_beru">
+          <input type="text" name="note" aria-label="{{ _('Чому не беру') }}" placeholder="{{ _('Чому не беру') }}" required>
+          <button type="submit" class="k-btn shchilna">{{ _("Не беру") }}</button>
+        </form>
+        <form method="post" action="/komentar/{{ c.id }}/u-zavdannya" class="k-hrupa"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <select name="assignee" aria-label="{{ _('Кому доручити') }}">
+            {% for u in sp_users %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
+          </select>
+          <button type="submit" class="k-btn shchilna">{{ _("Зробити завданням") }}</button>
+        </form>
+      </div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="surf-panel s-77f796f" data-stan="porozhno" data-state="empty">
+    <svg class="znak" aria-hidden="true"><use href="#p-chat"></use></svg>
+    <div><b>{{ _("Обговорення ще не було") }}</b>
+      <div class="dim s-9942017 s-96ad609">{{ _("Будь-хто в команді може лишити коментар, поставити питання або дати рекомендацію.") }}</div></div>
+    <button class="k-btn shchilna" data-has-js
+            data-fokus="[name=text]" data-fokus-v=".spivpratsya">
+      {{ _("Написати перший") }}</button>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/komentar" class="kk-forma s-56f4356"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="entity" value="{{ entity }}">
+    <input type="hidden" name="entity_id" value="{{ entity_id }}">
+    <label>{{ _("Що сказати") }}
+      <textarea name="text" rows="2" required
+                placeholder="{{ _('Текст. Щоб покликати когось — @login') }}"></textarea>
+    </label>
+    <div class="k-hrupa-polya">
+      <label>{{ _("Вид") }}
+        <select name="kind">
+          {% for k, v in comment_kinds.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+        </select>
+      </label>
+      <div class="s-00f3b15"><button type="submit" class="k-btn shchilna">{{ _("Написати") }}</button></div>
+    </div>
+    <p class="kk-chesnist">{{ _("Згадати:") }} {{ sp_mention_hint }}</p>
+  </form>
+
+  {# ── ДОРУЧЕННЯ ──────────────────────────────────────────────────────────── #}
+  <h3>{{ _("Завдання по цьому") }} {% if sp_tasks %}<span class="dim">({{ sp_tasks|length }})</span>{% endif %}</h3>
+  {% if sp_tasks %}
+  <ul class="kk-strichka">
+    {% for t in sp_tasks %}
+    <li class="{% if t.is_overdue %}over{% elif t.is_today %}now{% endif %}">
+      <b>{{ t.title }}</b>
+      {% if not t.is_open %}<span class="k-chip">{{ task_statuses[t.status] }}</span>{% endif %}
+      <div class="dim s-9942017">{{ t.assignee }}
+        {% if t.from_colleague %}{{ _("· від") }} {{ t.created_by }}{% endif %}
+        {% if t.due_date %}{{ _("· до") }} {{ t.due_date|dt('%d.%m') }}{% endif %}</div>
+      {% if t.declined_reason %}<div class="dim s-9942017">{{ _("відмова:") }} {{ t.declined_reason }}</div>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <form method="post" action="/doruchennya" class="kk-forma s-56f4356"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="entity" value="{{ entity }}">
+    <input type="hidden" name="entity_id" value="{{ entity_id }}">
+    <div class="k-hrupa-polya">
+      <input type="text" name="title" aria-label="{{ _('Що зробити') }}" placeholder="{{ _('Що зробити') }}" required>
+      <select name="assignee" aria-label="{{ _('Кому доручити') }}" required>
+        <option value="">{{ _("кому —") }}</option>
+        {% for u in sp_users %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
+      </select>
+      <input type="date" name="due_date" aria-label="{{ _('До якої дати') }}" title="{{ _('До якої дати') }}">
+      <button type="submit" class="k-btn shchilna">{{ _("Доручити") }}</button>
+    </div>
+    <p class="kk-chesnist">{{ _("Людина побачить це в себе протягом пів хвилини — сторінку оновлювати не треба.") }}</p>
+  </form>
+
+  {# ── СТРІЧКА СУТНОСТІ ───────────────────────────────────────────────────── #}
+  {% if sp_feed %}
+  <h3>{{ _("Що відбувалось") }}</h3>
+  <ul class="kk-strichka">
+    {% for i in sp_feed %}
+    <li><span class="k-chip">{{ i.at|dt('%d.%m %H:%M') }}</span>
+      <b>{{ i.actor }}</b> {{ i.phrase }}
+      {% if i.detail %}<div class="dim s-9942017">{{ i.detail }}</div>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Налаштування — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Налаштування офісу") }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K3 «Форма». Ключ поля показаний ПОРУЧ зі значенням: саме він стоїть
+   у шаблоні листа, і без нього неможливо зрозуміти, що куди підставиться. #}
+<p class="kk-chesnist">{{ _("Ці значення підставляються в шаблони листів замість плейсхолдерів.") }}</p>
+
+<div class="surf-panel s-47ffdd9" data-stan="porozhno" {% if rows %}hidden{% endif %}
+    >
+  <b>{{ _("Налаштувань ще немає") }}</b>
+  <div class="kk-chesnist">{{ _("Вони зʼявляться разом із першим шаблоном, що їх вимагає.") }}</div>
+  <a class="k-btn holovna" href="/shablony">{{ _("До шаблонів") }}</a>
+</div>
+
+{% if rows %}
+<form class="kk-forma s-9a4063b" method="post" action="/nalashtuvannya"
+      data-vartovyi><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% for r in rows %}
+  <div class="k-hrupa-polya">
+    <label for="n-{{ r.key }}">{{ r.label or r.key }}</label>
+    <input class="k-pole" id="n-{{ r.key }}" type="text" name="{{ r.key }}"
+           value="{{ r.value }}" aria-describedby="p-{{ r.key }}">
+    <span class="pidkazka chyslo" id="p-{{ r.key }}">{{ r.key }}</span>
+  </div>
+  {% endfor %}
+  <button class="k-btn holovna" type="submit">{{ _("Зберегти") }}</button>
+</form>
+{% endif %}
+
+<script nonce="{{ csp_nonce }}">
+  document.addEventListener('DOMContentLoaded', function () {
+    var f = document.querySelector('[data-vartovyi]');
+    if (f && window.PV && PV.vartovyi) PV.vartovyi(f);
+  });
+</script>
+{% endblock %}

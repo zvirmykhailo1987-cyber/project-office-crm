@@ -1,0 +1,23 @@
+# Vendored copy of the in-house design library (tokens, components, charts).
+# Fingerprints of the vendored files:
+zahalnyi=825dc4c33425
+
+charts.js=464dc7fb5a6b
+ikony.svg=2a4e723818ad
+interactions.js=36d5e5960953
+komponenty-base.css=2624ae4c7aa1
+komponenty-dani.css=4b5d24a6d95c
+komponenty-forma.css=b234179b5a99
+komponenty-karkas.css=19fa078c42e2
+komponenty-keruvannya.css=23a909938b33
+komponenty-shar.css=34cb903ee8fd
+komponenty.json=fa9783a08f0d
+movy/a-robocha.css=429c54256dcf
+movy/b-hostiova.css=5a74de7d11c8
+movy/v-operatorska.css=d58ae49419d9
+porozhni.svg=bca6c4649c43
+povedinka.js=27ed47847edd
+prostir.css=dd1d72d4abbe
+rukh.css=2864d35611a5
+rukh.js=379e06987db4
+yadro.css=ee02fb61ca1d

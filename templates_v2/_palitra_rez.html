@@ -1,0 +1,21 @@
+{# Результати ⌘K. Віддається окремим фрагментом на кожне натискання клавіші —
+   HTMX підміняє тільки цей блок, тому поле вводу не втрачає фокус і каретку. #}
+{% if hrupy %}
+{% for nazva, elementy in hrupy %}
+<div class="palitra-hrupa">{{ nazva }}</div>
+{% for e in elementy %}
+<a href="{{ e.url }}" data-palitra-punkt tabindex="-1">
+  <svg class="ik sm" aria-hidden="true"><use href="#i-{{ e.ik }}"></use></svg>
+  <span class="nz">{{ e.nz }}</span>
+  {% if e.pid %}<span class="typ">{{ e.pid }}</span>{% endif %}
+</a>
+{% endfor %}
+{% endfor %}
+{% else %}
+<div class="palitra-hrupa">{{ _("Нічого не знайдено") }}</div>
+<a href="/dovidnyk?q={{ q | urlencode }}" data-palitra-punkt tabindex="-1">
+  <svg class="ik sm" aria-hidden="true"><use href="#i-poshuk"></use></svg>
+  <span class="nz">{{ _("Шукати «") }}{{ q }}{{ _("» у довіднику") }}</span>
+  <span class="typ">{{ _("повний пошук") }}</span>
+</a>
+{% endif %}

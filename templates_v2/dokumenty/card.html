@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}{{ d.title }} {{ _("— Документ") }}{% endblock %}
+{% block vmist %}
+<p class="k-krykhty"><a href="/dokumenty">{{ _("← Документи") }}</a></p>
+
+<div class="kk-tulbar">
+  <h1>{{ d.title }}</h1>
+  <div class="badges">
+    <span class="k-chip">{{ d.kind }} · v{{ d.version }}</span>
+    <span class="k-chip">{{ workflow.get(d.workflow_status, d.workflow_status) }}</span>
+    {% if d.is_final %}<span class="k-chip s-d066582">{{ _("фінальний") }}</span>{% endif %}
+    {% if d.signed_at %}<span class="k-chip s-d066582">{{ _("підписано") }} {{ d.signed_at|dt }}</span>{% endif %}
+  </div>
+</div>
+
+{% if request.query_params.get('err') == 'prava' %}
+<div class="k-banner krytych" role="alert">{{ _("Ваша роль не дозволяє узгоджувати чужі документи.") }}</div>
+{% endif %}
+
+<div class="k-hrupa">
+  <a class="k-btn shchilna" href="/dokumenty/{{ d.id }}/file">{{ _("Завантажити DOCX") }}</a>
+  <a class="k-btn shchilna" href="/dokumenty/{{ d.id }}/file?fmt=pdf">PDF</a>
+  <a class="k-btn shchilna" href="/dokumenty/{{ d.id }}/file?fmt=md">{{ _("Текст") }}</a>
+</div>
+
+<section class="cols">
+  <div class="col">
+    <h2>{{ _("Рух документа") }}</h2>
+    <div class="steps">
+      {% for k, v in workflow.items() %}
+      <form method="post" action="/dokumenty/{{ d.id }}/status" class="step {% if d.workflow_status == k %}on{% endif %}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="workflow_status" value="{{ k }}">
+        <button type="submit" {% if d.workflow_status == k or d.is_final %}disabled{% endif %}>{{ v }}</button>
+      </form>
+      {% endfor %}
+    </div>
+    {% if d.is_final %}
+    <p class="kk-chesnist">{{ _("Документ фінальний — стан не змінюється. Потрібна правка? Створіть нову версію.") }}</p>
+    {% endif %}
+
+    {% if user.can('doc_any') and not d.is_final %}
+    <h2>{{ _("Правка") }}</h2>
+    <form method="post" action="/dokumenty/{{ d.id }}/nova-versiya" class="kk-forma"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>{{ _("Що правите") }}
+        <input type="text" name="note" placeholder="{{ _('Коротко: що змінюєте') }}">
+      </label>
+      <button type="submit">{{ _("Створити нову версію") }}</button>
+      <p class="kk-chesnist">{{ _("Оригінал не змінюється — зʼявиться v") }}{{ d.version + 1 }} {{ _("у тій самій групі.") }}</p>
+    </form>
+    {% endif %}
+
+    {% if not d.is_final %}
+    <h2>{{ _("Фінальна версія") }} <span class="k-chip s-93827eb">Tier3</span></h2>
+    <form method="post" action="/dokumenty/{{ d.id }}/final" class="kk-forma"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>{{ _("Дата підписання (якщо є)") }}
+        <input type="date" name="signed_at">
+      </label>
+      <label class="chk"><input type="checkbox" name="confirm" value="yes" required>
+        {{ _("підтверджую: після цього документ незмінний") }}</label>
+      <button type="submit">{{ _("Позначити фінальним") }}</button>
+      <p class="kk-chesnist">{{ _("Гейти воронки відкриває лише фінальний документ із датою підписання.") }}</p>
+    </form>
+    {% endif %}
+
+    <h2>{{ _("Версії") }} <span class="dim">({{ versions|length }})</span></h2>
+    <ul class="persons">
+      {% for v in versions %}
+      <li {% if v.id == d.id %}style="border-color:var(--akcent)"{% endif %}>
+        <a href="/dokumenty/{{ v.id }}"><b>v{{ v.version }}</b></a>
+        <span class="k-chip">{{ workflow.get(v.workflow_status, v.workflow_status) }}</span>
+        <div class="dim s-9942017">{{ v.created_by }} · {{ v.created_at|dt('%d.%m.%Y %H:%M') }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="col">
+    {% if unresolved %}
+    <h2>{{ _("Заповнити руками") }} <span class="k-chip s-93827eb">{{ unresolved|length }}</span></h2>
+    <ul class="persons">{% for u in unresolved %}<li><code>[{{ u }}]</code></li>{% endfor %}</ul>
+    <p class="kk-chesnist">{{ _("Ці місця система не заповнювала — даних для них немає.") }}</p>
+    {% endif %}
+
+    {% if user.can('send') and d.workflow_status == 'do_vidpravlennya' %}
+    <h2>{{ _("Зафіксувати відправлення") }}</h2>
+    <form method="post" action="/lysty/nadislano" class="kk-forma"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="document_id" value="{{ d.id }}">
+      <input type="hidden" name="counterparty_id" value="{{ d.counterparty_id or '' }}">
+      <label>{{ _("Кому") }}
+        <input type="text" name="recipient" required
+               placeholder="{{ _('ПІБ, посада') }}"
+               value="{% if persons %}{{ persons[0].name }}{% if persons[0].role %}, {{ persons[0].role }}{% endif %}{% endif %}">
+      </label>
+      <label>{{ _("Тема") }} <input type="text" name="subject" value="{{ d.title }}"></label>
+      <div class="k-hrupa-polya">
+        <label>{{ _("Канал") }}
+          <select class="k-vybir" name="channel">
+            {% for k, v in channels.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>{{ _("Чекаємо відповідь до") }}
+          <input type="date" name="reply_due_date">
+        </label>
+      </div>
+      <button type="submit">{{ _("Надіслано") }}</button>
+      <p class="kk-chesnist">{{ _("Система не надсилає сама. Надішліть зі своєї пошти й тисніть тут — зафіксуємо дату, канал і") }} <b>{{ _("яка саме версія") }}</b> {{ _("пішла. Без дати —") }} {{ reply_days }} {{ _("днів.") }}</p>
+    </form>
+    {% endif %}
+
+    {% if sent %}
+    <h2>{{ _("Надсилання") }}</h2>
+    <ul class="kk-strichka">
+      {% for o in sent %}
+      <li><b>{{ o.recipient or '—' }}</b>
+        <div class="dim s-9942017">{{ channels.get(o.channel, o.channel) }} ·
+          {{ o.sent_at|dt('%d.%m.%Y') }} · v{{ o.document_version }} · {{ o.sent_by }}</div>
+        {% if o.is_overdue %}<span class="k-chip s-93827eb">{{ _("відповіді немає з") }} {{ o.reply_due_date|dt('%d.%m') }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    <h2>{{ _("Текст") }}</h2>
+    <pre class="preview">{{ text }}</pre>
+  </div>
+</section>
+{% with entity='document', entity_id=d.id %}{% include "_spivpratsya.html" %}{% endwith %}
+{% endblock %}

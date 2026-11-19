@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="{{ csrf_token }}">
+<meta name="robots" content="noindex, nofollow">
+<meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "inlineScriptNonce": "{{ csp_nonce }}"}'>
+<title>{% block title %}{{ _("ОФІС") }}{% endblock %}</title>
+<link rel="icon" href="/static_v2/favicon.svg" type="image/svg+xml">
+
+{# Design library first (tokens → core → components → motion/depth), then the
+   thin product layer. Order matters: later files rely on earlier tokens. #}
+<link rel="stylesheet" href="/static/bib/movy/{{ mova|default('a-robocha') }}.css?v={{ statyka_v }}">
+<link rel="stylesheet" href="/static/bib/yadro.css?v={{ statyka_v }}">
+<link rel="stylesheet" href="/static/bib/komponenty-base.css?v={{ statyka_v }}">
+<link rel="stylesheet" href="/static/bib/komponenty-keruvannya.css?v={{ statyka_v }}">
+<link rel="stylesheet" href="/static/bib/komponenty-forma.css?v={{ statyka_v }}">
+<link rel="stylesheet" href="/static/bib/komponenty-dani.css?v={{ statyka_v }}">
+<link rel="stylesheet" href="/static/bib/komponenty-shar.css?v={{ statyka_v }}">
+<link rel="stylesheet" href="/static/bib/komponenty-karkas.css?v={{ statyka_v }}">
+<link rel="stylesheet" href="/static/bib/rukh.css?v={{ statyka_v }}">
+<link rel="stylesheet" href="/static/bib/prostir.css?v={{ statyka_v }}">
+<link rel="stylesheet" href="/static_v2/ofis.css?v={{ statyka_v }}">
+<link rel="stylesheet" href="/static_v2/utyl.css?v={{ statyka_v }}">
+<link rel="stylesheet" href="/static_v2/inline.css?v={{ statyka_v }}">
+{% block head %}{% endblock %}
+
+{# Theme, density and motion are read before first paint (no flash of light theme). #}
+<script src="/static_v2/rannii.js?v={{ statyka_v }}"></script>
+<script type="application/json" id="i18n-js">{{ js_i18n()|tojson }}</script>
+<script src="/static/vendor/htmx.min.js" defer></script>
+<script src="/static/bib/interactions.js" defer></script>
+<script src="/static/bib/povedinka.js" defer></script>
+<script src="/static/bib/rukh.js" defer></script>
+<script src="/static/bib/charts.js" defer></script>
+<script src="/static/vzayemodiyi.js?v={{ statyka_v }}" defer></script>
+<script src="/static_v2/app.js?v={{ statyka_v }}" defer></script>
+</head>
+<body>
+
+{% if user %}
+<div class="kk-app" data-rejka="{{ 'vidkryto' if rejka_vidkryta else 'zakryto' }}">
+  <aside class="kk-rejka" id="rejka">
+    <a class="brand brend-rejka" href="/">{{ _("ОФІС") }}</a>
+    <nav class="kk-nav" aria-label="{{ _('Розділи') }}">
+      {% set rozdily = [
+        ('/', _('Огляд'), 'i-kpi'),
+        ('/obyekty', _('Обʼєкти'), 'i-obyekt'),
+        ('/dovidnyk', _('Довідник'), 'i-dovidnyk'),
+        ('/voronky', _('Воронки'), 'i-voronka'),
+        ('/dokumenty', _('Документи'), 'i-dokument'),
+        ('/zavdannya', _('Завдання'), 'i-zavdannya'),
+        ('/karta', _('Карта'), 'i-karta'),
+      ] %}
+      {% for shlyah, pidpys, ikona in rozdily %}
+      <a href="{{ shlyah }}"{% if request.url.path == shlyah %} aria-current="page"{% endif %}>
+        <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#{{ ikona }}"></use></svg>
+        {{ pidpys }}</a>
+      {% endfor %}
+
+      {# Live counters (chat, notifications) — polled every 30 s. #}
+      <span hx-get="/chat/lichylnyk" hx-trigger="load, every 30s"
+            hx-swap="outerHTML"></span>
+      <span hx-get="/spovishchennya/lichylnyk" hx-trigger="load, every 30s"
+            hx-swap="outerHTML"></span>
+    </nav>
+  </aside>
+
+  <header class="kk-shapka">
+    <button class="k-btn tykha lyshe-ikona" id="rejka-perem" data-has-js type="button"
+            aria-label="{{ _('Розділи') }}" aria-expanded="false" aria-controls="rejka">
+      <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-menyu"></use></svg>
+    </button>
+    <b class="shapka-zag">{% block shapka %}{{ self.title() }}{% endblock %}</b>
+    <span class="roztyah"></span>
+
+    <button class="k-btn tykha shchilna" type="button" data-has-js
+            popovertarget="palitra" aria-label="{{ _('Пошук по системі') }}">
+      <svg class="ik" width="15" height="15" aria-hidden="true">
+        <use href="/static/bib/ikony.svg#i-poshuk"></use></svg>
+      <kbd>Ctrl K</kbd>
+    </button>
+    <button class="k-btn tykha lyshe-ikona" type="button" id="tema" data-has-js
+            aria-label="{{ _('Світла або темна тема') }}" title="{{ _('Світла або темна тема') }}">
+      <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-tema"></use></svg>
+    </button>
+
+    <details class="profil-menyu">
+      <summary class="k-avatar" title="{{ user.name }}" aria-label="{{ _('Профіль') }}">{{ user.name[:2]|upper }}</summary>
+      <div class="profil-panel surf-panel">
+        <b>{{ user.name }}</b>
+        <span class="dim">{{ _(user.role_label) }}</span>
+        {% include "_mova.html" %}
+        <form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="k-btn shchilna" type="submit">{{ _("Вийти") }}</button></form>
+        <form method="post" action="/logout/everywhere"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="k-btn tykha shchilna" type="submit">{{ _("Вийти на всіх пристроях") }}</button></form>
+      </div>
+    </details>
+  </header>
+
+  <main class="kk-telo" id="vmist">
+{% block vmist %}{% endblock %}
+  </main>
+</div>
+{% else %}
+<main class="kk-telo gost-telo">
+{% block body_gost %}{{ self.vmist() }}{% endblock %}
+</main>
+{% endif %}
+
+{% if user %}{% include "_palitra.html" %}{% endif %}
+
+{# One polite live region for the whole app: polled counters announce changes. #}
+<div id="ogoloshennya" class="visually-hidden" role="status"
+     aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>

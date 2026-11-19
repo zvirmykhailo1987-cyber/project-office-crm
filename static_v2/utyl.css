@@ -1,0 +1,39 @@
+/* Product-level utility and layout classes (replace former inline styles;
+   the CSP allows no inline style elements). Tokens come from the library. */
+
+/* ── App shell ─────────────────────────────────────────────────────────── */
+.brend-rejka { font-weight: 600; display: block; margin-block-end: var(--sp3) }
+.shapka-zag { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.roztyah { margin-inline-start: auto }
+.gost-telo { max-inline-size: 44rem; margin-inline: auto }
+
+.profil-menyu { position: relative }
+.profil-menyu > summary { list-style: none; cursor: pointer }
+.profil-menyu > summary::-webkit-details-marker { display: none }
+.profil-panel {
+  position: absolute; inset-inline-end: 0; inset-block-start: calc(100% + var(--sp2));
+  z-index: 50; display: grid; gap: var(--sp2); padding: var(--sp3);
+  min-inline-size: 15rem; max-inline-size: min(20rem, 90vw);
+}
+.profil-panel form { margin: 0 }
+.profil-panel .k-btn { inline-size: 100% }
+
+.mova-perem { display: flex; gap: var(--sp2); flex-wrap: wrap; align-items: baseline; font-size: .875rem }
+.mova-perem b { font-weight: 600 }
+
+/* ── Sign-in ───────────────────────────────────────────────────────────── */
+.vhid-shapka { display: grid; gap: var(--sp2); justify-items: center; margin-block: var(--sp8) var(--sp5) }
+.vhid-brend { font-size: 1.6rem; letter-spacing: .04em }
+.vhid-pomylka { max-inline-size: 26rem; margin: 0 auto var(--sp3) }
+.vhid-forma { padding: var(--sp4); max-inline-size: 26rem; margin-inline: auto }
+.vhid-demo { max-inline-size: 26rem; margin: var(--sp4) auto 0; text-align: center }
+.gost-telo .mova-perem { justify-content: center; margin-block-start: var(--sp4) }
+
+/* ── Error pages ───────────────────────────────────────────────────────── */
+.pomylka-ekran { max-inline-size: 36rem; margin: var(--sp6) auto; padding: var(--sp5); display: grid; gap: var(--sp2) }
+.pomylka-kod { font-size: 3rem; font-weight: 700; line-height: 1; margin: 0; color: var(--prygl, currentColor) }
+.pomylka-ekran h1 { margin: 0; font-size: 1.4rem }
+
+/* `hidden` must always win over layout classes (a display:grid utility would otherwise
+   keep a hidden empty-state visible next to real data). */
+html [hidden] { display: none !important }

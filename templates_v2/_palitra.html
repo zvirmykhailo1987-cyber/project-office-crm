@@ -1,0 +1,23 @@
+{# Командна палітра. popover="auto" дає верхній шар, фокус-пастку й Esc від
+   браузера — без жодної бібліотеки. #}
+<div class="palitra" id="palitra" popover="auto" aria-label="{{ _('Пошук по системі') }}">
+  <div class="palitra-box">
+    <div class="palitra-verh">
+      <svg class="ik" aria-hidden="true"><use href="#i-poshuk"></use></svg>
+      <input id="palitra-pole" type="search" autocomplete="off" spellcheck="false"
+             placeholder="{{ _('Контрагент, угода, завдання, розділ…') }}"
+             aria-label="{{ _('Що шукаємо') }}" aria-controls="palitra-rez"
+             hx-get="/api/palitra" hx-target="#palitra-rez" hx-swap="innerHTML"
+             hx-trigger="input changed delay:120ms, palitra-onovyty"
+             name="q">
+      <kbd>Esc</kbd>
+    </div>
+    <div class="palitra-rez" id="palitra-rez" data-skelet role="listbox"
+         aria-label="{{ _('Результати') }}"></div>
+    <div class="palitra-nyz">
+      <span><kbd>↑</kbd><kbd>↓</kbd> {{ _("вибір") }}</span>
+      <span><kbd>Enter</kbd> {{ _("відкрити") }}</span>
+      <span><kbd>Esc</kbd> {{ _("закрити") }}</span>
+    </div>
+  </div>
+</div>

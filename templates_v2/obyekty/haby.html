@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Хаби — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Хаби") }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K1 «Реєстр». Хаби — обчислювана сутність, і це головне, що екран має
+   сказати ПЕРШИМ: склад і економіка йдуть із кластеризації, руками не
+   правляться. У старій шкірі це стояло дрібним підписом під заголовком. #}
+<div class="k-banner s-c9996a7" role="note">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-hab"></use></svg>
+  <div>
+    <b>{{ _("Кластери ≥2 МВт у радіусі 20 км.") }}</b>
+    {{ _("Склад і економіка обчислюються кластеризацією — вручну не редагуються.") }}
+  </div>
+</div>
+
+<div class="kk-tulbar">
+  <form class="k-filtry" method="get" action="/haby" data-sabmit-na-zminu
+        data-stan="{{ 'vybrano' if oblast else 'spokiy' }}">
+    <label class="visually-hidden" for="oblast">{{ _("Область") }}</label>
+    <select class="k-vybir" id="oblast" name="oblast">
+      <option value="">{{ _("Область — усі") }}</option>
+      {% for o in oblasts %}
+      <option value="{{ o }}"{% if o == oblast %} selected{% endif %}>{{ o }}</option>
+      {% endfor %}
+    </select>
+    <button class="k-btn shchilna" type="submit">{{ _("Знайти") }}</button>
+    <span class="lichylnyk">{{ _('фільтр області активний') if oblast else _('фільтрів немає') }}</span>
+  </form>
+  <span class="roztyah"></span>
+  <span class="kk-chesnist">{{ _("хабів:") }} <b class="chyslo">{{ rows|length|num }}</b></span>
+</div>
+
+{# Порожній стан присутній ЗАВЖДИ (прихований): стан, який зʼявляється лише в
+   рідкісну мить, неможливо ані показати, ані перевірити гейтом. #}
+<div class="surf-panel s-eab8806" data-stan="porozhno" {% if rows %}hidden{% endif %}
+    >
+  <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+    <use href="/static/bib/porozhni.svg#p-poshuk"></use></svg>
+  <b>{{ _("Хабів у цій області немає") }}</b>
+  <div class="kk-chesnist">{{ _("Кластер утворюється від 2 МВт сумарно — можливо, обʼєкти надто розкидані.") }}</div>
+  <a class="k-btn holovna" href="/haby">{{ _("Показати всі області") }}</a>
+</div>
+
+{% if rows %}
+<div class="k-tab-obh" data-stan="spokiy">
+<table class="k-tab kartky">
+  <thead><tr>
+    <th>{{ _("Хаб") }}</th><th>{{ _("Тип") }}</th><th>{{ _("Область") }}</th>
+    <th class="chyslo">{{ _("МВт") }}</th><th class="chyslo">{{ _("Донорів") }}</th>
+    <th class="chyslo">CAPEX, €</th><th class="chyslo">{{ _("Окупність") }}</th><th class="chyslo">IRR, %</th>
+  </tr></thead>
+  <tbody>
+  {% for c in rows %}
+    {# Код у 28 із 129 хабів порожній, і посилання лишалось без доступного імені.
+       Порожнє посилання — не «менше тексту», а кнопка в нікуди для читача
+       екрана й для клавіатури. Тому: код, якщо є; інакше якір; інакше номер —
+       але завжди щось. #}
+    {% set pidpys = c.site_code or c.anchor_name or (_('хаб №') ~ c.id) %}
+    <tr class="k-ryad">
+      <td data-holovne data-p="{{ _('Хаб') }}">
+        <a href="/haby/{{ c.id }}">{{ c.site_code or ('№' ~ c.id) }}</a>
+        {% if c.anchor_name %}
+        <div class="dim s-9942017">{{ _("якір:") }} {{ c.anchor_name|truncate(44) }}</div>
+        {% endif %}
+      </td>
+      <td data-p="{{ _('Тип') }}" class="dim">{{ c.type_label or labels.get(c.type, c.type) }}</td>
+      <td data-p="{{ _('Область') }}">{{ c.oblast or '—' }}</td>
+      <td data-p="{{ _('МВт') }}" class="chyslo"><b>{{ c.total_mw|num }}</b></td>
+      <td data-p="{{ _('Донорів') }}" class="chyslo">{{ c.n_donors|num }}</td>
+      <td data-p="CAPEX" class="chyslo">{{ c.capex_eur|num }}</td>
+      <td data-p="{{ _('Окупність') }}" class="chyslo">{{ c.payback_y|num }}</td>
+      <td data-p="IRR" class="chyslo">{{ c.irr_pct|num }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{# PRELIMINARY не приховується під «i» і не спрощується: числа економіки —
+   з явних коефіцієнтів, і читач мусить це бачити поруч із ними. #}
+<p class="kk-chesnist s-35823d2">
+  <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-uvaha"></use></svg>
+  <span class="nepovno">PRELIMINARY:</span>
+  {{ _("економіка хабів обчислена з явних коефіцієнтів (") }}<code>biogaz_robocha/references/bioenergy_econ_params.csv</code>{{ _("), не з проєктних кошторисів.") }}
+</p>
+{% endblock %}

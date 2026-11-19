@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% block title %}{{ cp.name }} {{ _("— Довідник") }}{% endblock %}
+{% block shapka %}{{ cp.name|truncate(60) }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K2 «Сторінка сутності». Інлайнове редагування — компонент
+   `komirka-redahuvannya` з бібліотеки (`k-komirka`), у повній матриці станів:
+   спокій · фокус · зайнята · помилка · збережено. #}
+
+<nav class="k-krykhty" aria-label="{{ _('Шлях') }}">
+  <a href="/dovidnyk">{{ _("Довідник") }}</a>
+  <span aria-hidden="true">·</span>
+  <span aria-current="page">{{ cp.name|truncate(48) }}</span>
+</nav>
+
+<div class="kk-sutnist">
+  <header class="shapka">
+    <h1 class="s-1169661">{{ cp.name }}</h1>
+    <div class="k-krykhty s-4c77968">
+      <span class="k-chip">{{ categories.get(cp.category, cp.category) }}</span>
+      {% if cp.data_status == 'needs_check' %}
+      <span class="k-chip s-93827eb">{{ _("потребує перевірки") }}</span>{% endif %}
+      {% if cp.data_status == 'verified' %}
+      <span class="k-chip s-d066582">{{ _("перевірено") }}</span>{% endif %}
+      <span class="k-chip" title="{{ _('Повнота картки') }}">{{ _("повнота") }} {{ cp.completeness }}%</span>
+    </div>
+
+    <div class="k-hrupa s-c5502a3">
+      {% if cp.phone %}<a class="k-btn holovna" href="tel:{{ cp.phone }}">
+        <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-telefon"></use></svg>
+        {{ _("Подзвонити") }}</a>{% endif %}
+      {% if cp.email %}<a class="k-btn shchilna" href="mailto:{{ cp.email }}">
+        <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-lyst"></use></svg>
+        {{ _("Написати") }}</a>{% endif %}
+      {% if cp.website %}<a class="k-btn shchilna" href="{{ cp.website }}" target="_blank" rel="noopener">{{ _("Сайт") }}</a>{% endif %}
+      {% if cp.card_url %}<a class="k-btn shchilna" href="{{ cp.card_url }}" target="_blank" rel="noopener">{{ _("Первинна картка") }}</a>{% endif %}
+    </div>
+  </header>
+
+  <div class="telo">
+    <section>
+      <h2 class="metryka-h">{{ _("Реквізити") }}</h2>
+      <p class="kk-chesnist">{{ _("Поля редагуються прямо тут — клацніть і пишіть, зміна зберігається при виході з поля.") }}</p>
+
+      <div class="kk-fakty">
+        {% macro fld(key, label) %}
+        <div>
+          <span id="l-{{ key }}">{{ label }}</span>
+          <span class="k-komirka ed" contenteditable="true" role="textbox"
+                aria-labelledby="l-{{ key }}"
+                data-field="{{ key }}" data-id="{{ cp.id }}">{{ cp[key] or '' }}</span>
+        </div>
+        {% endmacro %}
+        {{ fld('legal_name', _('Юр. назва')) }}
+        {{ fld('edrpou', _('ЄДРПОУ')) }}
+        {{ fld('kved', _('КВЕД')) }}
+        {{ fld('oblast', _('Область')) }}
+        {{ fld('raion', _('Район')) }}
+        {{ fld('hromada', _('Громада')) }}
+        {{ fld('city', _('Місто / село')) }}
+        {{ fld('address', _('Адреса')) }}
+        {{ fld('phone', _('Телефон')) }}
+        {{ fld('phone2', _('Телефон 2')) }}
+        {{ fld('email', 'Email') }}
+        {{ fld('website', _('Сайт')) }}
+        <div><span>{{ _("Координати") }}</span><span class="chyslo">
+          {%- if cp.lat %}{{ cp.lat }}, {{ cp.lon }}
+          {%- else %}<span class="dim">{{ _("немає даних") }}</span>{% endif %}</span></div>
+        <div><span>{{ _("Джерела") }}</span><span class="dim">{{ cp.source or '—' }}</span></div>
+        <div><span>{{ _("Оновлено") }}</span><span class="dim">{{ cp.updated_at|dt }} ({{ cp.updated_at|ago }})</span></div>
+      </div>
+
+      <h2 class="metryka-h s-a52c42b">{{ _("Нотатки") }}</h2>
+      <div class="k-komirka ed s-0807bde" contenteditable="true" role="textbox"
+           aria-label="{{ _('Нотатки') }}"
+           data-field="notes" data-id="{{ cp.id }}">{{ cp.notes or '' }}</div>
+
+      <h2 class="metryka-h s-a52c42b">
+        {{ _("Історія контактів") }} <span class="dim">({{ aktyvnosti|length }})</span></h2>
+
+      {# Запис ведеться ТУТ САМО, а не на окремому екрані: людина щойно
+         дивилась у картку, і відправляти її кудись по одну нотатку означає
+         гарантувати, що нотатку не запишуть. #}
+      {% set err_out = request.query_params.get('err') == 'outcome' %}
+      <form class="kk-forma" method="post" action="/dovidnyk/{{ cp.id }}/activity"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="k-hrupa-polya">
+          <label for="a-type">{{ _("Що було") }}</label>
+          <select class="k-vybir" id="a-type" name="type">
+            {% for x in activity_types %}<option>{{ x }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="k-hrupa-polya">
+          <label for="a-outcome">{{ _("Результат") }}</label>
+          <input class="k-pole" id="a-outcome" type="text" name="outcome" required
+                 placeholder="{{ _('Коротко, по суті') }}"
+                 {% if err_out %}aria-invalid="true" aria-describedby="e-outcome" autofocus{% endif %}>
+          {% if err_out %}
+          {# Помилка НАЗИВАЄ наслідок, а не факт: «обовʼязкове поле» не пояснює,
+             чому воно обовʼязкове, і його заповнюють будь-чим. #}
+          <span class="pomylka" id="e-outcome">{{ _("Без результату запис нічого не каже: через місяць «Дзвінок · 14:20» не підкаже, домовились чи ні.") }}</span>
+          {% endif %}
+        </div>
+        <div class="k-hrupa-polya">
+          <label for="a-note">{{ _("Нотатка") }} <span class="dim">{{ _("— необовʼязково") }}</span></label>
+          <textarea class="k-pole" id="a-note" name="note" rows="2"></textarea>
+        </div>
+        <button class="k-btn holovna" type="submit">{{ _("Записати") }}</button>
+        <p class="kk-chesnist">{{ _("Дата й автор проставляться самі — переписувати їх не можна, інакше історія перестане бути історією.") }}</p>
+      </form>
+
+      <div class="surf-panel s-2eaaa24" data-stan="pershe" {% if aktyvnosti %}hidden{% endif %}
+          >
+        <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+          <use href="/static/bib/porozhni.svg#p-aktyvnist"></use></svg>
+        <b>{{ _("Активностей ще немає") }}</b>
+        <div class="kk-chesnist s-0db9dc9">{{ _("Сюди потрапляє все, що записано і в цій картці, і в угодах цього контрагента.") }}</div>
+        {# Форма стоїть вище, але дія має бути ТУТ: людина читає пояснення й
+           мусить мати куди натиснути, не шукаючи поглядом назад по сторінці. #}
+        <button class="k-btn holovna" data-has-js data-fokus="[name=outcome]">
+          {{ _("Записати перший контакт") }}</button>
+      </div>
+
+      {% if aktyvnosti %}
+      <ul class="kk-strichka s-35823d2">
+        {% for a in aktyvnosti %}
+        <li>
+          <div class="s-509a426">
+            <span class="k-chip">{{ a.type }}</span>
+            <span class="dim s-9942017">{{ a.author }}</span>
+            {% if a.deal_id %}<a class="dim s-9942017"
+              href="/voronky/{{ a.deal_id }}">{{ _("угода") }}</a>{% endif %}
+            <time class="chyslo dim s-8c5865f">{{ a.when|dt('%d.%m.%Y %H:%M') }}</time>
+          </div>
+          <div><b>{{ a.outcome }}</b></div>
+          {% if a.note %}<div class="dim">{{ a.note }}</div>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </section>
+
+    {# ── 360°: усе живе цієї компанії. Робить картку вузлом CRM, а не глухим
+         кутом довідника — те, чого бракувало проти повноцінної CRM. #}
+    <section class="s-2cbb205">
+      <h2 class="metryka-h">{{ _("Угоди") }} <span class="dim">({{ ugody|length }})</span></h2>
+      {% if not ugody %}
+      <div class="s-05c4d07" data-stan="porozhno">
+        <b>{{ _("Угод із цією компанією ще немає") }}</b>
+        <div class="kk-chesnist">{{ _("Угода веде контрагента по стадіях і тримає наступну дію.") }}</div>
+        <a class="k-btn holovna" href="/voronky/nova?counterparty_id={{ cp.id }}">
+          {{ _("Створити угоду") }}</a>
+      </div>
+      {% else %}
+      <ul class="s-bfcbd23">
+        {% for d in ugody %}
+        <li class="surf-panel hlyb-1 s-46ef8e0">
+          <a class="s-02a2d33" href="/voronky/{{ d.id }}">{{ d.title or _('Без назви') }}</a>
+          <div class="pid s-5b7978a">
+            {% set st = stadiyi.get(d.stage_id) %}
+            {% if st %}<span class="k-chip">{{ st.title }}</span>{% endif %}
+            {% if d.status != 'active' %}<span class="k-chip s-a1b5a7c">{{ d.status }}</span>{% endif %}
+            {% if d.owner %}<span class="dim s-9942017">{{ d.owner }}</span>{% endif %}
+            {% if d.next_action_date %}
+              <span class="k-chip{% if d.next_action_date < dnes %} nepovno{% endif %}"
+                    data-styl="{% if d.next_action_date < dnes %}--stan:var(--krytych){% endif %}">
+                {{ d.next_action_date|dt('%d.%m') }}{% if d.next_action_date < dnes %} {{ _("· прострочено") }}{% endif %}</span>
+            {% endif %}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      <a class="k-btn shchilna s-c5502a3"
+         href="/voronky/nova?counterparty_id={{ cp.id }}">{{ _("+ угода") }}</a>
+      {% endif %}
+
+      <h2 class="metryka-h s-a52c42b">
+        {{ _("Обʼєкти й майданчики") }} <span class="dim">({{ obyekty|length }})</span></h2>
+      {% if not obyekty %}
+      <p class="kk-chesnist">{{ _("Обʼєктів цієї компанії в базі немає.") }}</p>
+      {% else %}
+      <ul class="s-bfcbd23">
+        {% for o in obyekty %}
+        <li class="surf-panel hlyb-1 s-4566460">
+          <a class="s-02a2d33" href="/obyekty/{{ o.id }}">{{ o.name or o.city or '—' }}</a>
+          <span class="k-chip">{{ o.type_label }}</span>
+          {% if o.city %}<span class="dim s-9942017">{{ o.city }}</span>{% endif %}
+          {% if o.lat %}<a class="dim s-bc7cff2"
+             href="/karta?q={{ cp.edrpou or o.name }}">{{ _("на карті") }}</a>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      <h2 class="metryka-h s-a52c42b">
+        {{ _("Завдання") }} <span class="dim">({{ zavdannya|length }} {{ _("відкритих)") }}</span></h2>
+      {% if not zavdannya %}
+      <p class="kk-chesnist">{{ _("Відкритих завдань по компанії немає.") }}</p>
+      {% else %}
+      <ul class="s-bfcbd23">
+        {% for t in zavdannya %}
+        <li class="s-e150c64">
+          <span>{{ t.title }}</span>
+          {% if t.assignee %}<span class="dim s-9942017">{{ t.assignee }}</span>{% endif %}
+          {% if t.due_date %}
+            <span class="k-chip"{% if t.due_date < dnes %} data-styl="--stan:var(--krytych)"{% endif %}>
+              {{ t.due_date|dt('%d.%m') }}{% if t.due_date < dnes %} {{ _("· прострочено") }}{% endif %}</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      <h2 class="metryka-h s-a52c42b">
+        {{ _("Документи") }} <span class="dim">({{ dokumenty|length }})</span></h2>
+      {% if not dokumenty %}
+      <p class="kk-chesnist">{{ _("Документів по компанії немає.") }}</p>
+      {% else %}
+      <ul class="s-f50dd74">
+        {% for doc in dokumenty %}
+        <li class="s-e150c64">
+          <a href="/dokumenty/{{ doc.id }}">{{ doc.title or doc.filename or _('Документ') }}</a>
+          {% if doc.kind %}<span class="k-chip">{{ doc.kind }}</span>{% endif %}
+          {% if doc.is_final %}<span class="k-chip s-d066582">{{ _("фінал") }}</span>{% endif %}
+          <span class="dim s-acbe443">
+            {{ doc.created_at|dt('%d.%m.%y') }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </section>
+
+    <aside class="sayidbar surf-panel">
+      <h2 class="metryka-h">{{ _("Контактні особи") }} <span class="dim">({{ persons|length }})</span></h2>
+
+      <div class="s-05c4d07" data-stan="porozhno" {% if persons %}hidden{% endif %}
+          >
+        <b>{{ _("Контактних осіб немає") }}</b>
+        <div class="kk-chesnist">{{ _("Додайте особу — дзвонити організації взагалі складніше, ніж людині.") }}</div>
+        <a class="k-btn shchilna" href="/dovidnyk">{{ _("До довідника") }}</a>
+      </div>
+
+      {% if persons %}
+      <ul class="s-fe6bdbe">
+        {% for p in persons %}
+        <li>
+          <b>{{ p.name or '—' }}</b>
+          {% if p.is_primary %}<span class="k-chip s-d066582">{{ _("основний") }}</span>{% endif %}
+          {% if p.role %}<div class="dim s-9942017">{{ p.role }}</div>{% endif %}
+          <div>
+            {% if p.phone %}<a href="tel:{{ p.phone }}">{{ p.phone }}</a>{% endif %}
+            {% if p.email %}<br><a class="dim" href="mailto:{{ p.email }}">{{ p.email }}</a>{% endif %}
+            {% if not p.phone and not p.email %}<span class="dim">{{ _("без контактів") }}</span>{% endif %}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </aside>
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+/* Інлайнове редагування картки.
+ *
+ * Помилка показується ТОСТОМ бібліотеки, а не `alert()`: системне модальне
+ * вікно ОС посеред продукту блокує сторінку, не читається читачем екрана як
+ * помилка поля й виглядає як збій браузера, а не як відповідь системи.
+ * Комірка при цьому лишається в стані помилки — правити треба там, де очі.
+ *
+ * Стан «зберігається» обовʼязковий: між `blur` і відповіддю сервера є пауза
+ * невідомої довжини, і без позначки людина не знає, чи щось відбувається. */
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.ed').forEach(function (el) {
+    el.dataset.was = el.textContent.trim();
+    el.addEventListener('blur', function () {
+      var v = el.textContent.trim();
+      if (v === el.dataset.was) return;
+      var fd = new FormData();
+      fd.append('field', el.dataset.field);
+      fd.append('value', v);
+      el.setAttribute('data-stan', 'zaynyata');
+
+      function vidkotyty(tekst) {
+        el.textContent = el.dataset.was;
+        el.setAttribute('data-stan', 'pomylka');
+        setTimeout(function () { el.removeAttribute('data-stan'); }, 2500);
+        if (window.PV) PV.toast({ tekst: tekst, ton: 'krytych', trymaty: 0 });
+      }
+
+      fetch('/dovidnyk/' + el.dataset.id + '/field', { method: 'POST', body: fd })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          el.removeAttribute('data-stan');
+          if (d.ok) {
+            el.textContent = d.value; el.dataset.was = d.value;
+            el.setAttribute('data-stan', 'zberezheno');
+            setTimeout(function () { el.removeAttribute('data-stan'); }, 1200);
+          } else {
+            vidkotyty(d.error || T('Не збережено — значення повернуто'));
+          }
+        })
+        .catch(function () { vidkotyty(T('Немає звʼязку — значення повернуто')); });
+    });
+  });
+});
+</script>
+{% with entity='counterparty', entity_id=cp.id %}{% include "_spivpratsya.html" %}{% endwith %}
+{% endblock %}

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Нова угода — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Нова угода") }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K3 «Форма» (`kompozytsiyi/forma.html`): групи полів, помилки БІЛЯ
+   полів, вартовий незбережених змін. Ширина обмежена: форма на весь екран
+   змушує очі стрибати від підпису до поля через півметра порожнечі. #}
+
+<nav class="k-krykhty" aria-label="{{ _('Шлях') }}">
+  <a href="/voronky?program={{ prog.code }}">{{ _("Воронка «") }}{{ prog.title }}»</a>
+  <span aria-hidden="true">·</span>
+  <span aria-current="page">{{ _("нова угода") }}</span>
+</nav>
+
+<form class="kk-forma s-26da15f" method="post" action="/voronky/nova"
+      data-vartovyi><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <p class="kk-chesnist">{{ _("Стартова стадія —") }} <b>«{{ stages[0].title }}»</b>.</p>
+
+  <div class="k-hrupa-polya">
+    <label for="f-program">{{ _("Напрям") }}</label>
+    <select class="k-vybir" id="f-program" name="program">
+      {% for p in programs %}
+      <option value="{{ p.code }}"{% if p.id == prog.id %} selected{% endif %}>{{ p.title }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="k-hrupa-polya">
+    <label for="f-title">{{ _("Назва угоди") }}</label>
+    <input class="k-pole" id="f-title" type="text" name="title" required
+           value="{{ cp.name if cp else '' }}"
+           placeholder="{{ _('Напр. «Біогаз-станція ПАП Зоряна Долина»') }}"
+           aria-describedby="p-title">
+    <span class="pidkazka" id="p-title">{{ _("Так її шукатимуть у списку — пишіть, як називаєте вголос.") }}</span>
+  </div>
+
+  <div class="k-hrupa-polya">
+    <label for="f-cp">{{ _("Контрагент") }}</label>
+    <input class="k-pole" id="f-cp" type="text" name="counterparty_id"
+           value="{{ cp.id if cp else '' }}" inputmode="numeric"
+           placeholder="{{ _('id з довідника') }}" aria-describedby="p-cp">
+    <span class="pidkazka" id="p-cp">{{ _("Можна лишити порожнім, якщо ще невідомо — привʼязати вдасться пізніше з картки.") }}</span>
+  </div>
+
+  <div class="k-hrupa-polya">
+    <label for="f-owner">{{ _("Відповідальний") }}</label>
+    <select class="k-vybir" id="f-owner" name="owner">
+      {% for u in users %}
+      <option value="{{ u.name }}"{% if u.name == user.name %} selected{% endif %}>
+        {{ u.name }} — {{ u.role_label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <fieldset class="s-89ee766">
+    <legend class="s-341045d">{{ _("Наступна дія") }}</legend>
+    <div class="k-hrupa-polya">
+      <label for="f-nad">{{ _("Коли") }}</label>
+      <input class="k-pole k-data" id="f-nad" type="date" name="next_action_date">
+    </div>
+    <div class="k-hrupa-polya">
+      <label for="f-nan">{{ _("Що саме") }}</label>
+      <input class="k-pole" id="f-nan" type="text" name="next_action_note"
+             placeholder="{{ _('Напр. «подзвонити керівнику»') }}">
+    </div>
+  </fieldset>
+
+  {# Доручення — ЧАСТИНА створення угоди, а не окрема дія: інакше угоду
+     заведено, а той, хто має її опрацювати, дізнається про це випадково. #}
+  <fieldset class="s-89ee766">
+    <legend class="s-341045d">{{ _("Доручити роботу — необовʼязково") }}</legend>
+    <div class="k-hrupa-polya">
+      <label for="f-komu">{{ _("Кому") }}</label>
+      <select class="k-vybir" id="f-komu" name="doruchyty_komu">
+        <option value="">{{ _("— нікому") }}</option>
+        {% for u in users %}{% if u.name != user.name %}
+        <option value="{{ u.name }}">{{ u.name }} — {{ u.role_label }}</option>
+        {% endif %}{% endfor %}
+      </select>
+    </div>
+    <div class="k-hrupa-polya">
+      <label for="f-koly">{{ _("До якої дати") }}</label>
+      <input class="k-pole k-data" id="f-koly" type="date" name="doruchyty_koly">
+    </div>
+    <div class="k-hrupa-polya">
+      <label for="f-scho">{{ _("Що зробити") }}</label>
+      <input class="k-pole" id="f-scho" type="text" name="doruchyty_scho"
+             list="typovi-doruchennya"
+             placeholder="{{ _('Напр. «підготувати попередню презентацію»') }}">
+      <datalist id="typovi-doruchennya">
+        <option value="Підготувати попередню презентацію">
+        <option value="Зробити попереднє ТЗ">
+        <option value="Зібрати дані по обʼєкту">
+        <option value="Порахувати попередню економіку">
+      </datalist>
+    </div>
+    <p class="kk-chesnist">{{ _("Виконавець отримає сповіщення одразу — лічильник у шапці оновиться за ≤30 с, без перезавантаження сторінки.") }}</p>
+  </fieldset>
+
+  <div class="k-hrupa">
+    <button class="k-btn holovna" type="submit">{{ _("Створити") }}</button>
+    <a class="k-btn shchilna" href="/voronky?program={{ prog.code }}">{{ _("Скасувати") }}</a>
+  </div>
+</form>
+
+<script nonce="{{ csp_nonce }}">
+  // ВАРТОВИЙ НЕЗБЕРЕЖЕНОГО. Форма створення — найдорожче місце для втрати
+  // введеного: людина заповнила вісім полів і випадково натиснула «Скасувати».
+  // Компонент бібліотеки стежить сам; тут лише вмикаємо його на цій формі.
+  document.addEventListener('DOMContentLoaded', function () {
+    var f = document.querySelector('[data-vartovyi]');
+    if (f && window.PV && PV.vartovyi) PV.vartovyi(f);
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Чернетка витягу — ОФІС") }}{% endblock %}
+{% block vmist %}
+<p class="k-krykhty"><a href="/ai">{{ _("← AI-витяг") }}</a></p>
+
+<div class="kk-tulbar">
+  <h1>{{ kinds.get(run.kind, run.kind) }}</h1>
+  <div class="badges">
+    {% if run.confirmed_at %}<span class="k-chip s-d066582">{{ _("підтверджено") }} {{ run.confirmed_by }}</span>
+    {% else %}<span class="k-chip s-93827eb">{{ _("AI-чернетка — перевірте") }}</span>{% endif %}
+    <span class="k-chip">{{ run.engine_label }}</span>
+    {% if run.fallback_used and run.engine != 'none' %}<span class="k-chip">{{ _("запасний шлях") }}</span>{% endif %}
+  </div>
+</div>
+
+{% if run.engine == 'none' %}
+<div class="k-banner krytych" role="alert"><b>{{ _("Витяг не вдався.") }}</b> {{ run.error }}</div>
+{% else %}
+
+<section class="tiles">
+  <div class="tile"><div class="big">{{ run.fill_rate }}%</div>
+    <div>{{ run.fields_filled }} {{ _("з") }} {{ run.fields_total }} {{ _("полів") }}</div></div>
+  <div class="tile"><div class="big">{% if run.schema_valid %}✓{% else %}✗{% endif %}</div>
+    <div>{{ _("відповідність схемі") }}</div></div>
+  {% if run.arithmetic_ok is not none %}
+  <div class="tile {% if not run.arithmetic_ok %}alarm{% endif %}">
+    <div class="big">{% if run.arithmetic_ok %}✓{% else %}✗{% endif %}</div>
+    <div>{{ _("арифметика") }}</div></div>
+  {% endif %}
+  <div class="tile"><div class="big">{{ run.duration_ms }}</div><div>{{ _("мс") }}</div></div>
+</section>
+
+{% if run.arithmetic_ok is false %}
+<div class="k-banner krytych" role="alert"><b>{{ _("Арифметика не збігається.") }}</b> {{ run.arithmetic_note }}<br>
+  {{ _("Суми перерахував код, не мовна модель — розбіжність реальна, звірте з оригіналом перед будь-якою оплатою.") }}</div>
+{% elif run.arithmetic_ok %}
+<p class="kk-chesnist s-8232744">✓ {{ run.arithmetic_note }} {{ _("— перерахував код.") }}</p>
+{% endif %}
+
+{% if run.error %}
+<p class="kk-chesnist">{{ _("Технічна нотатка:") }} {{ run.error }}</p>
+{% endif %}
+
+<section class="cols">
+  <div class="col">
+    <h2>{{ _("Що витягнуто") }}</h2>
+
+    {% if run.kind == 'rahunok' %}
+    <table class="kk-fakty">
+      <tr><th>{{ _("Постачальник") }}</th><td>{{ data.postachalnyk or '—' }}</td></tr>
+      <tr><th>{{ _("ЄДРПОУ") }}</th><td class="chyslo">{{ data.edrpou or '—' }}</td></tr>
+      <tr><th>{{ _("Номер / дата") }}</th><td>{{ data.nomer or '—' }} · {{ data.data or '—' }}</td></tr>
+      <tr><th>{{ _("Валюта") }}</th><td>{{ data.valyuta or '—' }}</td></tr>
+      <tr><th>Incoterms</th><td>{{ data.incoterms or '—' }}</td></tr>
+      <tr><th>{{ _("Без ПДВ") }}</th><td class="chyslo">{{ data.suma_bez_pdv|num }}</td></tr>
+      <tr><th>{{ _("ПДВ") }}</th><td class="chyslo">{{ data.pdv|num }}</td></tr>
+      <tr><th>{{ _("Всього") }}</th><td class="chyslo"><b>{{ data.vsogo|num }}</b></td></tr>
+    </table>
+    {% if data.pozytsii %}
+    <h2>{{ _("Позиції") }} <span class="dim">({{ data.pozytsii|length }})</span></h2>
+    <div class="k-tab-obh" data-stan="spokiy">
+    <table class="k-tab kartky">
+      <thead><tr><th>{{ _("Назва") }}</th><th>{{ _("К-сть") }}</th><th>{{ _("Ціна") }}</th><th>{{ _("Сума") }}</th></tr></thead>
+      <tbody>
+      {% for p in data.pozytsii %}
+        <tr><td>{{ p.nazva or '—' }}</td><td class="chyslo">{{ p.kilkist|num }}</td>
+          <td class="chyslo">{{ p.tsina|num }}</td><td class="chyslo">{{ p.suma|num }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% endif %}
+
+    {% elif run.kind == 'anketa' %}
+    {% if site %}<p>{{ _("Громада:") }} <a href="/obyekty/{{ site.id }}"><b>{{ site.name }}</b></a></p>{% endif %}
+    <table class="kk-fakty">
+      {% for key, label in [('c1_grain_t_yr',_('C1 Зерно, т/рік')),
+                            ('c2_underserved_ha',_('C2 Землі, га')),
+                            ('c3_ind_park',_('C3 Індустріальний парк')),
+                            ('c4_rail',_('C4 Залізниця')), ('c5_road',_('C5 Дороги')),
+                            ('c6_power_mw',_('C6 Потужність, МВт')),
+                            ('c7_guarantee_ready',_('C7 Готовність гарантувати')),
+                            ('c8_ahc_ready',_('C8 Комунальне ТОВ')),
+                            ('c9_transparency',_('C9 Прозорість'))] %}
+      <tr><th>{{ label }}</th>
+        <td class="chyslo">{% if data.get(key) is none %}<span class="dim">{{ _("не знайдено") }}</span>
+          {% else %}{{ data.get(key)|num }}{% endif %}</td></tr>
+      {% endfor %}
+    </table>
+    <p class="kk-chesnist">{{ _("«Не знайдено» лишиться порожнім — система не ставить нуль замість відсутньої відповіді.") }}</p>
+
+    {% else %}
+    {% if data.organizatsii %}
+    <div class="k-tab-obh" data-stan="spokiy">
+    <table class="k-tab kartky">
+      <thead><tr><th>{{ _("Назва") }}</th><th>{{ _("ЄДРПОУ") }}</th><th>{{ _("Телефон") }}</th><th>Email</th></tr></thead>
+      <tbody>
+      {% for o in data.organizatsii %}
+        <tr><td>{{ o.nazva or '—' }}</td><td class="chyslo">{{ o.edrpou or '—' }}</td>
+          <td>{{ o.telefon or '—' }}</td><td class="dim">{{ o.email or '—' }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}<p class="empty">{{ _("Організацій не знайдено.") }}</p>{% endif %}
+    {% endif %}
+  </div>
+
+  <div class="col">
+    <h2>{{ _("Підтвердження") }}</h2>
+    {% if run.confirmed_at %}
+    <p class="kk-chesnist s-8232744">{{ _("✓ Підтвердив") }} {{ run.confirmed_by }},
+      {{ run.confirmed_at|dt('%d.%m.%Y %H:%M') }}.</p>
+    <p><b>{{ _("Застосовано:") }}</b> {{ run.applied_to or '—' }}</p>
+    {% else %}
+    <form method="post" action="/ai/{{ run.id }}/pidtverdyty" class="kk-forma"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <p>{{ _("Перевірте дані ліворуч. Після підтвердження вони потраплять") }}
+        {% if run.kind == 'anketa' %}{{ _("у картку громади (з перерахунком балу)") }}
+        {% elif run.kind == 'kontakty' %}{{ _("у довідник контактів зі статусом «потребує перевірки»") }}
+        {% else %}{{ _("у журнал як звірені") }}{% endif %}.</p>
+      <button type="submit">{{ _("Підтвердити й застосувати") }}</button>
+      <p class="kk-chesnist">{{ _("Доки не підтверджено — це лише чернетка, на звіти й воронку вона не впливає.") }}</p>
+    </form>
+    {% endif %}
+
+    <h2>{{ _("Походження") }}</h2>
+    <table class="kk-fakty">
+      <tr><th>{{ _("Файл") }}</th><td>{{ run.source_file }}</td></tr>
+      <tr><th>{{ _("Символів тексту") }}</th><td class="chyslo">{{ run.source_chars|num }}</td></tr>
+      <tr><th>{{ _("Двигун") }}</th><td>{{ run.engine_label }}{% if run.model %} · {{ run.model }}{% endif %}</td></tr>
+      <tr><th>{{ _("Коли") }}</th><td class="dim">{{ run.created_at|dt('%d.%m.%Y %H:%M') }} · {{ run.created_by }}</td></tr>
+    </table>
+
+    <h2>{{ _("Сирий JSON") }}</h2>
+    <pre class="preview">{{ run.output_json }}</pre>
+  </div>
+</section>
+{% endif %}
+{% with entity='airun', entity_id=run.id %}{% include "_spivpratsya.html" %}{% endwith %}
+{% endblock %}

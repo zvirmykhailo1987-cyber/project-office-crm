@@ -1,0 +1,17 @@
+Шрифти вкладено в проєкт 06.08.2026. Ліцензія SIL Open Font License 1.1 —
+вільне використання, зокрема комерційне. Джерело: fonts.gstatic.com (Google Fonts).
+Тягнемо лише підмножини latin, latin-ext, cyrillic, cyrillic-ext — решта
+(грецька, вʼєтнамська) продукту не потрібна й лише важила б.
+
+literata-cyrillic-ext.woff2  Literata · cyrillic-ext · 16.2 КБ
+literata-cyrillic.woff2  Literata · cyrillic · 46.9 КБ
+literata-latin-ext.woff2  Literata · latin-ext · 69.1 КБ
+literata-latin.woff2  Literata · latin · 83.7 КБ
+inter-cyrillic-ext.woff2  Inter · cyrillic-ext · 25.4 КБ
+inter-cyrillic.woff2  Inter · cyrillic · 18.3 КБ
+inter-latin-ext.woff2  Inter · latin-ext · 83.1 КБ
+inter-latin.woff2  Inter · latin · 47.1 КБ
+jbmono-cyrillic-ext.woff2  JetBrains Mono · cyrillic-ext · 1.6 КБ
+jbmono-cyrillic.woff2  JetBrains Mono · cyrillic · 8.7 КБ
+jbmono-latin-ext.woff2  JetBrains Mono · latin-ext · 11.4 КБ
+jbmono-latin.woff2  JetBrains Mono · latin · 30.7 КБ

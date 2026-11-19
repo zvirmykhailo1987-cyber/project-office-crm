@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ kod }} — {{ _("ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Помилка") }} {{ kod }}{% endblock %}
+{% block vmist %}
+<section class="pomylka-ekran surf-panel" role="alert">
+  <p class="pomylka-kod" aria-hidden="true">{{ kod }}</p>
+  {% if kod == 404 %}
+    <h1>{{ _("Сторінку не знайдено") }}</h1>
+    <p class="dim">{{ _("Адреса неправильна або запис більше не існує.") }}</p>
+  {% elif kod == 403 %}
+    <h1>{{ _("Немає доступу") }}</h1>
+    <p class="dim">{{ detail or _("Ваша роль не має права на цю дію") }}</p>
+  {% elif kod == 428 %}
+    <h1>{{ _("Потрібне підтвердження") }}</h1>
+    <p class="dim">{{ detail }}</p>
+  {% elif kod >= 500 %}
+    <h1>{{ _("Щось пішло не так") }}</h1>
+    <p class="dim">{{ _("Помилку записано в журнал. Спробуйте ще раз за хвилину.") }}</p>
+  {% else %}
+    <h1>{{ _("Запит не виконано") }}</h1>
+    <p class="dim">{{ detail }}</p>
+  {% endif %}
+  <p><a class="k-btn holovna" href="/">{{ _("На головну") }}</a></p>
+</section>
+{% endblock %}

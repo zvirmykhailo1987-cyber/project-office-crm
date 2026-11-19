@@ -1,0 +1,497 @@
+/* ═══ KOMPONENTY-KARKAS — скелети сторінок продукту ═════════════════════════
+   Те, чого в бібліотеці не було зовсім: композицій-патернів було НУЛЬ.
+   Три каркаси в `shell/` — документні обгортки (досьє, дек, зріз), і жодна
+   навіть не підключала компонентний шар.
+
+   ЩО ТАКЕ КОМПОЗИЦІЯ, А ЩО НІ. Композиція — це СЦЕНАРІЙ із входом, дією і
+   виходом, а не сітка з компонентів. Тому кожна перевіряється трьома
+   наборами даних: порожньо (0 записів) · типово · екстрем (10 тис. рядків,
+   назви по 180 знаків, поля відсутні). «Готова» вона лише тоді, коли всі три
+   виглядають закінченими — інакше це макет, а не продукт.
+
+   ЗМІСТ: §1 Оболонка застосунку · §2 Тулбар · §3 Список+деталі ·
+          §4 Сторінка сутності · §5 Форма · §6 Майстер · §7 Дашборд ·
+          §8 Дошка (канбан) · §9 Потік (розмова) · §10 Карта з сигналом
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── §1 ОБОЛОНКА ───────────────────────────────────────────────────────────
+   Рейка · шапка · робоча зона. Сітка, а не флекс: рейка мусить тримати
+   ширину незалежно від вмісту, інакше довга назва розділу її розсуває. */
+.kk-app {
+  display: grid;
+  grid-template-columns: var(--rejka-shyr, 232px) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "rejka shapka" "rejka telo";
+  min-block-size: 100dvh;                      /* dvh, не vh: на iPhone панель
+      Safari зʼїдає нижні 60–90 px, і футер ховається під нею */
+  background: var(--tlo, #f6f4f0);
+}
+.kk-rejka {
+  grid-area: rejka; background: var(--tlo-2, #f0ede7);
+  border-inline-end: 1px solid var(--mezha-m, #e6e2da);
+  padding: var(--sp3, 12px); overflow: auto;
+}
+.kk-shapka {
+  grid-area: shapka; display: flex; align-items: center; gap: var(--sp3, 12px);
+  padding: var(--sp2, 8px) var(--sp4, 16px);
+  border-block-end: 1px solid var(--mezha-m, #e6e2da);
+  background: var(--tlo, #f6f4f0);
+  position: sticky; inset-block-start: 0; z-index: 20;
+}
+.kk-telo { grid-area: telo; padding: var(--sp4, 16px); overflow: auto; min-inline-size: 0 }
+
+/* Навігація рейки. Активний пункт несе ЛІВИЙ ШТРИХ — мотив «КОД-І-ШТРИХ»,
+   той самий, що на картках і обраних рядках. Заливка тут була б четвертою
+   кольоровою плямою на екрані, де вже є акцент дії. */
+.kk-nav { display: grid; gap: 2px }
+.kk-nav > a {
+  display: flex; align-items: center; gap: var(--sp2, 8px);
+  min-block-size: var(--vysota-cili, 32px); padding: 0 var(--pad-x, 12px);
+  border-radius: var(--r-sm, 7px);
+  color: var(--prygl, #6f6759); text-decoration: none;
+  outline: var(--fokus-tovshchyna, 2px) solid transparent;
+  outline-offset: calc(-1 * var(--fokus-tovshchyna, 2px));
+  transition: background-color var(--d-fast, 90ms) var(--ease, ease),
+              color var(--d-fast, 90ms) var(--ease, ease);
+}
+.kk-nav > a:hover { background: var(--poverhnya, #fff); color: var(--tilo, #262219) }
+.kk-nav > a:focus-visible { outline-color: var(--akcent, #0f7568) }
+.kk-nav > a[aria-current="page"] {
+  color: var(--tilo, #262219); font-weight: 600;
+  background: var(--poverhnya, #fff);
+  box-shadow: inset 3px 0 0 var(--akcent, #0f7568);
+}
+@media (max-width: 600px), (pointer: coarse) { .kk-nav > a { min-block-size: 44px } }
+
+@media (max-width: 900px) {
+  /* Рейка стає шухлядою: на вузькому вона зʼїдала б половину екрана. */
+  .kk-app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "shapka" "telo" }
+  .kk-rejka {
+    position: fixed; inset-block: 0; inset-inline-start: 0; inline-size: min(80vw, 280px);
+    translate: -100% 0; transition: translate var(--d, 180ms) var(--ease, ease);
+    z-index: 40; box-shadow: var(--tin-3, 0 12px 40px -12px rgba(38,34,25,.3));
+  }
+  .kk-app[data-rejka="vidkryto"] .kk-rejka { translate: 0 0 }
+}
+
+/* ── §2 ТУЛБАР ────────────────────────────────────────────────────────────
+   Пошук + фільтри + подання ліворуч, дії праворуч. Липкий разом із шапкою:
+   у реєстрі на 46 тисяч рядків фільтр, що поїхав угору, — це прокрутка
+   назад щоразу. */
+.kk-tulbar {
+  display: flex; align-items: center; gap: var(--sp2, 8px); flex-wrap: wrap;
+  padding-block: var(--sp2, 8px);
+  position: sticky; inset-block-start: 0; z-index: 15;
+  background: var(--tlo, #f6f4f0);
+}
+.kk-tulbar > .roztyah { margin-inline-start: auto }
+
+/* Панель масових дій ЗАМІЩУЄ тулбар, а не додається під ним: інакше при виборі
+   рядків уся таблиця зстрибує вниз на висоту панелі. */
+.kk-masovi {
+  display: none; align-items: center; gap: var(--sp3, 12px);
+  padding: var(--sp2, 8px) var(--pad-x, 12px);
+  border: 1px solid var(--akcent, #0f7568); border-radius: var(--r-sm, 7px);
+  background: var(--akcent-tlo, #e0efec);
+  font-size: var(--kegl-bazovyi, 14px);
+}
+.kk-masovi > .skilky { font-weight: 600; font-variant-numeric: tabular-nums }
+.kk-masovi > .roztyah { margin-inline-start: auto }
+[data-vybrano="є"] > .kk-tulbar { display: none }
+[data-vybrano="є"] > .kk-masovi { display: flex }
+
+/* ── §3 СПИСОК + ДЕТАЛІ ───────────────────────────────────────────────────
+   Панель деталей ПОРУЧ, а не окремим екраном. У продукті це були два різні
+   маршрути: `/dovidnyk` → `/dovidnyk/{id}`, і кожен перегляд картки втрачав
+   позицію в списку — після повернення прокрутка на початку.
+
+   Пропорція 62/38 — навмисна асиметрія: рівні половини читаються як
+   згенерована сітка й не кажуть, що головне. */
+.kk-splyt {
+  display: grid; grid-template-columns: minmax(0, 62fr) minmax(0, 38fr);
+  gap: var(--sp4, 16px); align-items: start;
+}
+.kk-splyt > .detali {
+  position: sticky; inset-block-start: var(--sp4, 16px);
+  max-block-size: calc(100dvh - var(--sp8, 32px)); overflow: auto;
+}
+/* Нічого не обрано — теж стан, і в ньому мусить бути підказка, а не порожнеча. */
+.kk-splyt > .detali[data-stan="porozhno"] {
+  display: grid; place-content: center; text-align: center; gap: var(--sp2, 8px);
+  min-block-size: 12rem; color: var(--prygl, #6f6759);
+  border: 1px dashed var(--mezha, #d8d4cb); border-radius: var(--r, 10px);
+}
+/* ДЗЕРКАЛЬНА ПРОПОРЦІЯ (08.08.2026). Коли головне — саме ДЕТАЛІ (розмова,
+   лист, документ), а список лише навігація, 62/38 читається навпаки: очі
+   йдуть у ширшу колонку, тобто в перелік, а не в те, заради чого прийшли.
+   Тому окремий модифікатор, а не другий каркас: сітка одна, ролі різні. */
+.kk-splyt.detali-holovni { grid-template-columns: minmax(0, 34fr) minmax(0, 66fr) }
+.kk-splyt.detali-holovni > .detali { position: static; max-block-size: none }
+/* Список у цьому режимі прокручується САМ, а не тягне сторінку: інакше при
+   200 кімнатах розмова їде за екран разом зі списком. */
+.kk-splyt.detali-holovni > .spysok {
+  max-block-size: calc(100dvh - var(--sp8, 32px)); overflow: auto;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.kk-splyt.detali-holovni > .spysok > [data-punkt] {
+  display: grid; gap: 2px; padding: var(--sp2, 8px) var(--sp3, 12px);
+  border-radius: var(--r, 8px); cursor: pointer; min-inline-size: 0;
+  border: 1px solid transparent;
+}
+.kk-splyt.detali-holovni > .spysok > [data-punkt]:hover { background: var(--tlo-2, #f6f3ec) }
+.kk-splyt.detali-holovni > .spysok > [data-punkt]:focus-visible {
+  outline: var(--fokus-tovshch, 2px) solid var(--akcent, #6b5b2e);
+  outline-offset: var(--fokus-vidstup, 2px);
+}
+/* Обраний пункт — межа Й фон, не лише фон: на друку й при дальтонізмі сам
+   фон не читається, а список навігації без видимої позиції марний. */
+.kk-splyt.detali-holovni > .spysok > [data-punkt][aria-selected="true"] {
+  background: color-mix(in srgb, var(--akcent, #6b5b2e) 10%, var(--tlo-2, #f6f3ec));
+  border-color: color-mix(in srgb, var(--akcent, #6b5b2e) 35%, var(--mezha-m, #d9d3c7));
+}
+.kk-splyt.detali-holovni > .spysok > [data-punkt] > .verh {
+  display: flex; align-items: baseline; gap: var(--sp2, 8px); min-inline-size: 0;
+}
+.kk-splyt.detali-holovni > .spysok > [data-punkt] > .verh > b {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.kk-splyt.detali-holovni > .spysok > [data-punkt] > .verh > .koly {
+  margin-inline-start: auto; flex: none;
+  font-size: var(--kegl-dribnyi, 12.5px); color: var(--prygl, #6f6759);
+  font-variant-numeric: tabular-nums;
+}
+.kk-splyt.detali-holovni > .spysok > [data-punkt] > .prev {
+  font-size: var(--kegl-dribnyi, 12.5px); color: var(--prygl, #6f6759);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+@media (max-width: 900px) {
+  /* На вузькому деталі стають шухлядою знизу — поруч місця немає. */
+  .kk-splyt, .kk-splyt.detali-holovni { grid-template-columns: minmax(0, 1fr) }
+  .kk-splyt > .detali { position: static; max-block-size: none }
+  .kk-splyt.detali-holovni > .spysok { max-block-size: 40dvh }
+}
+
+/* ── §4 СТОРІНКА СУТНОСТІ ─────────────────────────────────────────────────
+   Шапка з ідентичністю → вкладки → зміст + сайдбар фактів. */
+.kk-sutnist { display: grid; gap: var(--sp4, 16px) }
+.kk-sutnist > .shapka {
+  display: grid; gap: var(--sp2, 8px);
+  grid-template-columns: minmax(0, 1fr) auto; align-items: start;
+}
+.kk-sutnist > .shapka .imya { font-size: 1.35rem; font-weight: 600; line-height: 1.2 }
+.kk-sutnist > .shapka .pid { display: flex; gap: var(--sp2, 8px); flex-wrap: wrap; align-items: center }
+.kk-sutnist > .telo {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+  gap: var(--sp4, 16px); align-items: start;
+}
+@media (max-width: 900px) { .kk-sutnist > .telo { grid-template-columns: minmax(0, 1fr) } }
+
+/* Факти: ключ-значення, які НЕ стають таблицею на вузькому. */
+.kk-fakty { display: grid; gap: var(--sp2, 8px) }
+.kk-fakty > div { display: grid; grid-template-columns: minmax(6rem, auto) minmax(0, 1fr);
+                  gap: var(--sp1, 4px) var(--sp3, 12px); align-items: baseline }
+.kk-fakty dt, .kk-fakty > div > :first-child {
+  color: var(--prygl, #6f6759); font-size: var(--kegl-dribnyi, 12.5px);
+}
+@media (max-width: 600px) { .kk-fakty > div { grid-template-columns: minmax(0, 1fr) } }
+
+/* Стрічка активності — вертикальна вісь із крапками. */
+.kk-strichka { display: grid; gap: var(--sp3, 12px); position: relative; padding-inline-start: var(--sp4, 16px) }
+.kk-strichka::before {
+  content: ""; position: absolute; inset-block: 6px 6px; inset-inline-start: 3px;
+  inline-size: 1px; background: var(--mezha-m, #e6e2da);
+}
+.kk-strichka > li { list-style: none; position: relative }
+.kk-strichka > li::before {
+  content: ""; position: absolute; inset-inline-start: calc(-1 * var(--sp4, 16px) + 1px);
+  inset-block-start: .45em; inline-size: 7px; block-size: 7px;
+  border-radius: var(--r-full, 999px); background: var(--mezha, #d8d4cb);
+}
+.kk-strichka > li[data-vaha="diya"]::before { background: var(--akcent, #0f7568) }
+.kk-strichka > li[data-vaha="uvaha"]::before { background: var(--uvaha, #a8620a) }
+
+/* ── §5 ФОРМА ─────────────────────────────────────────────────────────────
+   Секції з підписами, поля в одну колонку. Дві колонки полів — часта помилка:
+   око стрибає зигзагом, і люди пропускають праву колонку. */
+.kk-forma { display: grid; gap: var(--sp5, 20px); max-inline-size: 42rem }
+.kk-forma > section { display: grid; gap: var(--sp3, 12px) }
+.kk-forma > section > h3 {
+  margin: 0; font-size: var(--kegl-dribnyi, 12.5px); text-transform: uppercase;
+  letter-spacing: .06em; color: var(--prygl, #6f6759); font-weight: 600;
+}
+/* Панель дій ЛИПНЕ ДО НИЗУ: на формі з дванадцяти полів кнопка «Зберегти»
+   інакше живе за межами екрана, і її шукають прокруткою. */
+.kk-forma > .diyi {
+  display: flex; gap: var(--sp2, 8px); justify-content: flex-end; flex-wrap: wrap;
+  position: sticky; inset-block-end: 0;
+  padding-block: var(--sp3, 12px);
+  background: var(--tlo, #f6f4f0);
+  border-block-start: 1px solid var(--mezha-m, #e6e2da);
+}
+.kk-forma > .diyi > .zliva { margin-inline-end: auto }
+
+/* ── §6 МАЙСТЕР ───────────────────────────────────────────────────────────
+   Кроки + зміст + «Далі/Назад». Відрізняється від перемикача стадій тим, що
+   має ПАМʼЯТЬ між кроками й підсумковий екран. */
+.kk-maister { display: grid; gap: var(--sp4, 16px); max-inline-size: 46rem }
+.kk-kroky { display: flex; gap: var(--sp2, 8px); flex-wrap: wrap; list-style: none; margin: 0; padding: 0 }
+.kk-kroky > li {
+  display: flex; align-items: center; gap: var(--sp2, 8px);
+  color: var(--prygl, #6f6759); font-size: var(--kegl-dribnyi, 12.5px);
+}
+.kk-kroky > li::before {
+  content: attr(data-nomer);
+  inline-size: 22px; block-size: 22px; flex: none;
+  display: grid; place-content: center;
+  border: 1px solid var(--mezha, #d8d4cb); border-radius: var(--r-full, 999px);
+  font-variant-numeric: tabular-nums;
+}
+.kk-kroky > li[data-stan="zrobleno"] { color: var(--tilo, #262219) }
+.kk-kroky > li[data-stan="zrobleno"]::before {
+  content: "✓"; background: var(--akcent, #0f7568);
+  border-color: var(--akcent, #0f7568); color: var(--na-akcenti, #fff);
+}
+.kk-kroky > li[aria-current="step"] { color: var(--tilo, #262219); font-weight: 600 }
+.kk-kroky > li[aria-current="step"]::before {
+  border-color: var(--akcent, #0f7568); border-width: 2px; color: var(--akcent, #0f7568);
+}
+.kk-kroky > li[data-stan="nedostupno"] { opacity: .55 }
+
+/* ── §7 ДАШБОРД ───────────────────────────────────────────────────────────
+   Робочий екран, а не документний зріз: плитки різного розміру, чарти й
+   ОБОВʼЯЗКОВИЙ рядок чесності «показано N з M».
+   Контейнерні запити, а не медіа: плитка мусить перебудовуватись від СВОЄЇ
+   ширини — та сама плитка стоїть і в колонці 320 px, і на всю ширину. */
+.kk-plytky {
+  display: grid; gap: var(--sp3, 12px);
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+.kk-plytka { container-type: inline-size; display: grid; gap: var(--sp2, 8px); align-content: start }
+/* Плитка-посилання не підкреслює СВІЙ ВЕСЬ вміст. Ядро вмикає підкреслення на
+   `a:hover` — правильно для посилання в рядку тексту й безглуздо для блокової
+   картки: підкресленими стають і заголовок, і число, і підпис одночасно.
+   Ознака «сюди можна натиснути» тут інша — підйом, тінь і курсор. */
+a.kk-plytka:hover { text-decoration-color: transparent }
+a.kk-plytka { color: inherit }
+.kk-plytka.shyr-2 { grid-column: span 2 }
+.kk-plytka.shyr-3 { grid-column: span 3 }
+@media (max-width: 600px) { .kk-plytka.shyr-2, .kk-plytka.shyr-3 { grid-column: span 1 } }
+.kk-plytka > .zahol {
+  display: flex; align-items: baseline; gap: var(--sp2, 8px);
+  font-size: var(--kegl-dribnyi, 12.5px); color: var(--prygl, #6f6759);
+}
+.kk-plytka > .zahol > .roztyah { margin-inline-start: auto }
+.kk-plytka > .chyslo {
+  font-size: clamp(1.5rem, 8cqi, 2.4rem); font-weight: 600; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.kk-chesnist {
+  font-size: var(--kegl-dribnyi, 12.5px); color: var(--prygl, #6f6759);
+  display: flex; gap: var(--sp2, 8px); flex-wrap: wrap; align-items: center;
+}
+.kk-chesnist > .nepovno { color: var(--uvaha, #a8620a); font-weight: 600 }
+
+/* ── §8 ДОШКА (канбан) ─────────────────────────────────────────────────────
+   Додано 08.08.2026. Поведінка дошки була ДОВЕДЕНА гейтом-6 ще раніше
+   (`stend-povedinky.html`: пробіл бере картку, стрілка переносить), але стилі
+   жили inline у самому стенді — тобто компонента як такого не існувало, і
+   кожен продукт малював дошку заново. Тут вони підняті в бібліотеку.
+
+   ЧОМУ КОЛОНКА — КОНТЕЙНЕР ЗАПИТУ. Та сама колонка стоїть і в дошці з трьох
+   стадій на весь екран, і в дошці з дванадцяти зі скролом. Картка мусить
+   перебудовуватись від ширини СВОЄЇ колонки, а не вікна.
+
+   ЩО ТУТ НЕ КОСМЕТИКА:
+   · `data-stan="tsil"` на колонці — куди впаде картка. Без видимої цілі
+     перетягування стає вгадуванням.
+   · `data-stan="peretyah"` — картка В ДОРОЗІ; пунктир + прозорість дублюють
+     підказку ФОРМОЮ, не лише кольором (дальтонізм).
+   · лічильник у шапці — `tabular-nums`, інакше числа стрибають при кожному
+     переносі й дошка тремтить.
+   · `.perevantazhena` — робіт більше за ліміт. Це не прикраса: сенс канбану
+     саме в тому, щоб межа була ВИДНА.                                        */
+.kk-doshka {
+  display: grid; gap: var(--sp3, 12px); align-items: start;
+  grid-auto-flow: column; grid-auto-columns: minmax(240px, 1fr);
+  overflow-x: auto; overscroll-behavior-x: contain;
+  padding-block-end: var(--sp2, 8px);
+}
+.kk-doshka > [data-kolonka] {
+  container-type: inline-size;
+  display: flex; flex-direction: column; gap: var(--sp2, 8px);
+  min-inline-size: 0; min-block-size: 6rem; padding: var(--sp2, 8px);
+  border: 1px solid var(--mezha-m, #d9d3c7); border-radius: var(--r, 8px);
+  background: var(--tlo-2, #f6f3ec);
+  transition: border-color var(--d-fast) var(--ease, ease),
+              background-color var(--d-fast) var(--ease, ease);
+}
+.kk-doshka > [data-kolonka] > .zahol {
+  display: flex; align-items: center; gap: var(--sp2, 8px);
+  font-size: var(--kegl-dribnyi, 12.5px); color: var(--prygl, #6f6759);
+}
+.kk-doshka > [data-kolonka] > .zahol > b { color: var(--tilo, #23201a) }
+.kk-doshka > [data-kolonka] > .zahol > .skilky {
+  margin-inline-start: auto; font-variant-numeric: tabular-nums;
+}
+.kk-doshka > [data-kolonka][data-stan="tsil"] {
+  border-color: var(--akcent, #6b5b2e); border-style: solid;
+  background: color-mix(in srgb, var(--akcent, #6b5b2e) 8%, var(--tlo-2, #f6f3ec));
+}
+.kk-doshka > [data-kolonka].perevantazhena { border-color: var(--uvaha, #a8620a) }
+.kk-doshka > [data-kolonka].perevantazhena > .zahol > .skilky {
+  color: var(--uvaha, #a8620a); font-weight: 600;
+}
+/* Порожня колонка лишається ЦІЛЛЮ: нульова висота робить дошку непридатною
+   саме тоді, коли переносити найпотрібніше. */
+.kk-doshka > [data-kolonka] > .porozhnya {
+  flex: 1; display: grid; place-items: center; min-block-size: 4rem;
+  border: 1px dashed var(--mezha-m, #d9d3c7); border-radius: var(--r, 8px);
+  color: var(--prygl, #6f6759); font-size: var(--kegl-dribnyi, 12.5px);
+  text-align: center; padding: var(--sp2, 8px);
+}
+.kk-doshka [data-kartka] {
+  display: grid; gap: 4px; min-inline-size: 0;
+  padding: var(--sp2, 8px) var(--sp3, 12px);
+  background: var(--poverhnya, #fff);
+  border: 1px solid var(--mezha-m, #d9d3c7); border-radius: var(--r, 8px);
+  cursor: grab; box-shadow: var(--tin-1, 0 1px 2px rgb(0 0 0 / .06));
+  transition: box-shadow var(--d-fast) var(--ease, ease),
+              border-color var(--d-fast) var(--ease, ease),
+              opacity var(--d-fast) var(--ease, ease);
+}
+.kk-doshka [data-kartka]:hover { box-shadow: var(--tin-2, 0 2px 6px rgb(0 0 0 / .10)) }
+.kk-doshka [data-kartka]:focus-visible {
+  outline: var(--fokus-tovshch, 2px) solid var(--akcent, #6b5b2e);
+  outline-offset: var(--fokus-vidstup, 2px);
+}
+/* Токен тайминга вище — `--d-fast` із ядра, а НЕ власний `--rukh-shvydko`:
+   такого токена не існувало ніде, тож усі пʼять переходів дошки мовчки падали
+   на зашиті 120 мс. Наслідок був не косметичний: вимикач руху (`data-ruh=min`,
+   `prefers-reduced-motion`) їх не глушив — рух лишався живим саме в людини,
+   яка його вимкнула. Знайдено 08.08.2026 при підключенні шару руху.
+
+   Картка В РУЦІ — не лише прозоріша, а й ПІДНЯТА: людина мусить бачити, що
+   обʼєкт відірвався від дошки. Нахил і підйом беруть `--ampl` із профілю руху,
+   тому при `min` вони самі стають нульовими, без окремого правила. */
+.kk-doshka [data-kartka][data-stan="peretyah"] {
+  opacity: .5; border-style: dashed; cursor: grabbing;
+  transform: translate3d(0, calc(-4px * var(--ampl, 1)), 0)
+             rotate(calc(1.2deg * var(--ampl, 1)));
+  box-shadow: var(--tin-3, 0 8px 24px rgb(0 0 0 / .18));
+}
+/* Взято з КЛАВІАТУРИ — окремий стан від «тягнеться мишею»: людина має бачити,
+   що картка в руці, поки вона обирає колонку стрілками. */
+.kk-doshka [data-kartka][data-stan="vzyato"] {
+  border-color: var(--akcent, #6b5b2e); border-style: solid;
+  box-shadow: 0 0 0 var(--fokus-tovshch, 2px)
+              color-mix(in srgb, var(--akcent, #6b5b2e) 40%, transparent);
+}
+.kk-doshka [data-kartka] > .nazva {
+  font-weight: 500; overflow-wrap: anywhere;   /* назва на 180 знаків не рве колонку */
+}
+.kk-doshka [data-kartka] > .pid {
+  display: flex; gap: var(--sp2, 8px); flex-wrap: wrap; align-items: center;
+  font-size: var(--kegl-dribnyi, 12.5px); color: var(--prygl, #6f6759);
+}
+.kk-doshka [data-kartka] > .pid > .suma { font-variant-numeric: tabular-nums }
+
+/* ── §9 ПОТІК (розмова, стрічка подій) ─────────────────────────────────────
+   Додано 08.08.2026. Потік — не список: він росте знизу й має композитор,
+   який НЕ повинен перекривати останнє повідомлення.
+
+   ЩО ТУТ НЕ КОСМЕТИКА:
+   · `grid-template-rows: 1fr auto` — прокручується лише стрічка; інакше при
+     200 повідомленнях поле введення їде за екран.
+   · `overflow-anchor` — браузер утримує позицію читання, коли зверху доїжджає
+     історія. Без цього підвантаження старих повідомлень смикає екран саме
+     тоді, коли людина читає.
+   · своє/чуже розрізняється ПОЗИЦІЄЮ і фоном, не лише кольором.
+   · «не доставлено» — стан із текстом, а не червона крапка.                  */
+.kk-potik {
+  display: grid; grid-template-rows: 1fr auto; min-block-size: 0; gap: var(--sp2, 8px);
+}
+.kk-potik > .strichka {
+  display: flex; flex-direction: column; gap: var(--sp2, 8px);
+  overflow-y: auto; overflow-anchor: auto; padding: var(--sp2, 8px); min-block-size: 0;
+}
+.kk-potik .den {
+  align-self: center; font-size: var(--kegl-dribnyi, 12.5px);
+  color: var(--prygl, #6f6759); padding: 2px var(--sp3, 12px);
+  background: var(--tlo-2, #f6f3ec); border-radius: 999px;
+  position: sticky; inset-block-start: 0; z-index: 1;
+}
+.kk-potik [data-povidomlennya] {
+  display: grid; gap: 2px; max-inline-size: min(58ch, 82%);
+  padding: var(--sp2, 8px) var(--sp3, 12px);
+  border: 1px solid var(--mezha-m, #d9d3c7); border-radius: var(--r, 8px);
+  background: var(--poverhnya, #fff); overflow-wrap: anywhere;
+}
+.kk-potik [data-povidomlennya][data-vid="ya"] {
+  margin-inline-start: auto;
+  background: color-mix(in srgb, var(--akcent, #6b5b2e) 10%, var(--poverhnya, #fff));
+  border-color: color-mix(in srgb, var(--akcent, #6b5b2e) 35%, var(--mezha-m, #d9d3c7));
+}
+.kk-potik [data-povidomlennya] > .hto {
+  font-size: var(--kegl-dribnyi, 12.5px); color: var(--prygl, #6f6759); font-weight: 600;
+}
+.kk-potik [data-povidomlennya] > .koly {
+  font-size: var(--kegl-dribnyi, 12.5px); color: var(--prygl, #6f6759);
+  font-variant-numeric: tabular-nums; justify-self: end;
+}
+.kk-potik [data-povidomlennya][data-stan="vidpravlyayetsya"] { opacity: .6 }
+.kk-potik [data-povidomlennya][data-stan="ne-dostavleno"] {
+  border-color: var(--krytych, #b3261e); border-style: dashed;
+}
+.kk-potik [data-povidomlennya][data-stan="ne-dostavleno"] > .koly {
+  color: var(--krytych, #b3261e); font-weight: 600;
+}
+.kk-potik > .kompozytor {
+  display: flex; gap: var(--sp2, 8px); align-items: flex-end;
+  padding: var(--sp2, 8px); border-block-start: 1px solid var(--mezha-m, #d9d3c7);
+  background: var(--poverhnya, #fff);
+}
+.kk-potik > .kompozytor > .k-pole { flex: 1; resize: none; max-block-size: 40dvh }
+/* «Хтось пише» — стан ПОТОКУ, а не повідомлення: без автора, без часу, і не
+   ламає відлік непрочитаних. */
+.kk-potik .pyshe {
+  font-size: var(--kegl-dribnyi, 12.5px); color: var(--prygl, #6f6759);
+  padding-inline: var(--sp3, 12px);
+}
+
+/* ── §10 КАРТА З СИГНАЛЬНИМ ШАРОМ ──────────────────────────────────────────
+   Додано 08.08.2026. Єдиний екран продукту, де доречна мова В (операторська):
+   полотно займає майже все, і колір означає «дивись сюди зараз».
+
+   ЩО ТУТ НЕ КОСМЕТИКА:
+   · панелі ПЛАВАЮТЬ над полотном, а не забирають ширину: карта, у якої
+     відрізали третину під сайдбар, перестає бути картою.
+   · легенда обовʼязкова й не ховається: шар без легенди — кольорові плями.
+   · `pointer-events:none` на шарі, `auto` на панелях — інакше половина
+     полотна мовчки перестає ловити кліки.                                    */
+.kk-karta { position: relative; display: grid; min-block-size: 0; isolation: isolate }
+.kk-karta > .polotno { grid-area: 1/1; min-block-size: 60dvh; background: var(--tlo-2, #f6f3ec) }
+.kk-karta > .shar {
+  grid-area: 1/1; display: flex; justify-content: space-between; align-items: start;
+  gap: var(--sp3, 12px); padding: var(--sp3, 12px); pointer-events: none;
+}
+.kk-karta > .shar > * { pointer-events: auto }
+.kk-karta .panel {
+  background: var(--poverhnya, #fff); border: 1px solid var(--mezha-m, #d9d3c7);
+  border-radius: var(--r, 8px); box-shadow: var(--tin-2, 0 2px 6px rgb(0 0 0 / .10));
+  padding: var(--sp2, 8px) var(--sp3, 12px); max-inline-size: min(320px, 40vw);
+  max-block-size: calc(100% - var(--sp4, 16px)); overflow: auto;
+}
+.kk-karta .lehenda { display: grid; gap: 4px; font-size: var(--kegl-dribnyi, 12.5px) }
+.kk-karta .lehenda > div { display: flex; align-items: center; gap: var(--sp2, 8px) }
+/* Маркер дублює стан ФОРМОЮ (--forma-*), а не лише кольором — цього прямо
+   вимагає мова В, і саме через це в ній непорожні токени форми. */
+.kk-karta .lehenda .znak {
+  inline-size: 12px; block-size: 12px; border-radius: 3px; flex: none;
+  display: grid; place-items: center;
+  background: var(--stan, var(--prygl, #6f6759));
+}
+.kk-karta .lehenda .znak::after { content: var(--forma-znak, ""); font-size: 10px }
+.kk-karta .lehenda .norma   { --stan: var(--dobre,   #1d7a3d) }
+.kk-karta .lehenda .uvaha   { --stan: var(--uvaha,   #a8620a) }
+.kk-karta .lehenda .tryvoha { --stan: var(--krytych, #b3261e) }
+.kk-karta .lehenda .nemaye  { --stan: transparent; border: 1px dashed var(--mezha-m, #d9d3c7) }

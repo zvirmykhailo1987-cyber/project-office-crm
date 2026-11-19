@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Бази даних — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Сервіс баз даних") }}{% endblock %}
+{% block vmist %}
+
+<div class="kk-tulbar">
+  <span class="kk-chesnist">{{ _("Що в базах, наскільки повно, звідки взялось і що дозбирати.") }}</span>
+  <span class="roztyah"></span>
+  <span class="kk-chesnist">{{ _("організацій") }} <b class="chyslo">{{ cov.total|num }}</b></span>
+</div>
+
+<h2 class="metryka-h s-bdbc1ed">{{ _("Покриття полів") }}</h2>
+{# ЗНАМЕННИК НАЗВАНО СЛОВАМИ. «Покриття 62 %» без «від чого» — це три різні
+   числа, і саме на кривому знаменнику вже виходила фальшиво гарна цифра (Г14). #}
+<p class="kk-chesnist">{{ _("знаменник — усі") }} {{ cov.total|num }} {{ _("організацій бази, без винятків") }}</p>
+
+<div class="k-tab-obh" data-stan="spokiy">
+<table class="k-tab kartky">
+  <thead><tr><th>{{ _("Поле") }}</th><th class="chyslo">{{ _("Заповнено") }}</th><th>{{ _("Покриття") }}</th></tr></thead>
+  <tbody>
+  {% for label, d in cov.fields.items() %}
+    <tr class="k-ryad">
+      <td data-holovne data-p="{{ _('Поле') }}">{{ label }}</td>
+      <td data-p="{{ _('Заповнено') }}" class="chyslo">{{ d.n|num }}</td>
+      <td data-p="{{ _('Покриття') }}">
+        {# Сегментована шкала замість суцільної смужки: пʼять поділок
+           читаються як 0–100 навіть без підпису. #}
+        {% set part = ((d.pct / 20) | round | int) %}
+        <span class="shkala" role="img"
+              aria-label="{{ d.pct }} {{ _('відсотків зі 100') }}"
+              title="{{ d.n|num }} {{ _('з') }} {{ cov.total|num }} — {{ d.pct }}%">
+          {% for n in range(5) %}<i class="{{ 'on' if n < part else '' }}"></i>{% endfor %}
+        </span>
+        <span class="chyslo">{{ d.pct }}</span><span class="dim">%</span>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{# ЧАРТ, А НЕ ЛИШЕ ТАБЛИЦЯ. Таблиця відповідає на «скільки в цьому полі»,
+   чарт — на «які поля провалені»: саме це видно з зіставлення, а не з
+   читання стовпчика чисел. Гейт-4 рахує сторінку з 8 кількісними
+   твердженнями й нулем чартів як «числа без візуального доказу». #}
+<section class="surf-panel s-dd3aece">
+  <div class="metryka-h s-bdbf926">
+    <b>{{ _("Покриття по полях") }}</b><span class="dim">{{ _("від") }} {{ cov.total|num }} {{ _("організацій") }}</span>
+  </div>
+  <div id="chart-pokryttya"></div>
+  <script type="application/json" id="dani-pokryttya">
+    [{% for label, d in cov.fields.items() %}
+      {"label": {{ label|tojson }}, "value": {{ d.pct }}}{{ "," if not loop.last }}
+    {% endfor %}]
+  </script>
+</section>
+<script nonce="{{ csp_nonce }}">
+  // DOMContentLoaded обовʼязково: `charts.js` підключений із `defer`, тобто
+  // виконується ПІСЛЯ парсингу. Інлайн-скрипт, запущений одразу, не бачить
+  // `CH` і тихо виходить — чарта немає, помилки немає, причини не видно.
+  document.addEventListener('DOMContentLoaded', function () {
+    var vuzol = document.getElementById('chart-pokryttya');
+    var syri = document.getElementById('dani-pokryttya');
+    if (!vuzol || !syri) return;
+    if (typeof CH === 'undefined') {
+      // Мовчазна відмова заборонена: якщо бібліотеки чартів немає, це видно.
+      vuzol.innerHTML = '<div class="kk-chesnist"><span class="nepovno">'
+                      + T('чарт не побудовано: charts.js не завантажився</span></div>');
+      return;
+    }
+    var dani;
+    try { dani = JSON.parse(syri.textContent); } catch (e) { dani = []; }
+    if (!dani.length) {
+      vuzol.innerHTML = T('<div class="kk-chesnist">Немає полів для порівняння.</div>');
+      return;
+    }
+    try {
+      // Вісь задана ЯВНО: 0–100 %, позначки з числами. Контракт бібліотеки не
+      // дає намалювати «сітку без чисел» і стовпчик не від нуля — стовпчик,
+      // що починається не з нуля, бреше довжиною.
+      vuzol.innerHTML = CH.bar({
+        dani: dani, w: 900,
+        vis: { domain: [0, 100], unit: '%', ticks: [0, 25, 50, 75, 100] }
+      });
+    } catch (e) {
+      // Контракт порушено — кажемо ЧОМУ, а не малюємо порожній прямокутник.
+      vuzol.innerHTML = T('<div class="kk-chesnist"><span class="nepovno">чарт не побудовано: ')
+                        + String(e.message || e) + '</span></div>';
+    }
+  });
+</script>
+
+{# Відома СТЕЛЯ, а не недопрацювання — і різницю треба назвати, інакше
+   наступна сесія знову піде «дозакривати КВЕД» і згає день (Г14). #}
+<div class="k-banner s-35823d2" role="note">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-uvaha"></use></svg>
+  <div><b>{{ _("КВЕД по всій базі безкоштовно закрити неможливо.") }}</b>
+    {{ _("ЄДР-дамп його не містить, реєстри ПДВ/ЄП заморожені з 23.02.2022. Це відома стеля, а не недопрацювання.") }}</div>
+</div>
+
+<h2 class="metryka-h s-a52c42b">{{ _("Джерела даних") }}</h2>
+<div class="k-tab-obh" data-stan="spokiy">
+<table class="k-tab kartky">
+  <thead><tr><th>{{ _("Код") }}</th><th>{{ _("Що дає") }}</th><th>{{ _("Тип") }}</th><th>{{ _("Останній імпорт") }}</th><th class="chyslo">{{ _("Записів") }}</th></tr></thead>
+  <tbody>
+  {% for d in sources %}
+    <tr class="k-ryad">
+      <td data-holovne data-p="{{ _('Код') }}"><b>{{ d.code }}</b>
+        {% if d.is_stale %}<span class="k-chip s-93827eb">{{ _("застаріле") }}</span>{% endif %}
+        <div class="dim chyslo s-9942017">{{ d.path_or_endpoint }}</div></td>
+      <td data-p="{{ _('Що дає') }}">{{ d.what_it_gives }}</td>
+      <td data-p="{{ _('Тип') }}" class="dim">{{ d.kind }}</td>
+      <td data-p="{{ _('Останній імпорт') }}" class="dim chyslo">{{ d.last_import_at|dt }}</td>
+      <td data-p="{{ _('Записів') }}" class="chyslo">{{ d.rows_last|num }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2 class="metryka-h s-a52c42b">{{ _("Черги на розбір") }}</h2>
+<div class="metryka surf-panel s-7f93414">
+  <div class="metryka-h">{{ _("Конфліктів злиття, що чекають рішення") }}</div>
+  <div class="metryka-znach">{{ conflicts|num }}</div>
+</div>
+
+<h2 class="metryka-h s-a52c42b">{{ _("Останні імпорти") }}</h2>
+
+<div class="surf-panel s-eab8806" data-stan="pershe" {% if runs %}hidden{% endif %}
+    >
+  <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+    <use href="/static/bib/porozhni.svg#p-import"></use></svg>
+  <b>{{ _("Імпортів ще не було") }}</b>
+  <div class="kk-chesnist s-742b679">
+    {{ _("Запустіть") }} <code>python -m app.importers.run_import</code> {{ _("у теці") }}
+    <code>ofis_crm</code> {{ _("— імпорт ідемпотентний, повторний прогін нічого не зіпсує.") }}</div>
+  <a class="k-btn holovna" href="/dovidnyk">{{ _("Дивитись довідник") }}</a>
+</div>
+
+{% if runs %}
+<div class="k-tab-obh" data-stan="spokiy">
+<table class="k-tab kartky">
+  <thead><tr>
+    <th>{{ _("Коли") }}</th><th>{{ _("Джерело") }}</th><th class="chyslo">{{ _("Прочитано") }}</th><th class="chyslo">{{ _("Нових") }}</th>
+    <th class="chyslo">{{ _("Злито") }}</th><th class="chyslo">{{ _("Без змін") }}</th><th class="chyslo">{{ _("Конфліктів") }}</th>
+  </tr></thead>
+  <tbody>
+  {% for r in runs %}
+    <tr class="k-ryad">
+      <td data-holovne data-p="{{ _('Коли') }}" class="dim chyslo">{{ r.started_at|dt('%d.%m %H:%M') }}</td>
+      <td data-p="{{ _('Джерело') }}">{{ r.source_code }}</td>
+      <td data-p="{{ _('Прочитано') }}" class="chyslo">{{ r.rows_read|num }}</td>
+      <td data-p="{{ _('Нових') }}" class="chyslo">{{ r.rows_new|num }}</td>
+      <td data-p="{{ _('Злито') }}" class="chyslo">{{ r.rows_merged|num }}</td>
+      <td data-p="{{ _('Без змін') }}" class="chyslo dim">{{ r.rows_unchanged|num }}</td>
+      <td data-p="{{ _('Конфліктів') }}" class="chyslo">
+        {%- if r.rows_conflict %}<span class="nepovno">{{ r.rows_conflict|num }}</span>
+        {%- else %}{{ r.rows_conflict|num }}{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="kk-chesnist s-c5502a3">
+  {{ _("Ідемпотентність: повторний прогін того самого джерела має дати «нових 0, злито 0».") }}</p>
+{% endif %}
+{% endblock %}

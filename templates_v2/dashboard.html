@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Мій день — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Вітаю,") }} {{ user.name }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K5 «Дашборд» (`dyzayn-ux/biblioteka/kompozytsiyi/dashbord.html`).
+   Плитки `kk-plytka` міряють СЕБЕ через контейнерний запит, тому та сама
+   плитка не ламається ані у вузькій колонці, ані на весь екран.
+   ОБОВʼЯЗКОВИЙ елемент лекала — рядок чесності: скільки показано з чого. #}
+
+<div class="kk-tulbar">
+  <span class="dim">{{ user.role_label }}</span>
+  <span class="roztyah"></span>
+  <div class="k-hrupa" role="group" aria-label="{{ _('Щільність') }}">
+    <button class="k-btn shchilna" type="button" data-has-js
+            data-vstanovyty="shchilnist:kompaktno" aria-pressed="false">{{ _("Компактно") }}</button>
+    <button class="k-btn shchilna" type="button" data-has-js
+            data-vstanovyty="shchilnist:norm" aria-pressed="true">{{ _("Норма") }}</button>
+    <button class="k-btn shchilna" type="button" data-has-js
+            data-vstanovyty="shchilnist:prostoro" aria-pressed="false">{{ _("Просторо") }}</button>
+  </div>
+  {# Типовий рівень — «Лише 3D»: глибина є, анімацій немає (рішення Марка
+     09.08.2026). Решта рівнів лишаються доступними, бо профіль персональний:
+     видалити їх означало б відібрати вибір у решти команди. #}
+  <div class="k-hrupa" role="group" aria-label="{{ _('Профіль руху') }}">
+    <button class="k-btn shchilna" type="button" data-has-js
+            data-vstanovyty="ruh:min" aria-pressed="false"
+            title="{{ _('Ні руху, ні глибини') }}">{{ _("Пласко") }}</button>
+    <button class="k-btn shchilna" type="button" data-has-js
+            data-vstanovyty="ruh:tryvymir" aria-pressed="true"
+            title="{{ _('Глибина без анімацій: нахил, шари, тіні — нічого не летить') }}">
+      {{ _("Лише 3D") }}</button>
+    <button class="k-btn shchilna" type="button" data-has-js
+            data-vstanovyty="ruh:norm" aria-pressed="false"
+            title="{{ _('Глибина + спокійна партитура входу') }}">{{ _("Спокійно") }}</button>
+    <button class="k-btn shchilna" type="button" data-has-js
+            data-vstanovyty="ruh:vyrazno" aria-pressed="false"
+            title="{{ _('Більша амплітуда, помітніша партитура') }}">{{ _("Виразно") }}</button>
+  </div>
+</div>
+
+{% if zminy and zminy.je %}
+<div class="k-banner s-3c19453" role="status">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-strichka"></use></svg>
+  <div>
+    <b>{{ _("Змінилось відколи ви були") }}</b>
+    {% if zminy.vid %}<span class="dim">{{ _("з") }} {{ zminy.vid|dt('%d.%m %H:%M') }}</span>{% endif %}
+    <div class="k-krykhty s-348d633">
+      {% for p in zminy.punkty %}
+      <a href="{{ p.url }}"><b class="chyslo">{{ p.skilky|num }}</b> {{ p.pidpys }}</a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% elif zminy and zminy.pershyi_vhid %}
+<div class="k-banner s-3c19453" data-stan="pershe" role="status">
+  <svg class="ik" width="16" height="16" aria-hidden="true"><use href="/static/bib/ikony.svg#i-parostok"></use></svg>
+  <div><b>{{ _("Ви тут уперше") }}</b>
+    <div class="dim">{{ _("Далі тут буде видно, що змінилось за час вашої відсутності.") }}</div></div>
+</div>
+{% endif %}
+
+{# `.scena` дає плиткам спільну точку сходу: підйом при наведенні читається
+   як один ряд, а не як шість незалежних карток. Партитура входу — явними
+   індексами `--i`, без JS: плитки статичні, і їхній порядок відомий у шаблоні. #}
+<section class="kk-plytky scena" aria-label="{{ _('Стан офісу') }}">
+
+  <a class="kk-plytka surf-panel nahyl vhid pidiym shyr-2 s-e6ca168" href="/zavdannya" data-nahyl>
+    <div class="zahol shar-1">
+      <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-den"></use></svg>
+      {{ _("Мій день") }}</div>
+    <div class="chyslo shar-2">{{ day.total|num }}</div>
+    {# СЕГМЕНТОВАНА шкала замість кільця: вона однаково читається в сірому
+       друці, при дальтонізмі й у вузькій колонці — і не потребує підпису
+       «відсотки чого». #}
+    {% set chastka = ((day.urgent|length) / (day.total or 1) * 5) | round | int %}
+    <span class="shkala" role="img"
+          aria-label="{{ day.urgent|length }} {{ _('термінових із') }} {{ day.total }}">
+      {% for n in range(5) %}<i class="{{ 'krytych' if n < chastka else '' }}"></i>{% endfor %}
+    </span>
+    <div class="kk-chesnist">
+      {% if day.urgent %}<span class="nepovno">{{ day.urgent|length }} {{ _("терміново") }}</span> · {% endif %}
+      {{ day.today|length }} {{ _("сьогодні") }}
+    </div>
+  </a>
+
+  <div class="kk-plytka surf-panel nahyl vhid pidiym shyr-2 s-a0e00e9" data-nahyl>
+    <div class="zahol shar-1">
+      <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-strichka"></use></svg>
+      {{ _("Пульс офісу · 14 днів") }}</div>
+    {# Теплова смуга бібліотеки: чотири рівні — СИЛА одного акценту, а не
+       чотири різні кольори. Дані реальні (журнал за 14 днів); графік із
+       вигаданими числами — декорація, і це видно. #}
+    <div class="teplo" role="img"
+         aria-label="{{ _('Активність за 14 днів, максимум') }} {{ pulse_max }} {{ _('подій на день') }}">
+      {% for v in pulse %}
+      <i data-r="{{ 0 if not v else ((v / pulse_max * 4) | round | int) or 1 }}"
+         title="{{ v }} {{ v|plural(_('подія'),_('події'),_('подій')) }}"></i>
+      {% endfor %}
+    </div>
+    <div class="kk-chesnist">{{ _("разом") }} <b class="chyslo">{{ pulse|sum|num }}</b>
+      {{ pulse|sum|plural(_('подія'),_('події'),_('подій')) }} {{ _("· пік") }} {{ pulse_max }} {{ _("за день") }}</div>
+  </div>
+
+  <a class="kk-plytka surf-panel nahyl vhid pidiym s-d1ebece" href="/voronky" data-nahyl>
+    <div class="zahol shar-1">
+      <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-voronka"></use></svg>
+      {{ _("Мої угоди") }}</div>
+    <div class="chyslo shar-2">{{ mine|length|num }}</div>
+    <div class="kk-chesnist">{{ _("із") }} {{ total_active|num }} {{ _("у роботі") }}</div>
+  </a>
+
+  <a class="kk-plytka surf-panel nahyl vhid pidiym s-c01e5d5" href="/dovidnyk" data-nahyl>
+    <div class="zahol shar-1">
+      <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-dovidnyk"></use></svg>
+      {{ _("Довідник") }}</div>
+    <div class="chyslo shar-2">{{ cov.total|num }}</div>
+    <div class="kk-chesnist">{{ _("організацій ·") }} {{ cov.persons|num }} {{ _("осіб") }}</div>
+  </a>
+
+  {% if by_program %}
+  <div class="kk-plytka surf-panel nahyl vhid pidiym shyr-2 s-41aea5f" data-nahyl>
+    <div class="zahol shar-1">
+      <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-hab"></use></svg>
+      {{ _("Розподіл по програмах") }}</div>
+    <div class="s-78f1e43">
+      {% for pid, deals in by_program.items() %}
+      <div class="s-6c9988e">
+        <a href="/voronky?program={{ progs[pid].code }}">{{ progs[pid].title }}</a>
+        {% set dolya = ((deals|length) / (total_active or 1) * 5) | round | int %}
+        <span class="shkala mini" role="img"
+              aria-label="{{ deals|length }} {{ _('з') }} {{ total_active }}">
+          {% for n in range(5) %}<i class="{{ 'on' if n < dolya else '' }}"></i>{% endfor %}
+        </span>
+        <b class="chyslo">{{ deals|length }}</b>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if needs_check %}
+  <a class="kk-plytka surf-panel nahyl vhid pidiym s-d83e897" href="/dovidnyk?data_status=needs_check" data-nahyl>
+    <div class="zahol shar-1">
+      <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-uvaha"></use></svg>
+      {{ _("Потребує звірки") }}</div>
+    <div class="chyslo shar-2">{{ needs_check|num }}</div>
+    <div class="kk-chesnist"><span class="nepovno">{{ _("карток із сумнівними даними") }}</span></div>
+  </a>
+  {% endif %}
+</section>
+
+{# ── Аналітика воронки й команди (25.08.2026): дашборд показує не лише «мій
+     день», а стан воронки й прогрес команди — параметр повноцінної CRM. #}
+{% if voronka %}
+<h2 class="metryka-h s-a52c42b">{{ _("Воронка за стадіями") }}</h2>
+<div class="kk-plytky s-d6e54af">
+  {% for pid, etapy in voronka.items() %}
+  <div class="kk-plytka surf-panel s-0519a0a">
+    <div class="zahol">{{ progs[pid].title if pid in progs else _('Без напряму') }}</div>
+    {% set maxn = (etapy|map(attribute=1)|max) or 1 %}
+    <div class="s-3470da9">
+      {% for st, n in etapy %}
+      <div class="s-ec11a34">
+        <span class="s-9942017">{{ st.title }}</span>
+        <b class="chyslo">{{ n }}</b>
+        <div class="bullet" data-styl="--f:{{ (n / maxn * 100)|round|int }};grid-column:1/-1"
+             role="img" aria-label="{{ n }} {{ n|plural('угода', 'угоди', 'угод') }} {{ _('на стадії') }} {{ st.title }}"><i></i></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if komanda %}
+<h2 class="metryka-h s-a52c42b">
+  {{ _("Прогрес команди") }}
+  {% if prostrocheno %}<a class="k-chip s-81e863b"
+     href="/zavdannya?status=open">{{ prostrocheno }} {{ _("прострочено") }}</a>{% endif %}
+</h2>
+<div class="k-tab-obh" data-stan="spokiy">
+<table class="k-tab kartky">
+  <thead><tr><th>{{ _("Людина") }}</th><th>{{ _("Угод") }}</th><th>{{ _("Активність 14 дн.") }}</th><th>{{ _("Прострочено") }}</th></tr></thead>
+  <tbody>
+    {% for imya, m in komanda.items()|sort(attribute='1.ugod', reverse=true) %}
+    <tr class="k-ryad">
+      <td data-holovne data-p="{{ _('Людина') }}">{{ imya }}</td>
+      <td data-p="{{ _('Угод') }}" class="chyslo">{{ m.ugod }}</td>
+      <td data-p="{{ _('Активність 14 дн.') }}" class="chyslo">{{ m.aktyv }}</td>
+      <td data-p="{{ _('Прострочено') }}" class="chyslo">
+        {% if m.prostrocheno %}<span class="nepovno">{{ m.prostrocheno }}</span>
+        {% else %}—{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+<h2 class="metryka-h s-a52c42b">
+  {{ _("Що робити") }} {% if day.total %}<span class="k-chip">{{ day.total|num }}</span>{% endif %}
+</h2>
+
+{# «Нічого не горить» — присутнє завжди (приховане при непорожньому списку). #}
+<div class="surf-panel s-eab8806" data-stan="porozhno" {% if day.total %}hidden{% endif %}
+    >
+  <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+    <use href="/static/bib/porozhni.svg#p-spokiy"></use></svg>
+  <b>{{ _("Нічого не горить") }}</b>
+  <div class="kk-chesnist">{{ _("Прострочених дій, завдань і листів без відповіді немає.") }}</div>
+  <a class="k-btn holovna" href="/voronky">{{ _("Переглянути воронки") }}</a>
+</div>
+
+{% if day.total %}
+{% macro spysok(list, ton) %}
+<ul class="kk-strichka">
+  {% for i in list %}
+  <li>
+    {% if i.extra %}<span class="k-chip">{{ i.extra }}</span>{% endif %}
+    <a href="{{ i.url }}"><b>{{ i.title }}</b></a>
+    <div class="dim s-9942017">{{ i.why }}</div>
+  </li>
+  {% endfor %}
+</ul>
+{% endmacro %}
+
+{% if day.urgent %}
+{# Терміновість позначена СЛОВОМ і позицією, не лише кольором: у списку з 16
+   рядків суцільне червоне перестає означати «терміново» й стає фоном. #}
+<h3 class="metryka-h s-bdbc1ed">
+  <span class="k-chip s-81e863b">{{ _("Терміново") }}</span>
+  <span class="chyslo">{{ day.urgent|length }}</span></h3>
+{{ spysok(day.urgent, 'krytych') }}
+{% endif %}
+{% if day.today %}
+<h3 class="metryka-h s-bdbc1ed">
+  <span class="k-chip s-354c52c">{{ _("Сьогодні") }}</span>
+  <span class="chyslo">{{ day.today|length }}</span></h3>
+{{ spysok(day.today, 'akcent') }}
+{% endif %}
+{% if day.soon %}
+<h3 class="metryka-h s-bdbc1ed">
+  <span class="k-chip">{{ _("Найближчим часом") }}</span>
+  <span class="chyslo">{{ day.soon|length }}</span></h3>
+{{ spysok(day.soon, '') }}
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Завдання — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Завдання") }}{% endblock %}
+{% block vmist %}
+{% from "_ava.html" import ava with context %}
+
+{# ЛЕКАЛО K1 «Реєстр» у щільному режимі. Прострочене відрізняється ШТРИХОМ,
+   СЛОВОМ і позицією, не лише кольором: у списку з 16 рядків суцільне червоне
+   перестає означати «терміново» й стає фоном. #}
+
+{% set vidkrytyh = rows|selectattr('is_open')|list|length %}
+{% set prostrochenyh = rows|selectattr('is_overdue')|list|length %}
+
+<div class="kk-plytky scena s-d4ce0c2">
+  <div class="kk-plytka surf-panel nahyl vhid pidiym s-e6ca168" data-nahyl>
+    <div class="zahol shar-1">{{ _("Відкриті") }}</div>
+    <div class="chyslo shar-2">{{ vidkrytyh|num }}</div>
+    <div class="kk-chesnist">{{ vidkrytyh|plural(_('завдання'),_('завдання'),_('завдань')) }}</div>
+  </div>
+  <div class="kk-plytka surf-panel nahyl vhid pidiym s-a0e00e9" data-nahyl>
+    <div class="zahol shar-1">{{ _("Прострочені") }}</div>
+    <div class="chyslo shar-2">{{ prostrochenyh|num }}</div>
+    {% if vidkrytyh %}
+    {% set chastka = (prostrochenyh / vidkrytyh * 5) | round | int %}
+    <span class="shkala" role="img"
+          aria-label="{{ prostrochenyh }} {{ _('прострочених із') }} {{ vidkrytyh }} {{ _('відкритих') }}">
+      {% for i in range(5) %}<i class="{{ 'krytych' if i < chastka else 'on' }}"></i>{% endfor %}
+    </span>
+    {% endif %}
+    <div class="kk-chesnist">
+      {%- if prostrochenyh %}<span class="nepovno">{{ _("потребують дії сьогодні") }}</span>
+      {%- else %}{{ _("немає") }}{% endif %}</div>
+  </div>
+</div>
+
+<div class="kk-tulbar">
+  <form class="k-filtry" method="get" action="/zavdannya" data-sabmit-na-zminu
+        data-stan="{{ 'vybrano' if (assignee or status != 'open') else 'spokiy' }}">
+    <label class="visually-hidden" for="assignee">{{ _("Виконавець") }}</label>
+    <select class="k-vybir" id="assignee" name="assignee">
+      <option value="">{{ _("Виконавець — усі") }}</option>
+      {% for u in users %}<option value="{{ u.name }}"{% if u.name == assignee %} selected{% endif %}>{{ u.name }}</option>{% endfor %}
+    </select>
+    <label class="visually-hidden" for="status">{{ _("Статус завдання") }}</label>
+    <select class="k-vybir" id="status" name="status">
+      <option value="open"{% if status == 'open' %} selected{% endif %}>{{ _("Відкриті") }}</option>
+      {% for k, v in statuses.items() %}<option value="{{ k }}"{% if status == k %} selected{% endif %}>{{ v }}</option>{% endfor %}
+      <option value="all"{% if status == 'all' %} selected{% endif %}>{{ _("Усі") }}</option>
+    </select>
+    <span class="lichylnyk">
+      {{ _('фільтри активні') if (assignee or status != 'open') else _('фільтрів немає') }}</span>
+  </form>
+  <span class="roztyah"></span>
+  <form method="post" action="/zavdannya/synk"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button class="k-btn shchilna" type="submit"
+            title="{{ _('Створити завдання контролю відповідей на надіслані листи') }}">
+      <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-tsykl"></use></svg>
+      {{ _("Оновити за правилами") }}</button>
+  </form>
+</div>
+
+<div class="kk-splyt s-35823d2">
+  <div>
+    {# Дві РІЗНІ порожнечі: «зафільтрували» й «ще не заводили» — різний текст і
+       різна дія. Обидві присутні в розмітці завжди. #}
+    {% set filtrovano = assignee or status != 'open' %}
+    <div class="surf-panel s-eab8806" data-stan="{{ 'porozhno' if filtrovano else 'pershe' }}"
+         {% if rows %}hidden{% endif %}
+        >
+      <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+        <use href="/static/bib/porozhni.svg#p-{{ 'poshuk' if filtrovano else 'arkush' }}"></use></svg>
+      {% if filtrovano %}
+      <b>{{ _("Нічого не знайдено") }}</b>
+      <div class="kk-chesnist">{{ _("За цими фільтрами завдань немає.") }}</div>
+      <a class="k-btn holovna" href="/zavdannya">{{ _("Зняти фільтри") }}</a>
+      {% else %}
+      <b>{{ _("Завдань немає") }}</b>
+      <div class="kk-chesnist s-0db9dc9">{{ _("Або все зроблено, або їх ще не заводили. Правило контролю відповідей створює завдання само.") }}</div>
+      <button class="k-btn holovna" data-has-js data-fokus="[name=title]">{{ _("Додати завдання") }}</button>
+      {% endif %}
+    </div>
+
+    {% if rows %}
+    <ul class="kk-strichka">
+      {% for t in rows %}
+      <li id="t{{ t.id }}"
+          {% if t.is_overdue %}style="border-inline-start:2px solid var(--krytych);padding-inline-start:var(--sp2)"
+          {% elif t.is_today %}style="border-inline-start:2px solid var(--akcent);padding-inline-start:var(--sp2)"{% endif %}>
+        <div class="s-c0dfb61">
+          {{ ava(t.assignee, "sm") }}
+          <div class="s-d1d9f56">
+            <div class="s-509a426">
+              <b>{{ t.title }}</b>
+              {% if t.priority == 'high' %}<span class="k-chip s-93827eb">{{ _("важливе") }}</span>{% endif %}
+              {% if not t.is_open %}<span class="k-chip">{{ statuses[t.status] }}</span>{% endif %}
+              {% if t.from_colleague %}<span class="k-chip s-354c52c"
+                title="{{ _('Доручення від колеги') }}">{{ _("від") }} {{ t.created_by }}</span>{% endif %}
+              {% if t.accepted_at %}<span class="k-chip s-d066582">{{ _("в роботі") }}</span>{% endif %}
+            </div>
+            <div class="dim s-9942017">
+              {{ t.assignee }}
+              {% if t.due_date %}
+                · {% if t.is_overdue %}<span class="nepovno">{{ _("прострочено") }} {{ t.due_date|dt('%d.%m') }}</span>
+                  {% else %}{{ _("до") }} {{ t.due_date|dt('%d.%m') }}{% endif %}
+              {% else %}· <span class="dim">{{ _("без дати") }}</span>{% endif %}
+              · {{ sources.get(t.source, t.source) }}
+              {% if t.deal_id and deals.get(t.deal_id) %}· <a href="/voronky/{{ t.deal_id }}">{{ deals[t.deal_id].title }}</a>{% endif %}
+              {% if t.counterparty_id and cps.get(t.counterparty_id) %}· <a href="/dovidnyk/{{ t.counterparty_id }}">{{ cps[t.counterparty_id].name }}</a>{% endif %}
+              {% if t.cluster_id and haby.get(t.cluster_id) %}· <a href="/haby/{{ t.cluster_id }}">{{ _("хаб") }} {{ haby[t.cluster_id].site_code }}</a>{% endif %}
+            </div>
+            {% if t.note %}<div class="dim">{{ t.note }}</div>{% endif %}
+            {% if t.declined_reason %}
+            <div class="kk-chesnist"><span class="nepovno">{{ _("Відмова:") }}</span> {{ t.declined_reason }}</div>
+            {% endif %}
+
+            {# Виконавець має ГОЛОС: взяти в роботу або відмовитись із причиною.
+               Доручення без права відмовитись — це не доручення, а наказ, і
+               причина відмови мусить бути записана, а не сказана в чаті. #}
+            {% if t.is_open and t.assignee == user.name and t.from_colleague %}
+            <div class="s-12f8fae">
+              {% if not t.accepted_at %}
+              <form method="post" action="/zavdannya/{{ t.id }}/vzyaty"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="k-btn shchilna" type="submit">{{ _("Взяти в роботу") }}</button>
+              </form>
+              {% endif %}
+              <form class="s-d8557a8" method="post" action="/zavdannya/{{ t.id }}/vidmovytys"
+                   ><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <label class="visually-hidden" for="r{{ t.id }}">{{ _("Причина відмови") }}</label>
+                <input class="k-pole" id="r{{ t.id }}" type="text" name="reason" required
+                       maxlength="200" placeholder="{{ _('Причина відмови — обовʼязково') }}">
+                <button class="k-btn shchilna" type="submit">{{ _("Відмовитись") }}</button>
+              </form>
+            </div>
+            {% endif %}
+          </div>
+
+          {% if t.is_open %}
+          <form method="post" action="/zavdannya/{{ t.id }}/status"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="status" value="done">
+            {# Іконка зі спрайта, а не гліф «✓»: гліф малюється системним
+               шрифтом і не тримає одну руку з рештою іконок. #}
+            <button class="k-btn tykha lyshe-ikona" type="submit"
+                    aria-label="{{ _('Позначити «') }}{{ t.title|truncate(40) }}{{ _('» зробленим') }}">
+              <svg class="ik" width="15" height="15" aria-hidden="true"><use href="/static/bib/ikony.svg#i-hotovo"></use></svg>
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+
+  <aside class="detali surf-panel">
+    <h2 class="metryka-h">{{ _("Нове завдання") }}</h2>
+    <form class="kk-forma" method="post" action="/zavdannya"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="k-hrupa-polya">
+        <label for="z-title">{{ _("Що зробити") }}</label>
+        <input class="k-pole" id="z-title" type="text" name="title" required
+               placeholder="{{ _('Напр. «підготувати пакет для сесії ради»') }}">
+      </div>
+      <div class="k-hrupa-polya">
+        <label for="z-note">{{ _("Деталі") }}</label>
+        <textarea class="k-pole" id="z-note" name="note" rows="2"></textarea>
+      </div>
+      <div class="k-hrupa-polya">
+        <label for="z-assignee">{{ _("Виконавець") }}</label>
+        <select class="k-vybir" id="z-assignee" name="assignee">
+          {% for u in users %}<option value="{{ u.name }}"{% if u.name == user.name %} selected{% endif %}>{{ u.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="k-hrupa-polya">
+        <label for="z-due">{{ _("Коли") }}</label>
+        <input class="k-pole k-data" id="z-due" type="date" name="due_date">
+      </div>
+      <div class="k-hrupa-polya">
+        <label for="z-prio">{{ _("Пріоритет") }}</label>
+        <select class="k-vybir" id="z-prio" name="priority">
+          {% for k, v in priorities.items() %}<option value="{{ k }}"{% if k == 'normal' %} selected{% endif %}>{{ v }}</option>{% endfor %}
+        </select>
+      </div>
+      <button class="k-btn holovna" type="submit">{{ _("Додати") }}</button>
+    </form>
+
+    <p class="kk-chesnist s-35823d2">
+      <b>{{ _("«Оновити за правилами»") }}</b> {{ _("створює завдання «перевірити відповідь» для кожного надісланого листа, що чекає на відповідь. Повторне натискання нічого не дублює.") }}</p>
+  </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,141 @@
+/* Generated from former inline style attributes (the CSP allows no inline styles).
+   !important keeps the exact precedence the inline attribute had over component rules.
+   One class per distinct declaration block; candidates for consolidation into components. */
+.s-00f3b15 { display:flex !important; align-items:end !important }
+.s-02a2d33 { font-weight:500 !important }
+.s-02b0b21 { display:flex !important; gap:var(--sp2) !important; align-items:flex-start !important }
+.s-0486f78 { align-items:flex-start !important }
+.s-0519a0a { padding:var(--sp3) !important }
+.s-05c4d07 { padding:var(--sp4) !important; text-align:center !important; display:grid !important; gap:var(--sp2) !important; justify-items:center !important }
+.s-07d8cde { padding-block:0 !important; border:0 !important }
+.s-0807bde { min-block-size:5rem !important; display:block !important }
+.s-0a75448 { padding:var(--sp4) !important; display:grid !important; gap:var(--sp2) !important }
+.s-0db9dc9 { max-inline-size:50ch !important }
+.s-1169661 { margin:0 !important }
+.s-11a1072 { inline-size:8rem !important }
+.s-12f8fae { display:flex !important; flex-wrap:wrap !important; gap:var(--sp2) !important; margin-block-start:var(--sp2) !important }
+.s-1b91978 { opacity:.72 !important }
+.s-257d35d { --i:11 !important; padding:var(--sp3) !important }
+.s-26da15f { max-inline-size:44rem !important }
+.s-2a1b75c { display:block !important }
+.s-2cbb205 { margin-block-start:var(--sp5) !important }
+.s-2eaaa24 { margin-block-start:var(--sp3) !important; padding:var(--sp6) !important; text-align:center !important; display:grid !important; gap:var(--sp2) !important; justify-items:center !important }
+.s-2efb524 { padding:var(--sp3) !important; margin-block:var(--sp3) !important }
+.s-331847c { font-size:var(--kegl-dribnyi) !important; margin-block-start:2px !important }
+.s-341045d { padding-inline:var(--sp2) !important; font-size:var(--kegl-dribnyi) !important; color:var(--prygl) !important }
+.s-3470da9 { display:grid !important; gap:6px !important; margin-block-start:var(--sp2) !important }
+.s-348d633 { margin-block-start:4px !important }
+.s-354c52c { --stan:var(--akcent) !important }
+.s-35823d2 { margin-block-start:var(--sp3) !important }
+.s-3c19453 { margin-block:var(--sp3) !important }
+.s-3ea8828 { --i:1 !important }
+.s-41aea5f { --i:4 !important; padding:var(--sp3) !important }
+.s-42c1404 { margin-block-start:var(--sp5) !important; padding:var(--sp4) !important }
+.s-42f2c5d { background:var(--akcent) !important }
+.s-4350231 { display:grid !important; gap:4px !important; justify-items:center !important; inline-size:5.5rem !important; text-align:center !important }
+.s-4566460 { padding:var(--sp2) var(--sp3) !important; display:flex !important; gap:var(--sp2) !important; align-items:baseline !important; flex-wrap:wrap !important }
+.s-46ef8e0 { padding:var(--sp2) var(--sp3) !important }
+.s-472660f { inline-size:5rem !important; padding:2px !important }
+.s-47ffdd9 { padding:var(--sp6) !important; text-align:center !important; display:grid !important; gap:var(--sp2) !important; justify-items:center !important }
+.s-497f315 { margin-block-start:var(--sp4) !important }
+.s-4c77968 { margin-block-start:6px !important }
+.s-4d61802 { margin:0 !important; max-inline-size:14rem !important }
+.s-4dc5699 { display:flex !important; gap:var(--sp2) !important; align-items:flex-end !important }
+.s-509a426 { display:flex !important; flex-wrap:wrap !important; gap:var(--sp2) !important; align-items:baseline !important }
+.s-5255831 { gap:var(--sp2) !important }
+.s-52d4af7 { background:var(--uvaha) !important }
+.s-537524b { --i:6 !important; padding:var(--sp3) !important }
+.s-553be6c { margin-block-start:2px !important }
+.s-561e182 { max-inline-size:48ch !important }
+.s-56f4356 { margin-top:12px !important }
+.s-58dd065 { inline-size:min(320px,100%) !important }
+.s-5adbddf { --i:7 !important; padding:var(--sp3) !important }
+.s-5b2386e { flex:1 !important; block-size:1px !important; background:var(--mezha-m) !important }
+.s-5b7978a { display:flex !important; gap:var(--sp2) !important; flex-wrap:wrap !important; align-items:center !important; margin-block-start:2px !important }
+.s-610be8a { white-space:pre-wrap !important; overflow-wrap:anywhere !important; font-size:var(--kegl-dribnyi) !important; margin:0 !important }
+.s-65d0843 { --i:10 !important; padding:var(--sp3) !important }
+.s-6ab7881 { display:flex !important; flex-wrap:wrap !important; gap:var(--sp2) !important; margin-block-start:4px !important }
+.s-6c9988e { display:grid !important; grid-template-columns:1fr auto auto !important; gap:var(--sp2) !important; align-items:center !important }
+.s-711d762 { border-inline-start:2px solid var(--akcent) !important; padding-inline-start:var(--sp2) !important }
+.s-7251ed7 { margin-block:var(--sp2) !important }
+.s-742b679 { max-inline-size:52ch !important }
+.s-752fbdf { gap:var(--sp2) !important; margin-block-start:4px !important }
+.s-77f796f { padding:var(--sp6) !important; text-align:center !important }
+.s-78f1e43 { display:grid !important; gap:6px !important }
+.s-7a98cae { font-size:13px !important; margin-block:var(--sp3) var(--sp1) !important }
+.s-7aa5b31 { inline-size:min(300px,100%) !important }
+.s-7ae6672 { display:flex !important; align-items:center !important; gap:var(--sp2) !important; color:var(--prygl) !important; font-size:var(--kegl-dribnyi) !important }
+.s-7af77a7 { --i:13 !important; padding:var(--sp3) !important }
+.s-7bdef09 { opacity:.55 !important }
+.s-7f93414 { padding:var(--sp3) !important; max-inline-size:22rem !important }
+.s-81e863b { --stan:var(--krytych) !important }
+.s-8232744 { color:var(--dobre) !important }
+.s-89ee766 { border:1px solid var(--mezha-m) !important; border-radius:var(--r) !important; padding:var(--sp3) !important; display:grid !important; gap:var(--sp3) !important }
+.s-8a77e5a { margin-top:8px !important }
+.s-8c5865f { margin-inline-start:auto !important }
+.s-8d86065 { padding:var(--sp4) !important; display:grid !important; gap:var(--sp2) !important; justify-items:start !important }
+.s-9162a24 { align-self:center !important }
+.s-93827eb { --stan:var(--uvaha) !important }
+.s-9498d66 { --i:12 !important; padding:var(--sp3) !important }
+.s-96ad609 { margin-top:4px !important }
+.s-97b6adc { border-inline-start:2px solid var(--uvaha) !important; padding-inline-start:var(--sp2) !important }
+.s-9942017 { font-size:var(--kegl-dribnyi) !important }
+.s-9a4063b { max-inline-size:44rem !important; margin-block-start:var(--sp3) !important }
+.s-9ca9c16 { margin:auto !important; text-align:center !important; padding:var(--sp6) !important; display:grid !important; gap:var(--sp2) !important; justify-items:center !important }
+.s-9f2e797 { display:flex !important; gap:var(--sp2) !important; align-items:center !important }
+.s-a0e00e9 { --i:1 !important; padding:var(--sp3) !important }
+.s-a1b5a7c { --stan:var(--prygl) !important }
+.s-a1d92e7 { background:var(--prygl) !important }
+.s-a52c42b { margin-block:var(--sp5) var(--sp2) !important }
+.s-a61fb35 { display:block !important; max-inline-size:100% !important }
+.s-a6770a8 { padding:0 !important; margin-block-start:var(--sp2) !important; block-size:clamp(340px,64dvh,760px) !important; display:grid !important; grid-template-rows:1fr auto !important; min-block-size:0 !important }
+.s-a81c697 { font-variant-numeric:tabular-nums !important }
+.s-a8bd71a { list-style:none !important; margin:0 0 var(--sp3) !important; padding:0 !important; display:grid !important; gap:var(--sp2) !important }
+.s-a91af5f { max-inline-size:34rem !important }
+.s-acbe443 { font-size:var(--kegl-dribnyi) !important; margin-inline-start:auto !important }
+.s-accfd9e { max-inline-size:46ch !important }
+.s-aea6d5f { display:flex !important; gap:var(--sp3) !important; align-items:center !important }
+.s-b3f4ba9 { display:flex !important; gap:var(--sp2) !important; margin-block-end:var(--sp4) !important }
+.s-b5e8626 { margin-block:0 var(--sp2) !important }
+.s-b77ccce { --i:14 !important; padding:var(--sp3) !important }
+.s-b84a663 { margin:2px 0 !important; overflow-wrap:anywhere !important }
+.s-b9d41ce { --i:2 !important }
+.s-ba2ce12 { --i:9 !important; padding:var(--sp3) !important }
+.s-bc7cff2 { margin-inline-start:auto !important; font-size:var(--kegl-dribnyi) !important }
+.s-bdbc1ed { margin-block:var(--sp4) var(--sp2) !important }
+.s-bdbf926 { margin-block-end:var(--sp2) !important }
+.s-be7d1dc { display:grid !important; gap:var(--sp2) !important; max-inline-size:28rem !important }
+.s-bfcbd23 { list-style:none !important; margin:0 !important; padding:0 !important; display:grid !important; gap:var(--sp2) !important }
+.s-bfcf5b6 { display:grid !important; gap:var(--sp2) !important }
+.s-c01e5d5 { --i:3 !important; padding:var(--sp3) !important }
+.s-c0dfb61 { display:flex !important; gap:var(--sp2) !important; align-items:flex-start !important; min-inline-size:0 !important }
+.s-c5502a3 { margin-block-start:var(--sp2) !important }
+.s-c5cbe49 { --i:0 !important }
+.s-c615513 { list-style:none !important; margin:0 !important; padding:0 !important; display:flex !important; flex-wrap:wrap !important; gap:var(--sp2) !important }
+.s-c9996a7 { margin-block-end:var(--sp3) !important }
+.s-c9f0ddb { border:1px solid var(--mezha-m) !important; border-radius:var(--r) !important; padding:var(--sp3) !important; display:grid !important; gap:var(--sp2) !important }
+.s-cff378c { --i:8 !important; padding:var(--sp3) !important }
+.s-d066582 { --stan:var(--dobre) !important }
+.s-d1d9f56 { min-inline-size:0 !important; flex:1 !important }
+.s-d1ebece { --i:2 !important; padding:var(--sp3) !important }
+.s-d4ce0c2 { margin-block-end:var(--sp4) !important }
+.s-d6e54af { grid-template-columns:repeat(auto-fit,minmax(280px,1fr)) !important }
+.s-d83e897 { --i:5 !important; padding:var(--sp3) !important }
+.s-d8557a8 { display:flex !important; gap:var(--sp2) !important }
+.s-d9a69d5 { min-block-size:0 !important }
+.s-dd3aece { margin-block-start:var(--sp4) !important; padding:var(--sp3) !important }
+.s-e101e45 { list-style:none !important; margin:var(--sp3) 0 0 !important; padding:0 !important; display:grid !important; gap:var(--sp2) !important }
+.s-e150c64 { display:flex !important; gap:var(--sp2) !important; align-items:baseline !important; flex-wrap:wrap !important }
+.s-e2ae55b { flex:1 !important; resize:none !important; max-block-size:40dvh !important }
+.s-e4681f1 { inline-size:12rem !important }
+.s-e6ca168 { --i:0 !important; padding:var(--sp3) !important }
+.s-e716b57 { list-style:none !important; margin:0 !important; padding:0 !important; display:grid !important; gap:4px !important }
+.s-e772e96 { margin-block-start:var(--sp2) !important; display:grid !important; gap:var(--sp2) !important }
+.s-e7a3d5e { display:flex !important; flex-wrap:wrap !important; gap:var(--sp3) !important }
+.s-eab8806 { padding:var(--sp8) !important; text-align:center !important; display:grid !important; gap:var(--sp2) !important; justify-items:center !important }
+.s-ec11a34 { display:grid !important; grid-template-columns:1fr auto !important; gap:var(--sp2) !important; align-items:center !important }
+.s-ee686a5 { max-inline-size:40rem !important }
+.s-ef4a8cc { inline-size:min(360px,100%) !important }
+.s-f0abc1d { gap:6px !important }
+.s-f50dd74 { list-style:none !important; margin:0 !important; padding:0 !important; display:grid !important; gap:var(--sp1) !important }
+.s-fe6bdbe { list-style:none !important; margin:0 !important; padding:0 !important; display:grid !important; gap:var(--sp3) !important }

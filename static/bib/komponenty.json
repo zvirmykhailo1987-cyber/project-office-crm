@@ -1,0 +1,757 @@
+{
+ "_pro": "Контракт глибини бібліотеки. Джерело правди для гейта matrytsya_staniv.js.",
+ "_chomu": [
+  "Норма станів існувала з 04.08.2026 (produkt-dyzayn/references/stany-komponentiv.md),",
+  "але матеріалу, що її виконує, не було: вимір 08.08.2026 дав середню глибину 1.2",
+  "стану на компонент бібліотеки і медіану 2 стани з 10 в ОФІСі. Причина не в ліні —",
+  "жоден гейт не міряв ПРИСУТНІСТЬ станів: ui_audit міряє «вміщається»,",
+  "vizualna_hlybina — щільність візуального доказу, screen_audit — 5 сторінкових",
+  "data-state. Компонент з одним станом проходив усі три ідеально.",
+  "Цей файл робить глибину вимірюваною: не «здається глибоким», а X станів з Y."
+ ],
+ "_slovnyk": {
+  "spokiy": "звичайний робочий стан",
+  "navedennya": "курсор над елементом (:hover)",
+  "fokus": "клавіатурний фокус (:focus-visible)",
+  "natysnuta": "мить натискання (:active)",
+  "zaynyata": "дія триває; обовʼязково там, де довше за 300 мс",
+  "nedostupna": "дія неможлива; мусить пояснювати ЧОМУ",
+  "pomylka": "введене чи отримане не годиться",
+  "vybrano": "елемент обрано (selection), не «активний пункт»",
+  "zmineno": "є незбережені зміни",
+  "porozhno": "фільтр чи пошук не дав результату",
+  "pershe": "сутностей ще не створювали — інший текст і дія, ніж porozhno",
+  "zavantazhennya": "дані в дорозі; скелет форми майбутнього контенту, не крутилка",
+  "chastkovo": "частина даних недоступна, і про це сказано прямо",
+  "lyshe_chytannya": "значення показано, змінити не можна (не те саме, що nedostupna)",
+  "vidvidane": "посилання вже відкривали",
+  "z_lichylnykom": "вкладка чи пункт несе число",
+  "terminova": "картка потребує уваги зараз",
+  "peretyah": "елемент тягнуть (drag)",
+  "tsil": "місце, куди можна кинути (drop target)",
+  "vzyato": "картку взято з КЛАВІАТУРИ — вона в руці, поки обирають колонку; окремий стан від «тягнеться мишею»",
+  "perevantazhena": "робіт у колонці більше за ліміт; сенс канбану саме в тому, щоб межа була видна",
+  "vidpravlyayetsya": "повідомлення в дорозі — ще не підтверджене сервером",
+  "ne-dostavleno": "не дійшло; мусить бути ТЕКСТ і дія «повторити», а не червона крапка"
+ },
+ "_pravyla_hejta": [
+  "Стан зараховується, лише якщо він (а) присутній у демо і (б) обчислений стиль",
+  "відрізняється від spokiy хоча б однією змістовною властивістю.",
+  "Причина: селектор у CSS не доводить, що стан спроєктовано — правило буває",
+  "порожнім, перекритим або намальованим у батька. Міряємо намальоване."
+ ],
+ "_vlastyvosti_porivnyannya": [
+  "background-color",
+  "color",
+  "border-color",
+  "border-width",
+  "box-shadow",
+  "outline-color",
+  "outline-width",
+  "outline-offset",
+  "opacity",
+  "translate",
+  "transform",
+  "text-decoration-color",
+  "text-decoration-line",
+  "cursor",
+  "filter",
+  "background-image"
+ ],
+ "komponenty": {
+  "poverhnya": {
+   "hrupa": "vidobrazhennya",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "natysnuta",
+    "vybrano",
+    "nedostupna"
+   ],
+   "varianty": [
+    "panel",
+    "pidnyata"
+   ],
+   "nota": "ЄДИНИЙ компонент, що на 08.08.2026 мав стани понад спокій (.interakt у komponenty-base.css). Лишається в маніфесті як точка відліку: по ньому видно, що гейт міряє глибину, а не лише наявність розмітки."
+  },
+  "knopka": {
+   "hrupa": "keruvannya",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "natysnuta",
+    "zaynyata",
+    "nedostupna"
+   ],
+   "varianty": [
+    "osnovna",
+    "typova",
+    "tykha",
+    "nebezpechna"
+   ],
+   "rozmiry": [
+    "shchilna",
+    "zvychayna",
+    "velyka"
+   ],
+   "formy": [
+    "tekst",
+    "ikona-tekst",
+    "lyshe-ikona"
+   ],
+   "nota": "«зайнята» обовʼязкова: без неї людина тисне двічі. «Недоступна» без пояснення читається як поломка."
+  },
+  "hrupa-knopok": {
+   "hrupa": "keruvannya",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "vybrano",
+    "nedostupna"
+   ],
+   "varianty": [
+    "suminzhna",
+    "split"
+   ]
+  },
+  "pole": {
+   "hrupa": "keruvannya",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "pomylka",
+    "nedostupna",
+    "lyshe_chytannya"
+   ],
+   "varianty": [
+    "porozhnye",
+    "zapovnene",
+    "z-prefiksom",
+    "z-sufiksom"
+   ],
+   "rozmiry": [
+    "shchilne",
+    "zvychayne"
+   ]
+  },
+  "bahatoryadkove": {
+   "hrupa": "keruvannya",
+   "stany": [
+    "spokiy",
+    "fokus",
+    "pomylka",
+    "nedostupna",
+    "lyshe_chytannya"
+   ],
+   "varianty": [
+    "z-lichylnykom",
+    "avtoros"
+   ]
+  },
+  "vybir": {
+   "hrupa": "keruvannya",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "vidkrytyi",
+    "pomylka",
+    "nedostupna"
+   ],
+   "varianty": [
+    "odyn",
+    "kilka",
+    "z-poshukom"
+   ],
+   "nota": "combobox з пошуком — окремий варіант, а не інший компонент"
+  },
+  "praporets": {
+   "hrupa": "keruvannya",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "vybrano",
+    "chastkovo",
+    "nedostupna"
+   ],
+   "nota": "«частково» тут — третій стан прапорця (група вибрана не вся)"
+  },
+  "peremykach-radio": {
+   "hrupa": "keruvannya",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "vybrano",
+    "nedostupna"
+   ]
+  },
+  "tumbler": {
+   "hrupa": "keruvannya",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "vybrano",
+    "zaynyata",
+    "nedostupna"
+   ],
+   "nota": "«зайнятий» окремо: перемикач, що зберігається на сервер, мусить показати очікування"
+  },
+  "povzunok": {
+   "hrupa": "keruvannya",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "natysnuta",
+    "nedostupna"
+   ],
+   "varianty": [
+    "odne-znachennya",
+    "diapazon"
+   ]
+  },
+  "hrupa-polya": {
+   "hrupa": "forma",
+   "stany": [
+    "spokiy",
+    "fokus",
+    "pomylka",
+    "nedostupna"
+   ],
+   "chastyny": [
+    "pidpys",
+    "pidkazka",
+    "obovyazkovist",
+    "povidomlennya-pomylky",
+    "lichylnyk"
+   ],
+   "nota": "помилка біля поля, звʼязана aria-describedby — не банер угорі сторінки"
+  },
+  "data": {
+   "hrupa": "forma",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "vidkrytyi",
+    "pomylka",
+    "nedostupna"
+   ],
+   "varianty": [
+    "odna",
+    "diapazon"
+   ]
+  },
+  "dropzona": {
+   "hrupa": "forma",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "tsil",
+    "zaynyata",
+    "pomylka",
+    "nedostupna"
+   ],
+   "nota": "«ціль» — коли файл тягнуть над зоною; «зайнята» — відсоток завантаження зі скасуванням"
+  },
+  "poshuk": {
+   "hrupa": "forma",
+   "stany": [
+    "spokiy",
+    "fokus",
+    "zapovnene",
+    "zavantazhennya",
+    "porozhno"
+   ],
+   "nota": "«порожньо» тут — підказка «нічого не знайдено» просто в полі"
+  },
+  "tablytsya": {
+   "hrupa": "dani",
+   "stany": [
+    "spokiy",
+    "zavantazhennya",
+    "porozhno",
+    "pershe",
+    "pomylka",
+    "chastkovo"
+   ],
+   "chastyny": [
+    "shapka-sortuvannya",
+    "vybir-ryadkiv",
+    "lypka-shapka",
+    "masovi-diyi"
+   ],
+   "nota": "найважчий компонент: 6 станів даних плюс стани рядка"
+  },
+  "ryadok": {
+   "hrupa": "dani",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "vybrano",
+    "zmineno"
+   ],
+   "nota": "«змінено» — незбережені правки в рядку; без нього інлайн-редагування бреше"
+  },
+  "ryadok-kartkoyu": {
+   "hrupa": "dani",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "vybrano"
+   ],
+   "nota": "той самий рядок на ≤600px; мотив КОД-І-ШТРИХ зберігається"
+  },
+  "storinkuvannya": {
+   "hrupa": "dani",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "nedostupna",
+    "zavantazhennya"
+   ]
+  },
+  "filtry": {
+   "hrupa": "dani",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "vybrano",
+    "porozhno"
+   ],
+   "chastyny": [
+    "chipy",
+    "skynuty-vse",
+    "lichylnyk-aktyvnyh"
+   ]
+  },
+  "zberezheni-podannya": {
+   "hrupa": "dani",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "vybrano",
+    "zmineno",
+    "pershe"
+   ],
+   "nota": "«змінено» — подання відкрите й підправлене, але не збережене"
+  },
+  "komirka-redahuvannya": {
+   "hrupa": "dani",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "redahuvannya",
+    "zaynyata",
+    "pomylka",
+    "lyshe_chytannya"
+   ],
+   "nota": "замінює alert() як канал помилки — помилка лишається в комірці"
+  },
+  "tost": {
+   "hrupa": "zvorotnyi-zvyazok",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus"
+   ],
+   "varianty": [
+    "info",
+    "uspikh",
+    "uvaha",
+    "pomylka",
+    "z-vidkatom"
+   ],
+   "nota": "пауза відліку на наведенні; «з відкатом» несе Undo"
+  },
+  "dialoh": {
+   "hrupa": "zvorotnyi-zvyazok",
+   "stany": [
+    "spokiy",
+    "zaynyata",
+    "pomylka"
+   ],
+   "varianty": [
+    "pidtverdzhennya",
+    "ruynivna-diya",
+    "forma"
+   ],
+   "nota": "нативний <dialog> через IX.dialogController: фокус-пастка й повернення фокуса вже є"
+  },
+  "shuhlyada": {
+   "hrupa": "zvorotnyi-zvyazok",
+   "stany": [
+    "spokiy",
+    "zaynyata",
+    "porozhno"
+   ],
+   "varianty": [
+    "prava",
+    "nyzhnya"
+   ]
+  },
+  "pidkazka": {
+   "hrupa": "zvorotnyi-zvyazok",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus"
+   ],
+   "varianty": [
+    "tultip",
+    "popover"
+   ],
+   "nota": "замінює рідний title=: він не працює з клавіатури й не стилізується"
+  },
+  "banner": {
+   "hrupa": "zvorotnyi-zvyazok",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus"
+   ],
+   "varianty": [
+    "info",
+    "uvaha",
+    "pomylka",
+    "uspikh"
+   ],
+   "chastyny": [
+    "zakryty",
+    "diya"
+   ]
+  },
+  "skelet": {
+   "hrupa": "zvorotnyi-zvyazok",
+   "stany": [
+    "spokiy"
+   ],
+   "varianty": [
+    "ryadok",
+    "kartka",
+    "tablytsya",
+    "tekst",
+    "chart"
+   ],
+   "nota": "форма МАЙБУТНЬОГО контенту, не смуга й не крутилка; варіант = під що чекаємо"
+  },
+  "vkladky": {
+   "hrupa": "navihatsiya",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "vybrano",
+    "nedostupna",
+    "z_lichylnykom"
+   ]
+  },
+  "krykhty": {
+   "hrupa": "navihatsiya",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus"
+   ],
+   "varianty": [
+    "povni",
+    "zgorneni"
+   ]
+  },
+  "menyu-diy": {
+   "hrupa": "navihatsiya",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "vidkrytyi",
+    "nedostupna"
+   ],
+   "chastyny": [
+    "punkt",
+    "ruynivnyi-punkt",
+    "rozdilnyk",
+    "pidpys-hrupy"
+   ]
+  },
+  "chip": {
+   "hrupa": "vidobrazhennya",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "vybrano",
+    "nedostupna"
+   ],
+   "varianty": [
+    "statychnyi",
+    "klikabelnyi",
+    "znimnyi",
+    "z-avatarom"
+   ],
+   "rozmiry": [
+    "shchilnyi",
+    "zvychaynyi"
+   ],
+   "nota": "сьогодні це 6 кольорових капсул без жодної поведінки"
+  },
+  "avatar": {
+   "hrupa": "vidobrazhennya",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus"
+   ],
+   "varianty": [
+    "foto",
+    "monohrama",
+    "bytyi-fayl",
+    "hrupa",
+    "z-prysutnistyu"
+   ],
+   "nota": "«битий файл» — реальний стан: 07.08.2026 фото Марка стало однотонним квадратом, і фолбека не було"
+  },
+  "kolonka-doshky": {
+   "hrupa": "karkas",
+   "stany": [
+    "spokiy",
+    "tsil",
+    "porozhno",
+    "perevantazhena"
+   ],
+   "chastyny": [
+    "zahol",
+    "skilky",
+    "spysok",
+    "porozhnya"
+   ],
+   "nota": "порожня колонка МУСИТЬ лишатись ціллю перетягування: нульова висота робить дошку непридатною саме тоді, коли переносити найпотрібніше"
+  },
+  "kartka-doshky": {
+   "hrupa": "dani",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "fokus",
+    "peretyah",
+    "vzyato",
+    "nedostupna"
+   ],
+   "varianty": [
+    "zvychayna",
+    "terminova",
+    "prostrochena"
+   ],
+   "nota": "«взято» ≠ «перетяг»: перше — клавіатура, друге — миша. Без окремого стану людина не бачить, що картка в руці"
+  },
+  "povidomlennya": {
+   "hrupa": "dani",
+   "stany": [
+    "spokiy",
+    "vidpravlyayetsya",
+    "ne-dostavleno",
+    "vidvidane"
+   ],
+   "varianty": [
+    "ya",
+    "inshyi",
+    "systemne"
+   ],
+   "chastyny": [
+    "hto",
+    "tekst",
+    "koly"
+   ],
+   "nota": "своє/чуже розрізняється ПОЗИЦІЄЮ і фоном, не лише кольором"
+  },
+  "kompozytor": {
+   "hrupa": "forma",
+   "stany": [
+    "spokiy",
+    "fokus",
+    "zaynyata",
+    "nedostupna",
+    "pomylka"
+   ],
+   "chastyny": [
+    "pole",
+    "dodaty-fayl",
+    "nadislaty"
+   ],
+   "nota": "не має перекривати останнє повідомлення; «зайнятий» обовʼязковий, інакше тиснуть двічі й дублюють репліку"
+  },
+  "syhnal-karty": {
+   "hrupa": "vidobrazhennya",
+   "stany": [
+    "spokiy",
+    "navedennya",
+    "vybrano"
+   ],
+   "varianty": [
+    "norma",
+    "uvaha",
+    "tryvoha",
+    "nemaye-danyh"
+   ],
+   "nota": "стан дублюється ФОРМОЮ (--forma-*), не лише кольором: ~8% чоловіків мають червоно-зелену дальтонію. «Немає даних» — окремий варіант, не «норма»"
+  }
+ },
+ "kompozytsiyi": {
+  "indeks": {
+   "stany_danyh": [
+    "spokiy",
+    "zavantazhennya",
+    "porozhno",
+    "pershe",
+    "pomylka",
+    "chastkovo"
+   ],
+   "sklad": [
+    "tulbar",
+    "filtry",
+    "tablytsya",
+    "vybir-ryadkiv",
+    "masovi-diyi",
+    "storinkuvannya"
+   ]
+  },
+  "spysok-detali": {
+   "stany_danyh": [
+    "spokiy",
+    "zavantazhennya",
+    "porozhno",
+    "pershe",
+    "pomylka"
+   ],
+   "sklad": [
+    "spysok",
+    "panel-detalei",
+    "porozhnii-vybir"
+   ]
+  },
+  "storinka-sutnosti": {
+   "stany_danyh": [
+    "spokiy",
+    "zavantazhennya",
+    "pomylka",
+    "chastkovo",
+    "nemaye-prav"
+   ],
+   "sklad": [
+    "shapka",
+    "vkladky",
+    "sayidbar-faktiv",
+    "strichka-aktyvnosti"
+   ]
+  },
+  "forma": {
+   "stany_danyh": [
+    "spokiy",
+    "zaynyata",
+    "pomylka",
+    "zmineno"
+   ],
+   "sklad": [
+    "hrupy-poliv",
+    "pomylky-bilya-poliv",
+    "nezberezheni-zminy",
+    "vyhid-z-pidtverdzhennyam"
+   ]
+  },
+  "maister": {
+   "stany_danyh": [
+    "spokiy",
+    "zaynyata",
+    "pomylka",
+    "zmineno"
+   ],
+   "sklad": [
+    "kroky",
+    "dali-nazad",
+    "zberezhennya-mizh-krokamy",
+    "pidsumok"
+   ]
+  },
+  "dashbord": {
+   "stany_danyh": [
+    "spokiy",
+    "zavantazhennya",
+    "porozhno",
+    "pomylka",
+    "chastkovo"
+   ],
+   "sklad": [
+    "plytky",
+    "charty",
+    "ryadok-chesnosti",
+    "dzherela-i-data-zrizu"
+   ]
+  },
+  "doshka": {
+   "stany_danyh": [
+    "spokiy",
+    "zavantazhennya",
+    "porozhno",
+    "pershe",
+    "pomylka",
+    "perevantazhena"
+   ],
+   "sklad": [
+    "kolonky",
+    "kartky",
+    "perenesennya-myshey",
+    "perenesennya-klaviaturoyu",
+    "limity-kolonok",
+    "pidsumky-stadiy"
+   ]
+  },
+  "potik": {
+   "stany_danyh": [
+    "spokiy",
+    "zavantazhennya",
+    "porozhno",
+    "pershe",
+    "pomylka",
+    "chastkovo"
+   ],
+   "sklad": [
+    "strichka",
+    "rozdilnyky-dniv",
+    "kompozytor",
+    "stan-dostavky",
+    "hto-pyshe",
+    "nepovni-istoriyi"
+   ]
+  },
+  "karta-syhnalna": {
+   "stany_danyh": [
+    "spokiy",
+    "zavantazhennya",
+    "porozhno",
+    "pomylka",
+    "chastkovo"
+   ],
+   "sklad": [
+    "polotno",
+    "plavayuchi-paneli",
+    "lehenda",
+    "filtr-shariv",
+    "kartka-tochky"
+   ]
+  }
+ }
+}

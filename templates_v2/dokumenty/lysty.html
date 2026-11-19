@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Запити й листи — ОФІС") }}{% endblock %}
+{% block shapka %}{{ _("Запити й листи") }}{% endblock %}
+{% block vmist %}
+
+{# ЛЕКАЛО K1 «Реєстр» із трьома поданнями. Плитки — не оздоба: вони і є
+   навігація по трьох станах листа, і кожна веде у свою вкладку. #}
+
+<section class="kk-plytky s-d4ce0c2">
+  <a class="kk-plytka surf-panel s-0519a0a" href="/lysty?tab=cherga">
+    <div class="zahol">{{ _("У черзі") }}</div>
+    <div class="chyslo">{{ queue|length|num }}</div>
+    <div class="kk-chesnist">{{ _("на відправлення") }}</div>
+  </a>
+  <a class="kk-plytka surf-panel s-0519a0a" href="/lysty?tab=prostrocheni">
+    <div class="zahol">{{ _("Без відповіді в строк") }}</div>
+    <div class="chyslo">{{ overdue|length|num }}</div>
+    <div class="kk-chesnist">
+      {%- if overdue %}<span class="nepovno">{{ _("час нагадати") }}</span>
+      {%- else %}{{ _("немає") }}{% endif %}</div>
+  </a>
+  <a class="kk-plytka surf-panel s-0519a0a" href="/lysty?tab=reyestr">
+    <div class="zahol">{{ _("Чекаємо відповідь") }}</div>
+    <div class="chyslo">{{ waiting|length|num }}</div>
+    <div class="kk-chesnist">{{ _("у межах строку") }}</div>
+  </a>
+</section>
+
+<div class="kk-tulbar">
+  <div class="k-vkladky" role="tablist" aria-label="{{ _('Подання') }}">
+    <a class="k-vkladka" role="tab" href="/lysty?tab=cherga"
+       aria-selected="{{ 'true' if tab == 'cherga' else 'false' }}">{{ _("Черга") }}</a>
+    <a class="k-vkladka" role="tab" href="/lysty?tab=prostrocheni"
+       aria-selected="{{ 'true' if tab == 'prostrocheni' else 'false' }}">{{ _("Прострочені") }}</a>
+    <a class="k-vkladka" role="tab" href="/lysty?tab=reyestr"
+       aria-selected="{{ 'true' if tab == 'reyestr' else 'false' }}">{{ _("Реєстр") }}</a>
+  </div>
+  <span class="roztyah"></span>
+  <span class="kk-chesnist">{{ _("Що кому надіслано, якою версією і чи відповіли.") }}</span>
+</div>
+
+{% if tab == 'cherga' %}
+<h2 class="metryka-h s-bdbc1ed">{{ _("До відправлення") }}</h2>
+
+<div class="surf-panel s-eab8806" data-stan="porozhno" {% if queue %}hidden{% endif %}
+    >
+  <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+    <use href="/static/bib/porozhni.svg#p-lyst"></use></svg>
+  <b>{{ _("Черга порожня") }}</b>
+  <div class="kk-chesnist s-0db9dc9">{{ _("Сюди потрапляють документи, переведені у стан «До відправлення». Зараз таких немає.") }}</div>
+  <a class="k-btn holovna" href="/dokumenty">{{ _("Переглянути документи") }}</a>
+</div>
+
+{% if queue %}
+<div class="k-tab-obh" data-stan="spokiy">
+<table class="k-tab kartky">
+  <thead><tr><th>{{ _("Документ") }}</th><th>{{ _("Вид") }}</th><th class="chyslo">{{ _("Версія") }}</th><th>{{ _("Автор") }}</th><th></th></tr></thead>
+  <tbody>
+  {% for d in queue %}
+    <tr class="k-ryad">
+      <td data-holovne data-p="{{ _('Документ') }}"><a href="/dokumenty/{{ d.id }}">{{ d.title }}</a></td>
+      <td data-p="{{ _('Вид') }}"><span class="k-chip">{{ d.kind }}</span></td>
+      <td data-p="{{ _('Версія') }}" class="chyslo">v{{ d.version }}</td>
+      <td data-p="{{ _('Автор') }}" class="dim">{{ d.created_by }}</td>
+      <td data-p=""><a class="k-btn shchilna" href="/dokumenty/{{ d.id }}">{{ _("Відкрити й надіслати") }}</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% elif tab == 'prostrocheni' %}
+<h2 class="metryka-h s-bdbc1ed">{{ _("Відповіді немає в строк") }}</h2>
+
+<div class="surf-panel s-eab8806" data-stan="porozhno" {% if overdue %}hidden{% endif %}
+    >
+  <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+    <use href="/static/bib/porozhni.svg#p-lyst"></use></svg>
+  <b>{{ _("Прострочених немає") }}</b>
+  <div class="kk-chesnist">{{ _("Усі надіслані запити або в межах строку, або вже мають відповідь.") }}</div>
+  <a class="k-btn holovna" href="/lysty?tab=reyestr">{{ _("Подивитись реєстр") }}</a>
+</div>
+
+{% if overdue %}
+<ul class="kk-strichka">
+  {% for o in overdue %}
+  <li class="s-97b6adc">
+    <div class="s-509a426">
+      <span class="k-chip s-93827eb">{{ _("чекаємо з") }} {{ o.reply_due_date|dt('%d.%m') }}</span>
+      <b>{{ o.subject or '—' }}</b>
+    </div>
+    <div class="dim s-9942017">
+      {{ _("кому:") }} {{ o.recipient or '—' }}
+      {% if o.counterparty_id and cps.get(o.counterparty_id) %}·
+      <a href="/dovidnyk/{{ o.counterparty_id }}">{{ cps[o.counterparty_id].name }}</a>{% endif %}
+      {{ _("· надіслано") }} {{ o.sent_at|dt }} ({{ o.days_waiting }} {{ _("дн. тому)") }}
+    </div>
+    <form class="s-12f8fae" method="post" action="/lysty/{{ o.id }}/vidpovid"
+         ><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="visually-hidden" for="rs{{ o.id }}">{{ _("Що з відповіддю") }}</label>
+      <select class="k-vybir" id="rs{{ o.id }}" name="reply_status">
+        <option value="otrymano">{{ _("Відповідь отримано") }}</option>
+        <option value="bez_vidpovidi">{{ _("Без відповіді — закрити") }}</option>
+        <option value="chekaiemo">{{ _("Чекаємо далі") }}</option>
+      </select>
+      <label class="visually-hidden" for="rn{{ o.id }}">{{ _("Що відповіли") }}</label>
+      <input class="k-pole" id="rn{{ o.id }}" type="text" name="reply_note"
+             placeholder="{{ _('Що відповіли') }}">
+      <button class="k-btn shchilna" type="submit">{{ _("Зберегти") }}</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% else %}
+<h2 class="metryka-h s-bdbc1ed">
+  {{ _("Реєстр вихідних") }} <span class="dim">({{ sent|length }})</span></h2>
+
+<div class="surf-panel s-eab8806" data-stan="pershe" {% if sent %}hidden{% endif %}
+    >
+  <svg class="ik s-7bdef09" width="28" height="28" aria-hidden="true">
+    <use href="/static/bib/porozhni.svg#p-lyst"></use></svg>
+  <b>{{ _("Реєстр вихідних порожній") }}</b>
+  <div class="kk-chesnist s-742b679">{{ _("Тут зʼявиться кожен надісланий лист: кому, коли, якою версією документа і чи відповіли.") }}</div>
+  <a class="k-btn holovna" href="/lysty?tab=cherga">{{ _("Подивитись чергу") }}</a>
+</div>
+
+{% if sent %}
+<div class="k-tab-obh" data-stan="spokiy">
+<table class="k-tab kartky">
+  <thead><tr><th>{{ _("Тема") }}</th><th>{{ _("Кому") }}</th><th>{{ _("Канал") }}</th><th>{{ _("Надіслано") }}</th>
+    <th class="chyslo">{{ _("Версія") }}</th><th>{{ _("Відповідь") }}</th></tr></thead>
+  <tbody>
+  {% for o in sent %}
+    <tr class="k-ryad">
+      <td data-holovne data-p="{{ _('Тема') }}">
+        {%- if o.document_id and docs.get(o.document_id) %}
+        <a href="/dokumenty/{{ o.document_id }}">{{ o.subject }}</a>
+        {%- else %}{{ o.subject or '—' }}{% endif %}</td>
+      <td data-p="{{ _('Кому') }}">{{ o.recipient or '—' }}
+        {% if o.counterparty_id and cps.get(o.counterparty_id) %}
+        <div class="dim s-9942017">
+          <a href="/dovidnyk/{{ o.counterparty_id }}">{{ cps[o.counterparty_id].name }}</a></div>
+        {% endif %}</td>
+      <td data-p="{{ _('Канал') }}" class="dim">{{ channels.get(o.channel, o.channel) }}</td>
+      <td data-p="{{ _('Надіслано') }}" class="dim chyslo">{{ o.sent_at|dt }}</td>
+      <td data-p="{{ _('Версія') }}" class="chyslo">v{{ o.document_version }}</td>
+      <td data-p="{{ _('Відповідь') }}">
+        {% if o.is_overdue %}<span class="k-chip s-93827eb">{{ _("прострочено") }}</span>
+        {% elif o.reply_status == 'otrymano' %}
+        <span class="k-chip s-d066582">{{ _("отримано") }} {{ o.reply_at|dt('%d.%m') }}</span>
+        {% else %}<span class="k-chip">{{ reply_statuses.get(o.reply_status, o.reply_status) }}</span>{% endif %}
+        {% if o.reply_note %}
+        <div class="dim s-9942017">{{ o.reply_note }}</div>{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
