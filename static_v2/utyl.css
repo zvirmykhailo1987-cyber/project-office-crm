@@ -26,7 +26,13 @@
 .vhid-brend { font-size: 1.6rem; letter-spacing: .04em }
 .vhid-pomylka { max-inline-size: 26rem; margin: 0 auto var(--sp3) }
 .vhid-forma { padding: var(--sp4); max-inline-size: 26rem; margin-inline: auto }
-.vhid-demo { max-inline-size: 26rem; margin: var(--sp4) auto 0; text-align: center }
+.vhid-demo { max-inline-size: 26rem; margin: var(--sp4) auto 0; padding: var(--sp4); display: grid; gap: var(--sp2) }
+.vhid-demo p { margin: 0 }
+.vhid-demo-zag { margin: 0; font-size: 1rem }
+.demo-spysok { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp2) }
+.demo-akaunt { inline-size: 100%; display: grid; justify-items: start; gap: 2px; text-align: start;
+               block-size: auto; padding-block: var(--sp2); white-space: normal }
+.demo-smuha { display: block; margin-block-end: var(--sp3) }
 .gost-telo .mova-perem { justify-content: center; margin-block-start: var(--sp4) }
 
 /* ── Error pages ───────────────────────────────────────────────────────── */

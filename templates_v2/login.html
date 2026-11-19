@@ -2,7 +2,8 @@
 {% block title %}{{ _("Вхід — CRM проєктного офісу") }}{% endblock %}
 {% block body_gost %}
 {# Guest layout: no navigation rail and no list of accounts — the page reveals
-   nothing about who uses the system. #}
+   nothing about who uses the system. Demo mode is the one exception: it lists the
+   public demo accounts (synthetic data) so a visitor can sign in with one click. #}
 <div class="vhid-shapka">
   <b class="vhid-brend">{{ _("CRM проєктного офісу") }}</b>
   <span class="dim">{{ _("Біогаз та елеватори: обʼєкти, угоди, документи") }}</span>
@@ -34,7 +35,19 @@
 </form>
 
 {% if demo %}
-<p class="dim vhid-demo">{{ _("Демо-версія з вигаданими даними. Облікові записи — у DEMO.md.") }}</p>
+<section class="surf-panel vhid-demo" aria-labelledby="demo-zag">
+  <h2 class="vhid-demo-zag" id="demo-zag">{{ _("Демо-акаунти") }}</h2>
+  <p class="dim">{{ _("Демо-версія: усі дані вигадані й скидаються щоночі о 04:00 (CET).") }}
+    {{ _("Оберіть роль — форма заповниться.") }}</p>
+  <ul class="demo-spysok">
+    {% for login, rol, parol in demo_accounts %}
+    <li><button class="k-btn tykha demo-akaunt" type="button" data-login="{{ login }}" data-parol="{{ parol }}">
+      <b>{{ _(rol) }}</b>
+      <span class="dim">{{ _("Логін") }}: <code>{{ login }}</code> · {{ _("Пароль") }}: <code>{{ parol }}</code></span>
+    </button></li>
+    {% endfor %}
+  </ul>
+</section>
 {% endif %}
 {% include "_mova.html" %}
 {% endblock %}

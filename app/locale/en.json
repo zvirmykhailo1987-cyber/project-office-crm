@@ -525,7 +525,6 @@
  "Де": "Where",
  "Девелопмент": "Development",
  "Дедлайн пропущено": "Deadline missed",
- "Демо-версія з вигаданими даними. Облікові записи — у DEMO.md.": "Demo version with fictitious data. Accounts are in DEMO.md.",
  "Деталі": "Details",
  "Джерела": "Sources",
  "Джерела GAP підтверджено ($3–3,6 млн)": "GAP sources confirmed ($3–3.6M)",
@@ -2061,5 +2060,9 @@
  "✓ Підтвердив": "✓ Confirmed",
  "🟠 AI-чернетка — перевірте": "🟠 AI draft — please review",
  "Контракт #1 підписано (мандат Офіс↔інвестор)": "Contract #1 signed (Office↔investor mandate)",
- "LOI громади + due diligence фінансиста пройдено": "Community LOI + financier due diligence passed"
+ "LOI громади + due diligence фінансиста пройдено": "Community LOI + financier due diligence passed",
+ "Демо-акаунти": "Demo accounts",
+ "Демо-версія: усі дані вигадані й скидаються щоночі о 04:00 (CET).": "Demo version: all data is fictitious and resets every night at 04:00 CET.",
+ "Оберіть роль — форма заповниться.": "Pick a role to fill in the form.",
+ "Демо-акаунти спільні, тож у демо їх змінити не можна. Дані скидаються щоночі о 04:00 (CET).": "Demo accounts are shared and cannot be changed in the demo. Data resets every night at 04:00 CET."
 }

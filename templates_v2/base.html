@@ -94,13 +94,15 @@
         {% include "_mova.html" %}
         <form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button class="k-btn shchilna" type="submit">{{ _("Вийти") }}</button></form>
+        {% if not demo %}{# shared demo accounts: signing out everyone else is refused #}
         <form method="post" action="/logout/everywhere"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button class="k-btn tykha shchilna" type="submit">{{ _("Вийти на всіх пристроях") }}</button></form>
+          <button class="k-btn tykha shchilna" type="submit">{{ _("Вийти на всіх пристроях") }}</button></form>{% endif %}
       </div>
     </details>
   </header>
 
   <main class="kk-telo" id="vmist">
+{% if demo %}<p class="k-banner demo-smuha" role="note">{{ _("Демо-версія: усі дані вигадані й скидаються щоночі о 04:00 (CET).") }}</p>{% endif %}
 {% block vmist %}{% endblock %}
 <p class="avtorstvo">© 2026 Mykhailo Zvir · <a href="https://github.com/zvirmykhailo1987-cyber/project-office-crm/blob/main/LICENSE" rel="license">MIT License</a></p>
   </main>

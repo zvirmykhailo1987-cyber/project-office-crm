@@ -3,7 +3,8 @@
 
 /* App shell behaviour (no inline scripts: the CSP forbids them).
    - CSRF: every same-origin unsafe fetch/htmx request carries X-CSRF-Token.
-   - Mobile navigation rail toggle. */
+   - Mobile navigation rail toggle.
+   - Demo mode: one-click fill of the sign-in form. */
 (function () {
   "use strict";
   var D = document;
@@ -28,6 +29,17 @@
 
   D.addEventListener("htmx:configRequest", function (e) {
     if (UNSAFE.test(e.detail.verb || "")) e.detail.headers["X-CSRF-Token"] = TOKEN;
+  });
+
+  // Demo mode sign-in: a demo-account button fills the form (no inline handlers: CSP).
+  Array.prototype.forEach.call(D.querySelectorAll(".demo-akaunt"), function (k) {
+    k.addEventListener("click", function () {
+      var l = D.getElementById("l-login"), p = D.getElementById("l-parol");
+      if (!l || !p) return;
+      l.value = k.getAttribute("data-login");
+      p.value = k.getAttribute("data-parol");
+      p.focus();
+    });
   });
 
   var b = D.getElementById("rejka-perem");
