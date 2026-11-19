@@ -354,35 +354,47 @@ class BodySizeLimit:
                     await _too_large(send)
                     return
         seen = 0
+        too_large = False
 
         async def limited_receive() -> Any:
-            nonlocal seen
+            nonlocal seen, too_large
             message = await receive()
             if message["type"] == "http.request":
                 seen += len(message.get("body", b""))
                 if seen > limit:
-                    raise _BodyTooLarge
+                    too_large = True
+                    raise _BodyTooLarge()
             return message
 
+        started = False
+
+        async def guarded_send(message: Any) -> None:
+            # Once the body was cut, whatever the app answers to the broken stream (FastAPI
+            # turns a wrapped error into 400, a route may answer 500) is replaced by our 413.
+            nonlocal started
+            if too_large and not started:
+                return
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
         try:
-            await self.app(scope, limited_receive, send)
-        except BaseException as e:            # noqa: BLE001 — re-raised unless it is ours
-            # Starlette's BaseHTTPMiddleware layers wrap it in an ExceptionGroup.
-            if not _je_nadto_velyke(e):
+            await self.app(scope, limited_receive, guarded_send)
+        except Exception:
+            # The app failed because we cut its body (the error may arrive wrapped in an
+            # ExceptionGroup by BaseHTTPMiddleware layers): answer 413. Any other failure, or
+            # one after a response already started, is re-raised, never masked.
+            if not too_large or started:
                 raise
+        if too_large and not started:
             await _too_large(send)
 
 
-def _je_nadto_velyke(e: BaseException) -> bool:
-    if isinstance(e, _BodyTooLarge):
-        return True
-    if isinstance(e, BaseExceptionGroup):
-        return any(_je_nadto_velyke(x) for x in e.exceptions)
-    return False
+class _BodyTooLarge(HTTPException):
+    """Raised inside receive() when the streamed body passes the limit."""
 
-
-class _BodyTooLarge(Exception):
-    pass
+    def __init__(self) -> None:
+        super().__init__(413, "Request body too large")
 
 
 async def _too_large(send: Any) -> None:

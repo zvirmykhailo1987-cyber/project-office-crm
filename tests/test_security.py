@@ -344,3 +344,15 @@ def test_oversized_chunked_body_is_413_not_500(gist):
             yield b"x" * (KIT.small_body // 2)
     r = gist.post("/csp-report", content=body(), headers={"Content-Type": "application/csp-report"})
     assert r.status_code == 413
+
+
+def test_oversized_chunked_form_body_is_413(lyudy, gist):
+    """Routes with Form parameters parse the body inside FastAPI: still 413, never 400/500."""
+    tok = token(gist)
+
+    def body():
+        yield f"csrf_token={tok}&login=".encode()
+        for _ in range(4):
+            yield b"x" * (KIT.small_body // 2)
+    r = gist.post("/login", content=body(), headers={"Content-Type": "application/x-www-form-urlencoded"})
+    assert r.status_code == 413

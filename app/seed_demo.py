@@ -100,7 +100,7 @@ def seed(s: Session) -> dict:
         raise RuntimeError("seed_demo refuses to run in production")
     rnd = random.Random(SEED)  # noqa: S311 — deterministic demo data, not security  # nosec B311
     today = utcnow().date()
-    # A database that already holds data is never touched — not even its accounts: a production
+    # A database with any password-bearing account, counterparty, deal or document is never touched: a production
     # image started without OFIS_ENV=production must not get the published demo passwords.
     if (s.exec(select(Counterparty)).first() or s.exec(select(Deal)).first()
             or s.exec(select(Document)).first()

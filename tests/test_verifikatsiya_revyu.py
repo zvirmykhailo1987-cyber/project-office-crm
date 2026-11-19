@@ -78,7 +78,8 @@ def test_finalising_records_a_signing_date(engine, monkeypatch):
         app.dependency_overrides.clear()
     with Session(engine) as s:
         d = s.get(Document, did)
-        assert d.is_final and d.signed_at == date.today() or d.signed_at is not None
+        assert d.is_final is True
+        assert d.signed_at == date.today()
 
 
 @pytest.mark.parametrize("rol,ochik_zmina", [("perehovory_kontakt", False), ("perehovorschyk_dok", True)])
@@ -108,3 +109,33 @@ def test_undoing_an_approval_needs_the_right(engine, rol, ochik_zmina):
         app.dependency_overrides.clear()
     with Session(engine) as s:
         assert (s.get(Document, did).workflow_status == "na_pravtsi") is ochik_zmina
+
+
+@pytest.mark.parametrize("rol", ["zapyty_lysty", "perehovory_kontakt"])
+def test_leaving_ready_to_send_backwards_needs_the_right(engine, rol):
+    from fastapi.testclient import TestClient
+
+    from app.db import get_session
+    from app.main import app
+    from app.web.deps import current_user
+    from tests.conftest import z_csrf
+    with Session(engine) as s:
+        u = User(name=f"V {rol}", login=f"v_{rol}", role=rol)
+        s.add(u); s.commit()
+        d = Document(title="Doc", filename="d.md", workflow_status="do_vidpravlennya", created_by="Someone")
+        s.add(d); s.commit(); did = d.id
+        s.refresh(u); s.expunge(u)
+
+    def _sess():
+        with Session(engine) as sess:
+            yield sess
+    app.dependency_overrides[get_session] = _sess
+    app.dependency_overrides[current_user] = lambda: u
+    try:
+        c = z_csrf(TestClient(app, follow_redirects=False))
+        c.post(f"/dokumenty/{did}/status", data={"workflow_status": "na_pravtsi"})
+    finally:
+        app.dependency_overrides.clear()
+    with Session(engine) as s:
+        assert s.get(Document, did).workflow_status == "do_vidpravlennya"
+

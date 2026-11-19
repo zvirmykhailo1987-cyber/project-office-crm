@@ -329,8 +329,9 @@ def set_workflow(doc_id: int, workflow_status: str = Form(""),
         if _avtor(d, user):
             return redirect(f"/dokumenty/{doc_id}?err=samozatverdzhennya")
     # Undoing an approval is a decision too: approver or author only.
-    if d.workflow_status == "uzhodzheno" and workflow_status != "uzhodzheno" \
-            and not (user.can(CAP_APPROVE) or _avtor(d, user)) and workflow_status != "do_vidpravlennya":
+    pohodzheni = ("uzhodzheno", "do_vidpravlennya")
+    if d.workflow_status in pohodzheni and workflow_status not in pohodzheni + ("nadislano",) \
+            and not (user.can(CAP_APPROVE) or _avtor(d, user)):
         return redirect(f"/dokumenty/{doc_id}?err=prava")
     # «Надіслано» — факт відправлення; фіксує його лише той, хто веде реєстр.
     if workflow_status == "nadislano" and not user.can(CAP_SEND):

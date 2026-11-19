@@ -391,8 +391,7 @@ async def send(request: Request, text: str = Form(""), reply_to: str = Form(""),
         # це те, що потім шукають і за що відповідають.
         audit.log(s, user.name, "chat.file", entity="chat_message", entity_id=msg.id,
                   tier=audit.TIER_CHANGE,
-                  detail=" · ".join(f"{a.original_name} ({a.size_label})"
-                                    for a in zbereheni)[:200])
+                  detail=f"files: {len(zbereheni)}")   # no names: rooms may be private
 
     if zgadani:
         collab.notify_many(s, [u.name for u in zgadani], kind="chat",
