@@ -54,11 +54,17 @@ enable_error_code = ["union-attr", "attr-defined", "arg-type", "operator", "inde
 
 [tool.coverage.run]
 source = ["app"]
+branch = true
+# The demo seeder only writes synthetic showcase data; CI runs it before the PII scan.
 omit = ["app/seed_demo.py"]
 
 [tool.coverage.report]
 skip_covered = true
 show_missing = false
+# Line + branch coverage measured 95.9% (lines 97.4%, branches 90.8%); the gate is that, rounded down.
+fail_under = 95
+# Script entry points (`python -m ...`): the functions they call are tested directly.
+exclude_also = ['if __name__ == "__main__":']
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv"]
