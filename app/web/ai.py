@@ -4,6 +4,8 @@
 у робочі таблиці переноситься лише після «Підтвердити».
 """
 import json
+import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from sqlmodel import Session, select
@@ -30,6 +32,34 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_MB = 20
 
+# Що приймаємо на витяг. Розширення береться з імені клієнта, але САМЕ імʼя на
+# диск не потрапляє ніколи: раніше `UPLOAD_DIR / f"..._{file.filename}"` з
+# імʼям `x\..\..\pwned.txt` писало файл поза теку завантажень.
+DOZVOLENI_AI = {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".txt", ".md", ".csv",
+                ".xlsx", ".xlsm", ".docx"}
+
+
+def _pokaz_imya(syre: str | None) -> str:
+    """Оригінальне імʼя — лише як ДАНІ для показу (без шляху, обрізане)."""
+    imya = (syre or "").replace("\\", "/").rsplit("/", 1)[-1].strip()
+    return imya[:200] or "файл"
+
+
+def _shlyakh_zavantazhennya(syre: str | None) -> Path | None:
+    """Згенероване імʼя (uuid + дозволене розширення) усередині UPLOAD_DIR.
+
+    None — розширення поза білим списком. Вихід за межі теки неможливий за
+    побудовою, але перевіряємо й розвʼязаний шлях: це дешевше за інцидент.
+    """
+    ext = Path(_pokaz_imya(syre)).suffix.lower()
+    if ext not in DOZVOLENI_AI:
+        return None
+    koren = UPLOAD_DIR.resolve()
+    path = (koren / f"{utcnow():%Y%m%d_%H%M%S}_{uuid.uuid4().hex}{ext}").resolve()
+    if path.parent != koren:
+        return None
+    return path
+
 
 @router.get("/ai")
 def index(request: Request, user: User = Depends(current_user),
@@ -52,18 +82,24 @@ async def do_extract(request: Request, kind: str = Form("rahunok"),
 
     raw = await file.read()
     if len(raw) > MAX_MB * 1024 * 1024:
-        run = AiRun(kind=kind, engine="none", source_file=file.filename,
+        run = AiRun(kind=kind, engine="none", source_file=_pokaz_imya(file.filename),
                     error=f"Файл більший за {MAX_MB} МБ", created_by=user.name)
         s.add(run)
         s.commit()
         return redirect(f"/ai/{run.id}")
 
-    path = UPLOAD_DIR / f"{utcnow():%Y%m%d_%H%M%S}_{file.filename}"
+    path = _shlyakh_zavantazhennya(file.filename)
+    if path is None:
+        run = AiRun(kind=kind, engine="none", source_file=_pokaz_imya(file.filename),
+                    error="Тип файлу не підтримується", created_by=user.name)
+        s.add(run)
+        s.commit()
+        return redirect(f"/ai/{run.id}")
     path.write_bytes(raw)
 
     src = extract.read_file(path)
     if src.empty:
-        run = AiRun(kind=kind, engine="none", source_file=file.filename,
+        run = AiRun(kind=kind, engine="none", source_file=_pokaz_imya(file.filename),
                     source_chars=len(src.text),
                     error=src.note or "З файлу не вдалося дістати текст",
                     created_by=user.name)
@@ -79,7 +115,7 @@ async def do_extract(request: Request, kind: str = Form("rahunok"),
         r.data.setdefault("_site_id", int(site_id))
 
     run = AiRun(kind=kind, engine=r.engine, model=config.LLM_MODEL if r.engine == "llm" else "",
-                source_file=file.filename, source_chars=r.source_chars,
+                source_file=_pokaz_imya(file.filename), source_chars=r.source_chars,
                 output_json=json.dumps(r.data, ensure_ascii=False, indent=1),
                 schema_valid=r.schema_valid, fallback_used=r.fallback_used,
                 arithmetic_ok=(r.arithmetic.ok if r.arithmetic else None),

@@ -1,11 +1,10 @@
 """Воронки: канбан, картка угоди, переходи з гейтами, активності (ТЗ §4, Додаток Б)."""
-from datetime import date
-
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from sqlmodel import Session, select
 
 from .. import audit
 from ..db import get_session
+from ..i18n import _
 from ..models import (
     ACTIVITY_TYPES,
     CAP_CRM,
@@ -24,7 +23,7 @@ from ..models import (
     utcnow,
 )
 from ..services import collab, gates
-from .deps import current_user, redirect, render, require_cap, spivpratsya
+from .deps import current_user, data_z_formy, redirect, render, require_cap, spivpratsya
 
 router = APIRouter()
 
@@ -117,13 +116,15 @@ def create(title: str = Form(""), program: str = Form(""),
 
     cp_id = int(counterparty_id) if counterparty_id.strip().isdigit() else None
     cp = s.get(Counterparty, cp_id) if cp_id else None
+    # Дати розбираємо ДО першого запису: зіпсоване поле дає 400 без напівугоди
+    nastupna = data_z_formy(next_action_date)
+    doruchyty_do = data_z_formy(doruchyty_koly)
     d = Deal(program_id=prog.id, pipeline_id=pipe.id, stage_id=first.id,
              title=(title.strip() or (cp.name if cp else "Без назви")),
              counterparty_id=cp_id, owner=owner or user.name,
              probability=first.default_probability,
              next_action_note=next_action_note.strip(),
-             next_action_date=date.fromisoformat(next_action_date)
-             if next_action_date else None,
+             next_action_date=nastupna,
              created_by=user.name)
     s.add(d)
     s.flush()
@@ -135,7 +136,7 @@ def create(title: str = Form(""), program: str = Form(""),
         t = Task(title=scho, note=f"по проєкту «{d.title[:60]}»", assignee=komu,
                  source="vid_koleghy", deal_id=d.id,
                  counterparty_id=cp_id, created_by=user.name,
-                 due_date=date.fromisoformat(doruchyty_koly) if doruchyty_koly else None)
+                 due_date=doruchyty_do)
         s.add(t)
         s.flush()
         collab.notify(s, user=komu, kind="zavdannya",
@@ -198,6 +199,10 @@ def move(deal_id: int, stage_id: int = Form(...), confirm: str = Form(""),
     target = s.get(Stage, stage_id)
     if not d or not target:
         return redirect("/voronky")
+    # Стадія чужої воронки: угода «переїхала» б у інший напрям, лишившись із
+    # program_id/pipeline_id старого — і зникла б з обох канбанів.
+    if target.pipeline_id != d.pipeline_id:
+        raise HTTPException(400, _("Стадія належить іншій воронці — перенести угоду туди не можна"))
 
     res = gates.check(s, d, target)
     if not res.allowed:
@@ -237,20 +242,10 @@ def add_activity(deal_id: int, type: str = Form("Дзвінок"), outcome: str 
     # Автоперехід — за ПРАВИЛОМ СТАДІЇ, а не за зашитими кодами. Раніше тут
     # стояло «якщо code == dzvonyty, шукай стадію kontakt»: у новій воронці цієї
     # зручності не було б узагалі, доки хтось не назве стадії так само.
-    cur = s.get(Stage, d.stage_id)
-    if (cur and cur.avto_umova == "aktyvnist" and cur.avto_do_id
-            and a.type in ("Дзвінок", "WhatsApp", "Email") and a.outcome):
-        nxt = s.get(Stage, cur.avto_do_id)
-        # Ціль мусить лишатись у тій самій воронці: стадію могли перенести або
-        # видалити, і тоді угода поїхала б у чужий напрям.
-        if nxt and nxt.pipeline_id == d.pipeline_id:
-            d.stage_id = nxt.id
-            d.stage_entered_at = utcnow()
-            d.probability = nxt.default_probability
-            d.status = nxt.status_ugody
-            audit.log(s, user.name, "deal.stage.auto", entity="deal", entity_id=deal_id,
-                      tier=audit.TIER_CHANGE,
-                      detail=f"авто: {cur.title} → {nxt.title}")
+    # Рух — лише через гейт (`gates.avtoperekhid` викликає `gates.check`):
+    # раніше автоперехід минав гейт і проводив угоду туди, куди людину не пустило б.
+    if a.type in ("Дзвінок", "WhatsApp", "Email") and a.outcome:
+        gates.avtoperekhid(s, d, "aktyvnist", user.name)
     s.add(d)
     # Активність своєї сторінки не має — у стрічці веде на угоду.
     audit.log(s, user.name, "activity.create", entity="deal", entity_id=deal_id,
@@ -267,7 +262,7 @@ def set_next_action(deal_id: int, next_action_date: str = Form(""),
     d = s.get(Deal, deal_id)
     if not d:
         return redirect("/voronky")
-    d.next_action_date = date.fromisoformat(next_action_date) if next_action_date else None
+    d.next_action_date = data_z_formy(next_action_date)
     d.next_action_note = next_action_note.strip()
     d.updated_at = utcnow()
     s.add(d)
@@ -282,29 +277,29 @@ def add_document(deal_id: int, kind: str = Form(""), title: str = Form(""),
                  is_final: str = Form(""), signed_at: str = Form(""),
                  user: User = Depends(require_cap(CAP_CRM)),
                  s: Session = Depends(get_session)):
-    """Фіксація документа угоди. Позначка «фінальний» — Tier3 (ТЗ §9)."""
+    """Фіксація документа угоди — завжди ЧЕРНЕТКОЮ.
+
+    `is_final` тут свідомо ігнорується. Раніше один POST з `is_final=on` давав
+    документ, уже фінальний і «узгоджений», від імені самого автора — тобто
+    автор сам собі відкривав гейт воронки, минаючи затвердження й Tier3-
+    підтвердження. Фінальним документ робить затверджувач на його картці
+    (`/dokumenty/{id}/final`).
+    """
     d = s.get(Deal, deal_id)
     if not d or not kind.strip():
         return redirect(f"/voronky/{deal_id}")
 
-    final = is_final == "on"
     group = f"deal:{deal_id}:{kind.strip()}"
     prev = list(s.exec(select(Document).where(Document.doc_group_uid == group)))
     doc = Document(title=title.strip() or kind.strip(), kind=kind.strip(),
                    doc_group_uid=group, version=len(prev) + 1, deal_id=deal_id,
                    counterparty_id=d.counterparty_id, stage_id=d.stage_id,
-                   is_final=final,
-                   signed_at=date.fromisoformat(signed_at) if signed_at else None,
-                   workflow_status="uzhodzheno" if final else "chernetka",
+                   is_final=False, signed_at=data_z_formy(signed_at),
+                   workflow_status="chernetka",
                    uploaded_by=user.name, created_by=user.name)
     s.add(doc)
     s.flush()                     # потрібен doc.id — інакше стрічка не дасть посилання
     audit.log(s, user.name, "document.create", entity="document", entity_id=doc.id,
               tier=audit.TIER_CHANGE, detail=f"{kind} v{doc.version}")
-    if final:
-        # Tier3: позначка фінальності незворотна — фіксуємо підтвердження в аудиті
-        audit.log(s, user.name, "document.finalize", entity="document", entity_id=doc.id,
-                  tier=audit.TIER_IRREVERSIBLE, confirmed=True,
-                  detail=f"угода {deal_id}, вид {kind}")
     s.commit()
     return redirect(f"/voronky/{deal_id}")

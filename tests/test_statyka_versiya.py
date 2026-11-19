@@ -39,7 +39,8 @@ def test_shtamp_bere_naysvizhishyi_z_usih_fayliv():
     `_versiya_statyky()` — усе дерево, крім `vendor/`.
     """
     chasy = [int(f.stat().st_mtime)
-             for f in (KOREN / "static").rglob("*")
+             for d in ("static", "static_v2")
+             for f in (KOREN / d).rglob("*")
              if f.is_file() and f.suffix in (".css", ".js") and "vendor" not in f.parts]
     assert chasy, "у static/ немає жодного css/js — штамп нема з чого рахувати"
     assert _versiya_statyky() == str(max(chasy))

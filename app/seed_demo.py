@@ -100,9 +100,11 @@ def seed(s: Session) -> dict:
         raise RuntimeError("seed_demo refuses to run in production")
     rnd = random.Random(SEED)  # noqa: S311 — deterministic demo data, not security  # nosec B311
     today = utcnow().date()
-    users = _users(s)
+    # A database that already holds data is never touched — not even its accounts: a production
+    # image started without OFIS_ENV=production must not get the published demo passwords.
     if s.exec(select(Counterparty)).first():
         return {"skipped": True}
+    users = _users(s)
     made: dict[str, int] = {}
 
     # ── organisations, communities, people ──────────────────────────────────

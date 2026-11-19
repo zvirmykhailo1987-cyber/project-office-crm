@@ -172,6 +172,24 @@ def score_site(site: Site, *, has_phone=False, has_email=False) -> Result | None
                      feed_t=site.est_feedstock_t_year)
 
 
+def bez_danykh(res: Result | None) -> bool:
+    """Жодної складової з даними — це «немає даних», а не бал 0.0.
+
+    Нуль читався б як «перевірили — громада ні на що не годиться», хоча
+    насправді її ще ні про що не питали.
+    """
+    return res is None or all(c.missing for c in res.components)
+
+
+def prybraty(s: Session, site_id: int, model: str) -> int:
+    """Прибрати бал моделі з сайту (коли даних для нього не лишилось)."""
+    old = list(s.exec(select(Score).where(Score.site_id == site_id, Score.model == model)))
+    for o in old:
+        s.exec(delete(ScoreComponent).where(ScoreComponent.score_id == o.id))
+        s.delete(o)
+    return len(old)
+
+
 def save(s: Session, site_id: int, res: Result) -> Score:
     """Перезаписує бал сайту разом з компонентами (стара версія не накопичується)."""
     old = list(s.exec(select(Score).where(Score.site_id == site_id,

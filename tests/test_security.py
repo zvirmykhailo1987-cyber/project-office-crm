@@ -207,7 +207,7 @@ def test_post_without_csrf_token_is_403(lyudy, gist):
 def test_post_with_wrong_csrf_token_is_403(lyudy, gist):
     gist.get("/login")
     r = gist.post("/login", data={"login": "marko", "password": PAROL,
-                                  "csrf_token": "forged-token-forged-token"})
+                                  "csrf_token": "x" * 32})
     assert r.status_code == 403
 
 
@@ -255,13 +255,40 @@ def test_login_is_locked_after_repeated_failures(lyudy, gist):
     assert KIT.session_cookie not in r.cookies
 
 
-def test_lockout_is_per_login_and_per_ip(lyudy):
-    keys = LIMITER.keys("10.0.0.1", "marko")
+def test_lockout_policy_pair_ip_login():
+    """5 failures lock the (IP, login) pair only; a shared proxy IP or a victim's login is
+    locked only by much larger volumes (30 per IP, 50 per login)."""
+    LIMITER.reset_all()
     for _ in range(KIT.max_failures):
-        LIMITER.failure(keys)
-    assert LIMITER.retry_after(LIMITER.keys("10.0.0.1", "halyna")) > 0     # same IP
-    assert LIMITER.retry_after(LIMITER.keys("10.0.0.2", "marko")) > 0      # same login
-    assert LIMITER.retry_after(LIMITER.keys("10.0.0.2", "halyna")) == 0
+        LIMITER.failure(LIMITER.keys("10.0.0.1", "marko"))
+    assert LIMITER.retry_after(LIMITER.keys("10.0.0.1", "marko")) > 0          # the pair
+    assert LIMITER.retry_after(LIMITER.keys("10.0.0.1", "halyna")) == 0        # same IP, other login
+    assert LIMITER.retry_after(LIMITER.keys("10.0.0.2", "marko")) == 0         # other IP, same login
+    LIMITER.reset_all()
+    for i in range(KIT.max_failures_ip):
+        LIMITER.failure(LIMITER.keys("10.0.0.3", f"user{i}"))
+    assert LIMITER.retry_after(LIMITER.keys("10.0.0.3", "fresh")) > 0          # spraying from one IP
+    LIMITER.reset_all()
+    for i in range(KIT.max_failures_login):
+        LIMITER.failure(LIMITER.keys(f"10.1.{i}.1", "marko"))
+    assert LIMITER.retry_after(LIMITER.keys("10.9.9.9", "marko")) > 0          # distributed guessing
+
+
+def test_oversized_bodies_are_rejected_before_parsing(gist):
+    big = b"x" * (KIT.small_body + 1)
+    r = gist.post("/login", content=big, headers={"Content-Type": "application/x-www-form-urlencoded"})
+    assert r.status_code == 413
+    r = gist.post("/csp-report", content=big, headers={"Content-Type": "application/csp-report"})
+    assert r.status_code == 413
+    r = gist.post("/csp-report", content=b'{"csp-report": {"violated-directive": "style-src-attr"}}',
+                  headers={"Content-Type": "application/csp-report"})
+    assert r.status_code == 204
+
+
+def test_health_reveals_nothing_outside_dev(gist, monkeypatch):
+    from app import config
+    monkeypatch.setattr(config, "ENV", "demo")
+    assert gist.get("/health").json() == {"ok": True}
 
 
 # ── headers ──────────────────────────────────────────────────────────────────

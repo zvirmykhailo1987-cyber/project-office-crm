@@ -171,7 +171,7 @@ def test_pislya_perenesennya_vydalennya_prohodyt(baza, klient):
     # видалений рядок і впало на refresh, а не на змісті перевірки
     zvidky, kudy, did = st[2].id, st[1].id, d.id
     klient.post(f"/napryamy/biogaz/stadiya/{zvidky}/prybraty",
-                data={"kudy_ugody": str(kudy)})
+                data={"kudy_ugody": str(kudy), "confirm": "1"})
     baza.expire_all()
     assert baza.get(Stage, zvidky) is None
     assert baza.get(Deal, did).stage_id == kudy
@@ -183,7 +183,7 @@ def test_vydalennya_obnulyaye_avtoperehody_syudy(baza, klient):
     kontakt = next(x for x in st if x.code == "kontakt")
     assert dzvonyty.avto_do_id == kontakt.id      # посів відновив правило даними
     dz_id = dzvonyty.id
-    klient.post(f"/napryamy/biogaz/stadiya/{kontakt.id}/prybraty", data={})
+    klient.post(f"/napryamy/biogaz/stadiya/{kontakt.id}/prybraty", data={"confirm": "1"})
     baza.expire_all()
     d = baza.get(Stage, dz_id)
     assert d.avto_do_id is None and d.avto_umova == ""

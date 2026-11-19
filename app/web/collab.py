@@ -1,6 +1,4 @@
 """Роути співпраці: коментарі · затвердження · стрічка · сповіщення · доручення (Ф8)."""
-from datetime import date
-
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from sqlmodel import Session, select
 
@@ -23,7 +21,7 @@ from ..models import (
     utcnow,
 )
 from ..services import collab
-from .deps import current_user, redirect, render, require_cap
+from .deps import current_user, data_z_formy, redirect, render, require_cap
 
 router = APIRouter()
 
@@ -36,6 +34,24 @@ def _back(entity: str, entity_id: int, anchor: str = "spivpratsya"):
 def _check_entity(entity: str, entity_id: int):
     if entity not in ENTITIES or entity_id <= 0:
         raise HTTPException(400, f"Невідома сутність: {entity}")
+
+
+# Сутність → FK завдання. Хаб (`cluster`) був відсутній: доручення з картки хабу
+# лягало без звʼязку й не зʼявлялось на /haby/{id}.
+TASK_FK = {"deal": "deal_id", "site": "site_id", "counterparty": "counterparty_id",
+           "document": "document_id", "cluster": "cluster_id"}
+
+
+def _avtory_sutnosti(s: Session, entity: str, entity_id: int) -> set[str]:
+    """Хто автор сутності, яку затверджують (не лише той, хто подав)."""
+    from ..models import Deal, Document
+    if entity == "document":
+        d = s.get(Document, entity_id)
+        return {x for x in (d.created_by, d.uploaded_by) if x} if d else set()
+    if entity == "deal":
+        g = s.get(Deal, entity_id)
+        return {x for x in (g.owner, g.created_by) if x} if g else set()
+    return set()
 
 
 # ── КОМЕНТАРІ Й РЕКОМЕНДАЦІЇ ─────────────────────────────────────────────────
@@ -116,12 +132,11 @@ def comment_to_task(comment_id: int, assignee: str = Form(""), due_date: str = F
     c = s.get(Comment, comment_id)
     if not c:
         return redirect("/")
-    fk = {"deal": "deal_id", "site": "site_id", "counterparty": "counterparty_id",
-          "document": "document_id"}.get(c.entity)
+    fk = TASK_FK.get(c.entity)
     t = Task(title=c.text[:120], note=f"З рекомендації {c.author}",
              assignee=assignee or c.author, source="vid_komentarya",
              comment_id=c.id, created_by=user.name,
-             due_date=date.fromisoformat(due_date) if due_date else None,
+             due_date=data_z_formy(due_date),
              **({fk: c.entity_id} if fk else {}))
     s.add(t)
     s.flush()
@@ -180,7 +195,9 @@ def decide(approval_id: int, status: str = Form(...), note: str = Form(""),
     a = s.get(Approval, approval_id)
     if not a or not a.is_open:
         return redirect("/zatverdzhennya")
-    if a.submitted_by == user.name:
+    if a.submitted_by == user.name or user.name in _avtory_sutnosti(s, a.entity, a.entity_id):
+        # Друге правило ловить обхід через колегу: документ Богдана подає на
+        # затвердження хтось інший — і Богдан затверджує власну роботу.
         raise HTTPException(403, "Автор не затверджує власну роботу — це має зробити колега")
     if status not in ("zatverdzheno", "na_doopratsyuvannya"):
         return redirect("/zatverdzhennya")
@@ -196,11 +213,11 @@ def decide(approval_id: int, status: str = Form(...), note: str = Form(""),
         s.add(Comment(entity=a.entity, entity_id=a.entity_id, author=user.name,
                       text=note.strip(), kind="komentar", created_by=user.name))
 
-    # документ синхронізуємо зі станом рішення
+    # документ синхронізуємо зі станом рішення (фінальний — незмінний)
     if a.entity == "document":
         from ..models import Document
         d = s.get(Document, a.entity_id)
-        if d:
+        if d and not d.is_final:
             d.workflow_status = "uzhodzheno" if status == "zatverdzheno" else "na_pravtsi"
             d.updated_at = utcnow()
             s.add(d)
@@ -299,11 +316,10 @@ def quick_task(entity: str = Form(""), entity_id: str = Form(""),
         return _back(entity, int(entity_id)) if entity_id.isdigit() else redirect("/")
 
     eid = int(entity_id) if entity_id.isdigit() else None
-    fk = {"deal": "deal_id", "site": "site_id", "counterparty": "counterparty_id",
-          "document": "document_id"}.get(entity)
+    fk = TASK_FK.get(entity)
     t = Task(title=title, assignee=assignee, created_by=user.name,
              source="vid_koleghy" if assignee != user.name else "manual",
-             priority=priority, due_date=date.fromisoformat(due_date) if due_date else None,
+             priority=priority, due_date=data_z_formy(due_date),
              **({fk: eid} if fk and eid else {}))
     s.add(t)
     s.flush()

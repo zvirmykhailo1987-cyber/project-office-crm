@@ -4,7 +4,7 @@
 прострочені дії по угодах, черга документів, контроль відповідей — але екран один.
 """
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import func
 from sqlmodel import Session, select
@@ -24,6 +24,7 @@ from ..models import (
     Document,
     Notification,
     Outreach,
+    Program,
     Score,
     Site,
     Stage,
@@ -204,32 +205,51 @@ def build_day(s: Session, user: User) -> Day:
 # ── KPI ──────────────────────────────────────────────────────────────────────
 
 def kpi(s: Session, days: int = 30) -> dict:
+    """KPI офісу. Два різні роди чисел — і різниця важлива:
+
+    * ЗНІМОК (зараз): угоди в роботі, пайплайн, гігієна, відкриті завдання,
+      прострочені відповіді — від періоду не залежать;
+    * ПОТІК (за `days` днів): виграно/втрачено, надіслано/отримано відповідей,
+      створено документів. Раніше `since` лише виводився на екран, а рахувалось
+      усе за весь час — тож перемикач періоду нічого не міняв.
+    """
+    days = max(1, min(int(days or 30), 3650))
     since = date.today() - timedelta(days=days)
+    vid = datetime.combine(since, datetime.min.time())
     deals = list(s.exec(select(Deal)))
     active = [d for d in deals if d.status == "active"]
     stages = {st.id: st for st in s.exec(select(Stage))}
+    progs = {p.id: p for p in s.exec(select(Program))}
 
-    by_stage: dict[str, int] = {}
+    # Ключ — id стадії, не назва: «Контакт» є в кількох напрямах, і за назвою
+    # угоди різних воронок зливались в один стовпчик.
+    by_stage: dict[int, dict] = {}
     for d in active:
         st = stages.get(d.stage_id)
-        if st:
-            by_stage[st.title] = by_stage.get(st.title, 0) + 1
+        if st and st.id is not None:
+            if st.id not in by_stage:
+                prog = progs.get(d.program_id)
+                by_stage[st.id] = {"title": st.title,
+                                   "prog": prog.title if prog else "", "n": 0}
+            by_stage[st.id]["n"] += 1
 
     outreach = list(s.exec(select(Outreach)))
-    sent = [o for o in outreach if o.sent_at]
+    sent = [o for o in outreach if o.sent_at and o.sent_at >= vid]
     replied = [o for o in sent if o.reply_status == "otrymano"]
-    overdue = [o for o in sent if o.is_overdue]
+    overdue = [o for o in outreach if o.sent_at and o.is_overdue]
 
     tasks = list(s.exec(select(Task)))
     open_tasks = [t for t in tasks if t.is_open]
 
-    docs = list(s.exec(select(Document)))
+    docs = [d for d in s.exec(select(Document)) if d.created_at >= vid]
+    # Результат угоди датуємо входом на термінальну стадію
+    zakryti = [d for d in deals if d.stage_entered_at >= vid]
 
     return {
         "deals_total": len(deals),
         "deals_active": len(active),
-        "deals_won": len([d for d in deals if d.status == "won"]),
-        "deals_lost": len([d for d in deals if d.status == "lost"]),
+        "deals_won": len([d for d in zakryti if d.status == "won"]),
+        "deals_lost": len([d for d in zakryti if d.status == "lost"]),
         "by_stage": by_stage,
         "pipeline_value": round(sum((d.value or 0) * d.probability / 100
                                     for d in active)),

@@ -105,7 +105,15 @@ def tochky(response: Response, request: Request, karta: str = "biogaz",
     # Довжина POLYA — у підписі: інакше після додавання колонок браузер із
     # старим ETag отримує 304 і живе зі старою ФОРМОЮ рядків, а JS адресує
     # колонки, яких у кешованій відповіді немає.
-    pidpys = f"{karta}|{oblast}|{vsoho}|{z_koord}|{ostannya}|{len(KARTY[karta]['polya'])}"
+    # Бал і контрагент — окремі таблиці зі своїм часом зміни. Поки ETag бачив
+    # лише Site.updated_at, перерахунок балу чи правка телефону компанії не
+    # доходили до карти: браузер отримував 304 і показував старе.
+    baly = s.exec(select(func.max(Score.computed_at), func.count())
+                  .select_from(Score).where(Score.model == model)).one()
+    kontr = s.exec(select(func.max(Counterparty.updated_at), func.count())
+                   .select_from(Counterparty)).one()
+    pidpys = (f"{karta}|{oblast}|{vsoho}|{z_koord}|{ostannya}|{len(KARTY[karta]['polya'])}"
+              f"|{baly[0]}|{baly[1]}|{kontr[0]}|{kontr[1]}")
     etag = 'W/"' + hashlib.sha1(pidpys.encode("utf-8"), usedforsecurity=False).hexdigest()[:16] + '"'
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers={"ETag": etag})

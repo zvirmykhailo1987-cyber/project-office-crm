@@ -274,7 +274,16 @@ def zberegty_stadiyu(kod: str, sid: int, request: Request,
         st.default_probability = max(0, min(100, int(default_probability or 0)))
     except ValueError:
         pass
+    buv_rezultat = st.rezultat
     st.rezultat = rezultat if rezultat in REZULTATY else ""
+    if st.rezultat != buv_rezultat:
+        # Статус угоди — похідний від результату стадії, на якій вона стоїть.
+        # Без цього стадія ставала «виграшем», а угоди на ній лишались «в роботі»
+        # (і навпаки) — KPI й канбан показували різне.
+        for ugoda in s.exec(select(Deal).where(Deal.stage_id == st.id)):
+            ugoda.status = st.status_ugody
+            ugoda.updated_at = utcnow()
+            s.add(ugoda)
     st.avto_umova = avto_umova if avto_umova in AVTO_UMOVY else ""
     ciljova = s.get(Stage, int(avto_do_id)) if avto_do_id.isdigit() else None
     # Ціль автопереходу мусить бути в ТІЙ САМІЙ воронці й не собою — інакше
@@ -325,6 +334,7 @@ def perestavyty(kod: str, sid: int, kudy: str = Form("vgoru"),
 
 @router.post("/napryamy/{kod}/stadiya/{sid}/prybraty")
 def prybraty_stadiyu(kod: str, sid: int, kudy_ugody: str = Form(""),
+                     confirm: str = Form(""),
                      user: User = Depends(require_cap(CAP_ADMIN)),
                      s: Session = Depends(get_session)):
     """Прибрати стадію. Угоди на ній ОБОВʼЯЗКОВО переносяться.
@@ -342,10 +352,16 @@ def prybraty_stadiyu(kod: str, sid: int, kudy_ugody: str = Form(""),
         return redirect(f"/napryamy/{kod}?err=ostannya")
 
     ugody = list(s.exec(select(Deal).where(Deal.stage_id == sid)))
+    target: Stage | None = None
     if ugody:
         target = s.get(Stage, int(kudy_ugody)) if kudy_ugody.isdigit() else None
         if not target or target.pipeline_id != pipe.id or target.id == sid:
             return redirect(f"/napryamy/{kod}?err=kudy&sid={sid}")
+    # Tier3 (TIER3_ACTIONS["stage.delete"]): журнал уже писав confirmed=True,
+    # хоча жодного підтвердження не питали. Перевірка — після валідації форми,
+    # щоб помилка «куди перенести угоди» показувалась на своєму місці.
+    audit.require_confirm("stage.delete", bool(confirm))
+    if target is not None:
         for d in ugody:
             d.stage_id = target.id
             d.stage_entered_at = utcnow()

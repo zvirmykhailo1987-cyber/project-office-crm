@@ -257,11 +257,8 @@
             <label for="ds">{{ _("Дата підписання") }}</label>
             <input class="k-pole k-data" id="ds" type="date" name="signed_at">
           </div>
-          <label class="s-9f2e797">
-            <input class="k-praporets" type="checkbox" name="is_final">
-            <span>{{ _("фінальний") }} <span class="dim">{{ _("(незворотно)") }}</span></span>
-          </label>
           <button class="k-btn holovna" type="submit">{{ _("Додати") }}</button>
+          <p class="kk-chesnist">{{ _("Документ додається чернеткою. Фінальним його позначає затверджувач на картці документа.") }}</p>
           <p class="kk-chesnist">{{ _("Гейт відкриває лише документ, позначений") }}
             <b>{{ _("фінальним") }}</b> {{ _("і з датою підписання.") }}</p>
         </form>

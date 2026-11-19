@@ -7,12 +7,16 @@ from datetime import date
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy import case, func
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from .. import audit, config
 from ..db import get_session
 from ..fts import fts_upsert, search_ids
+from ..i18n import _
+from ..templating import bezpechnyi_url
 from ..models import (
     ACTIVITY_TYPES,
     CATEGORIES,
@@ -41,6 +45,8 @@ EDITABLE = {
     "phone", "phone2", "email", "website", "kved", "category", "roles", "tags",
     "notes", "data_status",
 }
+# Поля, що рендеряться посиланням (`href`) — приймаємо лише http(s)
+URL_POLYA = {"website"}
 
 
 def _apply_filters(stmt, p: dict):
@@ -198,7 +204,7 @@ def card(cp_id: int, request: Request, user: User = Depends(current_user),
     if ugody_ids:
         t_umova = t_umova | Task.deal_id.in_(ugody_ids)
     zavdannya = list(s.exec(
-        select(Task).where(t_umova, Task.status == "open")
+        select(Task).where(t_umova, Task.status.in_(["open", "in_progress"]))
         .order_by(Task.due_date.is_(None), Task.due_date).limit(20)))
 
     return render(request, "dovidnyk/card.html", user=user, cp=cp, persons=persons,
@@ -248,15 +254,33 @@ def edit_field(cp_id: int, field: str = Form(...), value: str = Form(""),
         value = norm_edrpou(value)
     elif field in ("phone", "phone2"):
         value = norm_phone(value)
+    elif field in URL_POLYA:
+        value = value.strip()
+        # Поле рендериться як href: `javascript:`/`data:` тут — це XSS в один клік
+        if value and not bezpechnyi_url(value):
+            return JSONResponse({"ok": False,
+                                 "error": _("Адреса має починатися з http:// або https://")},
+                                status_code=400)
     before = getattr(cp, field)
     if before == value:
         return {"ok": True, "value": value, "changed": False}
+    if field == "edrpou" and value:
+        inshyi = s.exec(select(Counterparty.id).where(Counterparty.edrpou == value,
+                                                      Counterparty.id != cp_id)).first()
+        if inshyi:
+            return {"ok": False,
+                    "error": _("Цей ЄДРПОУ вже має інший контрагент") + f" (#{inshyi})"}
     setattr(cp, field, value)
     cp.updated_at = utcnow()
     s.add(cp)
     audit.log(s, user.name, "counterparty.edit", entity="counterparty", entity_id=cp_id,
               tier=audit.TIER_CHANGE, detail=f"{field}: «{before}» → «{value}»")
-    s.commit()
+    try:
+        s.commit()
+    except IntegrityError:
+        # Унікальний індекс бази (uq_cp_edrpou) — на випадок гонки двох правок
+        s.rollback()
+        return {"ok": False, "error": _("Цей ЄДРПОУ вже має інший контрагент")}
     s.refresh(cp)
     fts_upsert(s, cp)
     s.commit()

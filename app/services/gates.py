@@ -54,5 +54,50 @@ def check(s: Session, deal: Deal, target: Stage) -> GateResult:
         if st.order < current.order or st.order >= target.order or st.is_terminal:
             continue
         missing += [k for k in st.required_list if k not in have]
+    # Виграшна термінальна стадія має ВЛАСНІ обовʼязкові документи («Угода» —
+    # договір, «8. Два підписи» — Контракт #2). Цикл вище їх не бачив: він
+    # перевіряє лише стадії, які покидаєш, тож «виграш» ставився без договору.
+    if target.is_won:
+        missing += [k for k in target.required_list if k not in have and k not in missing]
 
     return GateResult(not missing, missing, target.gate_criteria)
+
+
+def avtoperekhid(s: Session, deal: Deal, podiya: str, actor: str) -> Stage | None:
+    """Автоперехід угоди за правилом поточної стадії (`Stage.avto_umova`).
+
+    Одне місце для обох умов: «aktyvnist» (записано контакт із результатом) і
+    «dokument» (щойно закрито потрібний документ). Рух іде ЛИШЕ через гейт —
+    автоматика не має обходити те, що зупинило б людину.
+    Повертає нову стадію або None, якщо угода лишилась на місці.
+    """
+    from .. import audit
+    from ..models import utcnow
+
+    cur = s.get(Stage, deal.stage_id)
+    if not cur or cur.avto_umova != podiya or not cur.avto_do_id:
+        return None
+    nxt = s.get(Stage, cur.avto_do_id)
+    # Ціль мусить лишатись у тій самій воронці: стадію могли перенести або
+    # видалити, і тоді угода поїхала б у чужий напрям.
+    if not nxt or nxt.pipeline_id != deal.pipeline_id or nxt.id == cur.id:
+        return None
+    if podiya == "dokument":
+        # «Потрібний документ» — це обовʼязкові документи стадії; без вимог
+        # нема чого чекати, і рух за будь-яким файлом був би здогадкою.
+        if not cur.required_list:
+            return None
+        have = satisfied_doc_kinds(s, deal.id)
+        if any(k not in have for k in cur.required_list):
+            return None
+    if not check(s, deal, nxt).allowed:
+        return None
+    deal.stage_id = nxt.id
+    deal.stage_entered_at = utcnow()
+    deal.probability = nxt.default_probability
+    deal.status = nxt.status_ugody
+    deal.updated_at = utcnow()
+    s.add(deal)
+    audit.log(s, actor, "deal.stage.auto", entity="deal", entity_id=deal.id,
+              tier=audit.TIER_CHANGE, detail=f"авто: {cur.title} → {nxt.title}")
+    return nxt

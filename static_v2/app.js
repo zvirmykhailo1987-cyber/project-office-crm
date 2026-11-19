@@ -13,7 +13,8 @@
   window.fetch = function (input, init) {
     init = init || {};
     var url = typeof input === "string" ? input : (input && input.url) || "";
-    var sameOrigin = !/^[a-z]+:\/\//i.test(url) || url.indexOf(location.origin) === 0;
+    var sameOrigin = false;
+    try { sameOrigin = new URL(url, location.href).origin === location.origin; } catch (e) {}
     if (sameOrigin && UNSAFE.test(init.method || "GET")) {
       var h = new Headers(init.headers || {});
       if (!h.has("X-CSRF-Token")) h.set("X-CSRF-Token", TOKEN);

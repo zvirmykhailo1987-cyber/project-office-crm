@@ -1,4 +1,6 @@
 """Спільні залежності веб-шару: поточний користувач, рендер зі спільним контекстом."""
+from datetime import date
+
 from fastapi import Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlmodel import Session
@@ -28,6 +30,30 @@ def require_cap(cap: str):
             raise HTTPException(403, _("Ваша роль не має права на цю дію"))
         return user
     return _dep
+
+
+def data_z_formy(raw: str | None) -> date | None:
+    """Дата з поля форми: порожньо → None, сміття → 400 (а не 500).
+
+    `date.fromisoformat` на «31.12.2026» чи «завтра» кидав ValueError, і людина
+    бачила сторінку «помилка сервера» замість пояснення, що не так із полем.
+    """
+    v = (raw or "").strip()
+    if not v:
+        return None
+    try:
+        return date.fromisoformat(v)
+    except ValueError:
+        raise HTTPException(400, _("Некоректна дата: очікую формат РРРР-ММ-ДД")) from None
+
+
+def dni_vidpovidi(settings: dict, typovo: int = 14) -> int:
+    """`outreach.reply_days` з налаштувань; зіпсоване значення → типові 14 днів."""
+    try:
+        n = int(str(settings.get("outreach.reply_days") or typovo).strip())
+    except (TypeError, ValueError):
+        return typovo
+    return n if 0 < n <= 3650 else typovo
 
 
 def spivpratsya(s, entity: str, entity_id: int) -> dict:
@@ -71,7 +97,11 @@ def _versiya_statyky() -> str:
     """
     import time
     from pathlib import Path
-    statyka = Path(__file__).resolve().parents[2] / "static"
+    koren = Path(__file__).resolve().parents[2]
+    # Обидва дерева: `static/` (бібліотека, токени) і `static_v2/` (скрипти
+    # екранів). Поки рахувалось лише перше, правка `static_v2/*.js` не скидала
+    # кеш — браузер жив зі старим кодом під новою розміткою.
+    katalogy = (koren / "static", koren / "static_v2")
 
     # Обходимо ВСЕ дерево, а не список файлів. Список вівся руками й устиг
     # застаріти: 06.08.2026 у ньому не було жодного `karta/*.js`, хоча саме вони
@@ -82,15 +112,16 @@ def _versiya_statyky() -> str:
     # `vendor/` пропускаємо: вкладені бібліотеки версіонуються іменем файла й
     # важать більше за решту разом узяту — обходити їх щозапиту марно.
     mtimes = []
-    try:
-        for f in statyka.rglob("*"):
-            if not f.is_file() or f.suffix not in (".css", ".js"):
-                continue
-            if "vendor" in f.parts:
-                continue
-            mtimes.append(int(f.stat().st_mtime))
-    except OSError:
-        pass
+    for statyka in katalogy:
+        try:
+            for f in statyka.rglob("*"):
+                if not f.is_file() or f.suffix not in (".css", ".js"):
+                    continue
+                if "vendor" in f.parts:
+                    continue
+                mtimes.append(int(f.stat().st_mtime))
+        except OSError:
+            pass
     return str(max(mtimes)) if mtimes else str(int(time.time()))
 
 

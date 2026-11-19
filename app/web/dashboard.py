@@ -94,7 +94,7 @@ def home(request: Request, user: User = Depends(current_user),
     pochatok = date.today() - timedelta(days=13)
     podii = list(s.exec(select(AuditEntry.at).where(
         AuditEntry.at >= datetime.combine(pochatok, datetime.min.time()),
-        AuditEntry.action != "auth.login")))
+        AuditEntry.action.not_in(collab.FEED_SKIP))))
     za_dnyamy = {pochatok + timedelta(days=i): 0 for i in range(14)}
     for (koly,) in ((p,) if not isinstance(p, tuple) else p for p in podii):
         d = koly.date()

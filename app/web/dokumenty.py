@@ -1,8 +1,10 @@
 """Документи, шаблони, потік узгодження, запити й листи (ТЗ §4a, модулі M8/M14)."""
+import hashlib
+import shutil
 from datetime import date, timedelta
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import func
 from sqlmodel import Session, select
@@ -20,17 +22,28 @@ from ..models import (
     REPLY_STATUSES,
     WORKFLOW,
     Counterparty,
+    Deal,
     DocTemplate,
     Document,
     Outreach,
     Person,
     Setting,
     Site,
+    Task,
     User,
     utcnow,
 )
-from ..services import docgen
-from .deps import current_user, redirect, render, require_cap, spivpratsya
+from ..services import docgen, gates
+from ..i18n import _
+from .deps import (
+    current_user,
+    data_z_formy,
+    dni_vidpovidi,
+    redirect,
+    render,
+    require_cap,
+    spivpratsya,
+)
 
 router = APIRouter()
 
@@ -53,6 +66,45 @@ def _slug(text: str) -> str:
         "abvhgdeezzyiijklmnoprstufhccssyuaABVHGDEEZZYIIJKLMNOPRSTUFHCCSSYUA")
     out = (text or "").translate(table)
     return "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in out)[:60] or "doc"
+
+
+def _mitka_hrupy(group_uid: str) -> str:
+    """Коротка стабільна мітка групи документа для імені файлу.
+
+    Без неї імʼя складалось лише з виду й назви: два документи «KP — Сокаль»
+    різних громад отримували той самий `KP_Sokal_v1.docx`, і другий тихо
+    перезаписував перший на диску.
+    """
+    return hashlib.sha1(group_uid.encode("utf-8"), usedforsecurity=False).hexdigest()[:8]
+
+
+def _avtor(d: Document, user: User) -> bool:
+    """Чи людина — автор документа (створила або завантажила)."""
+    return user.name in {x for x in (d.created_by, d.uploaded_by) if x}
+
+
+def _fayl_dokumenta(d: Document) -> Path | None:
+    """Де лежать байти документа. Ті самі два корені, що й у `download`."""
+    path = config.DOCS_DIR / d.filename if d.filename else None
+    if d.stored_path:
+        kand = Path(d.stored_path)
+        koreni = (config.DOCS_DIR.resolve(), config.CHAT_DIR.resolve())
+        if kand.exists() and kand.resolve().parent in koreni:
+            path = kand
+    return path if path and path.exists() else None
+
+
+# Дозволені переходи стану документа. «Узгоджено» — лише через рішення
+# затверджувача; «до відправлення» — лише після узгодження; «надіслано» —
+# фінальна точка робочого циклу, далі тільки архів.
+PEREKHODY: dict[str, set[str]] = {
+    "chernetka": {"na_pravtsi", "uzhodzheno", "arkhiv"},
+    "na_pravtsi": {"chernetka", "uzhodzheno", "arkhiv"},
+    "uzhodzheno": {"na_pravtsi", "do_vidpravlennya", "arkhiv"},
+    "do_vidpravlennya": {"nadislano", "na_pravtsi", "arkhiv"},
+    "nadislano": {"arkhiv"},
+    "arkhiv": {"chernetka"},
+}
 
 
 # ── шаблони ──────────────────────────────────────────────────────────────────
@@ -107,10 +159,15 @@ def generate(tpl_id: int, site_id: str = Form(""), counterparty_id: str = Form("
     ctx = docgen.build_context(site=site, counterparty=cp, settings=_settings(s))
     filled = docgen.fill(t.body_md, ctx)
 
-    group_uid = f"tpl:{t.code}:{site.id if site else (cp.id if cp else 'general')}"
+    # Ключ групи — з ТИПОМ сутності: «tpl:KP:3» раніше означало і громаду №3, і
+    # контрагента №3, тож версії двох різних адресатів зливались в одну групу.
+    vlasnyk = (f"site:{site.id}" if site else
+               (f"counterparty:{cp.id}" if cp else "general"))
+    group_uid = f"tpl:{t.code}:{vlasnyk}"
     prev = list(s.exec(select(Document).where(Document.doc_group_uid == group_uid)))
     version = len(prev) + 1
-    base = f"{_slug(t.code)}_{_slug(site.name if site else (cp.name if cp else 'zahalnyi'))}_v{version}"
+    base = (f"{_slug(t.code)}_{_slug(site.name if site else (cp.name if cp else 'zahalnyi'))}"
+            f"_{_mitka_hrupy(group_uid)}_v{version}")
 
     out = docgen.render(filled.text, basename=base, title=t.title,
                         formats=tuple(t.output_formats.split(",")))
@@ -172,7 +229,7 @@ def document_card(doc_id: int, request: Request, user: User = Depends(current_us
     return render(request, "dokumenty/card.html", user=user, d=d, versions=versions,
                   cp=cp, persons=persons, sent=sent, text=text, unresolved=unresolved,
                   workflow=WORKFLOW, channels=CHANNELS,
-                  reply_days=int(_settings(s).get("outreach.reply_days") or 14),
+                  reply_days=dni_vidpovidi(_settings(s)),
                   **spivpratsya(s, "document", doc_id))
 
 
@@ -219,13 +276,15 @@ async def upload(request: Request, kind: str = Form(""), title: str = Form(""),
 
     did = int(deal_id) if deal_id.strip().isdigit() else None
     cpid = int(counterparty_id) if counterparty_id.strip().isdigit() else None
-    group = f"upload:{kind or 'fayl'}:{did or cpid or 'zahalnyi'}"
+    vlasnyk = (f"deal:{did}" if did else
+               (f"counterparty:{cpid}" if cpid else "zahalnyi"))
+    group = f"upload:{kind or 'fayl'}:{vlasnyk}"
     prev = list(s.exec(select(Document).where(Document.doc_group_uid == group)))
     version = len(prev) + 1
 
     # Ім'я на диску робимо своє — щоб два «Презентація.pptx» не затерли один одного
-    dest = config.DOCS_DIR / f"{_slug(kind or 'fayl')}_{group.replace(':', '-')}" \
-                             f"_v{version}{Path(imya).suffix.lower()}"
+    dest = config.DOCS_DIR / f"{_slug(kind or 'fayl')}_{_slug(vlasnyk)}" \
+                             f"_{_mitka_hrupy(group)}_v{version}{Path(imya).suffix.lower()}"
     dest.parent.mkdir(parents=True, exist_ok=True)
     danci = await fayl.read()
     if len(danci) > MAX_ROZMIR_FAYLU:
@@ -254,16 +313,26 @@ def set_workflow(doc_id: int, workflow_status: str = Form(""),
     d = s.get(Document, doc_id)
     if not d or workflow_status not in WORKFLOW:
         return redirect(f"/dokumenty/{doc_id}")
+    # Фінальний документ незмінний — і його стан теж: інакше «фінальний»
+    # договір можна було повернути в чернетку кнопкою.
+    if d.is_final:
+        return redirect(f"/dokumenty/{doc_id}?err=finalnyi")
+    if workflow_status == d.workflow_status:
+        return redirect(f"/dokumenty/{doc_id}")
+    if workflow_status not in PEREKHODY.get(d.workflow_status, set(WORKFLOW)):
+        return redirect(f"/dokumenty/{doc_id}?err=perekhid")
     # Ф8: «узгоджено» — це рішення, а не самообслуговування. Раніше сюди проходив
     # автор і адміністратор, тобто автор затверджував сам себе.
     if workflow_status == "uzhodzheno":
         if not user.can(CAP_APPROVE):
             return redirect(f"/dokumenty/{doc_id}?err=lyshe-zatverdzhuvach")
-        if d.created_by == user.name:
+        if _avtor(d, user):
             return redirect(f"/dokumenty/{doc_id}?err=samozatverdzhennya")
+    # «Надіслано» — факт відправлення; фіксує його лише той, хто веде реєстр.
+    if workflow_status == "nadislano" and not user.can(CAP_SEND):
+        return redirect(f"/dokumenty/{doc_id}?err=prava")
     if workflow_status == "do_vidpravlennya" \
-            and not (user.can(CAP_APPROVE) or user.can(CAP_SEND)
-                     or d.created_by == user.name):
+            and not (user.can(CAP_APPROVE) or user.can(CAP_SEND) or _avtor(d, user)):
         return redirect(f"/dokumenty/{doc_id}?err=prava")
 
     was = d.workflow_status
@@ -279,21 +348,39 @@ def set_workflow(doc_id: int, workflow_status: str = Form(""),
 
 @router.post("/dokumenty/{doc_id}/final")
 def finalize(doc_id: int, confirm: str = Form(""), signed_at: str = Form(""),
-             user: User = Depends(current_user), s: Session = Depends(get_session)):
-    """Tier3: позначка «фінальний» незворотна — після неї документ не змінюється."""
+             user: User = Depends(require_cap(CAP_APPROVE)),
+             s: Session = Depends(get_session)):
+    """Tier3: позначка «фінальний» незворотна — після неї документ не змінюється.
+
+    Фінальність = затвердження (стан «узгоджено») і ключ до гейтів воронки,
+    тому правила ті самі, що в рішення затверджувача: право CAP_APPROVE, не
+    власний документ, окреме підтвердження, і лише один раз.
+    """
     d = s.get(Document, doc_id)
     if not d:
         return redirect("/dokumenty")
+    if d.is_final:
+        raise HTTPException(409, _("Документ уже фінальний — повторно позначити не можна"))
+    if _avtor(d, user):
+        raise HTTPException(403, _("Автор не затверджує власну роботу — це має зробити колега"))
+    pidpysano = data_z_formy(signed_at)
     audit.require_confirm("document.finalize", confirm == "yes")
     d.is_final = True
     d.workflow_status = "uzhodzheno"
-    if signed_at:
-        d.signed_at = date.fromisoformat(signed_at)
+    if pidpysano:
+        d.signed_at = pidpysano
     d.updated_at = utcnow()
     s.add(d)
     audit.log(s, user.name, "document.finalize", entity="document", entity_id=doc_id,
               tier=audit.TIER_IRREVERSIBLE, confirmed=True,
               detail=f"{d.kind} v{d.version}")
+    # Автоперехід «щойно прикріплено потрібний документ» — тепер, коли документ
+    # справді закриває гейт (фінальний і підписаний).
+    if d.deal_id:
+        deal = s.get(Deal, d.deal_id)
+        if deal:
+            s.flush()
+            gates.avtoperekhid(s, deal, "dokument", user.name)
     s.commit()
     return redirect(f"/dokumenty/{doc_id}")
 
@@ -308,10 +395,19 @@ def new_version(doc_id: int, note: str = Form(""),
         return redirect("/dokumenty")
     prev = list(s.exec(select(Document).where(Document.doc_group_uid == d.doc_group_uid)))
     src_md = (config.DOCS_DIR / d.filename).with_suffix(".md")
-    text = src_md.read_text(encoding="utf-8") if src_md.exists() else ""
-    base = f"{_slug(d.kind)}_{_slug(d.title)}_v{len(prev) + 1}"
-    out = docgen.render(text, basename=base, title=d.title)
-    main = out.get("docx") or out["md"]
+    base = f"{_slug(d.kind)}_{_slug(d.title)}_{_mitka_hrupy(d.doc_group_uid)}_v{len(prev) + 1}"
+    oryginal = _fayl_dokumenta(d)
+    if src_md.exists() or oryginal is None or oryginal.suffix.lower() == ".md":
+        # Документ із тексту (шаблон) — перегенеровуємо з його markdown
+        text = src_md.read_text(encoding="utf-8") if src_md.exists() else ""
+        out = docgen.render(text, basename=base, title=d.title)
+        main = out.get("docx") or out["md"]
+    else:
+        # Завантажений файл (PPTX з Canva, PDF, скан): тексту в нього немає, і
+        # раніше нова версія ставала ПОРОЖНІМ docx. Копіюємо оригінал як є.
+        main = config.DOCS_DIR / f"{base}{oryginal.suffix.lower()}"
+        main.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(oryginal, main)
 
     nd = Document(title=d.title, kind=d.kind, doc_group_uid=d.doc_group_uid,
                   version=len(prev) + 1, filename=main.name, stored_path=str(main),
@@ -358,9 +454,8 @@ def mark_sent(document_id: str = Form(""), counterparty_id: str = Form(""),
               s: Session = Depends(get_session)):
     """Фіксація факту відправлення. Система НЕ надсилає — надсилає людина (ТЗ §9)."""
     d = s.get(Document, int(document_id)) if document_id.isdigit() else None
-    days = int(_settings(s).get("outreach.reply_days") or 14)
-    due = date.fromisoformat(reply_due_date) if reply_due_date \
-        else date.today() + timedelta(days=days)
+    days = dni_vidpovidi(_settings(s))
+    due = data_z_formy(reply_due_date) or date.today() + timedelta(days=days)
 
     o = Outreach(document_id=d.id if d else None,
                  document_version=d.version if d else 1,
@@ -373,7 +468,9 @@ def mark_sent(document_id: str = Form(""), counterparty_id: str = Form(""),
                  sent_at=utcnow(), sent_by=user.name, reply_due_date=due,
                  created_by=user.name)
     s.add(o)
-    if d:
+    # Стан фінального документа не чіпаємо (він незмінний); сам факт відправлення
+    # все одно лягає в реєстр листів.
+    if d and not d.is_final:
         d.workflow_status = "nadislano"
         d.updated_at = utcnow()
         s.add(d)
@@ -400,6 +497,16 @@ def mark_reply(outreach_id: int, reply_status: str = Form("otrymano"),
     o.reply_note = reply_note.strip()
     o.updated_at = utcnow()
     s.add(o)
+    # Відповідь записано — завдання «перевірити відповідь» більше не актуальне.
+    # Без цього воно висіло відкритим і прострочувалось у «моєму дні» людини,
+    # яка вже все зробила.
+    if reply_status != "chekaiemo":
+        for t in s.exec(select(Task).where(Task.outreach_id == outreach_id,
+                                           Task.source == "outreach_due",
+                                           Task.status.in_(["open", "in_progress"]))):
+            t.status, t.done_at, t.done_by = "done", utcnow(), user.name
+            t.updated_at = utcnow()
+            s.add(t)
     audit.log(s, user.name, "outreach.reply", entity="outreach", entity_id=outreach_id,
               tier=audit.TIER_CHANGE, detail=REPLY_STATUSES[reply_status])
     s.commit()

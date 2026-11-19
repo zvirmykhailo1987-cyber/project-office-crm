@@ -16,8 +16,11 @@ What it provides
   ``X-CSRF-Token`` header on every unsafe request; Origin/Referer must match the
   host when the browser sends them. Bearer-token API prefixes are exempt: they
   never authenticate with cookies.
-* **Login rate limiting** — failures are counted per client IP and per login;
-  after ``max_failures`` within ``window`` seconds the key is locked out.
+* **Login rate limiting** — failures are counted per (client IP, login) pair, per IP
+  and per login, each with its own threshold: a single client cannot lock everyone
+  out, and one burst cannot lock a victim's account for everybody.
+* **Request size limits** — an ASGI guard rejects oversized bodies (413) before any
+  form or upload is parsed; sign-in and CSP-report bodies have a much smaller cap.
 * **Security headers** — strict CSP with a per-request nonce, ``nosniff``,
   ``frame-ancestors 'none'``, ``Referrer-Policy``, ``Permissions-Policy``,
   COOP/CORP and HSTS in production.
@@ -63,9 +66,14 @@ class KitConfig:
     secure_cookies: bool = False        # True in production (HTTPS only)
     session_ttl: int = 60 * 60 * 24 * 7  # absolute lifetime, seconds
     idle_timeout: int = 60 * 60 * 8      # inactivity timeout, seconds
-    max_failures: int = 5
+    max_failures: int = 5            # per (IP, login) pair
+    max_failures_ip: int = 30        # per client IP, any logins
+    max_failures_login: int = 50     # per login, from any IPs (slows distributed guessing)
     failure_window: int = 15 * 60
     lockout: int = 15 * 60
+    max_body: int = 26 * 1024 * 1024     # bytes; uploads included
+    small_body: int = 16 * 1024          # sign-in, logout, CSP reports
+    small_body_paths: tuple[str, ...] = ("/login", "/logout", "/csp-report")
     csrf_exempt_prefixes: tuple[str, ...] = ("/api/", "/csp-report")
     # extra CSP sources, e.g. {"img-src": ["https://tile.openstreetmap.org"]}
     csp_extra: dict[str, list[str]] = field(default_factory=dict)
@@ -229,7 +237,15 @@ class LoginLimiter:
 
     @staticmethod
     def keys(ip: str, login: str) -> list[str]:
-        return [f"ip:{ip}", f"user:{login.strip().lower()[:64]}"]
+        login = login.strip().lower()[:64]
+        return [f"pair:{ip}|{login}", f"ip:{ip}", f"user:{login}"]
+
+    def _limit(self, key: str) -> int:
+        if key.startswith("ip:"):
+            return self.cfg.max_failures_ip
+        if key.startswith("user:"):
+            return self.cfg.max_failures_login
+        return self.cfg.max_failures
 
     def retry_after(self, keys: list[str]) -> int:
         """Seconds until the caller may try again; 0 = allowed."""
@@ -247,14 +263,14 @@ class LoginLimiter:
                 q.append(now)
                 while q and now - q[0] > self.cfg.failure_window:
                     q.popleft()
-                if len(q) >= self.cfg.max_failures:
+                if len(q) >= self._limit(k):
                     self._locked[k] = now + self.cfg.lockout
                     q.clear()
 
     def success(self, keys: list[str]) -> None:
         with self._lock:
             for k in keys:
-                if k.startswith("user:"):
+                if k.startswith("pair:"):
                     self._fails.pop(k, None)
                     self._locked.pop(k, None)
 
@@ -300,6 +316,67 @@ async def csrf_protect(request: Request) -> None:
         raise HTTPException(403, "CSRF check failed. Reload the page and try again.")
 
 
+_CSP_LOG = {"window": 0.0, "n": 0}
+
+
+def _csp_log_allowed(per_minute: int = 30) -> bool:
+    """At most `per_minute` CSP violation lines per minute: reports cannot flood the log."""
+    now = time.monotonic()
+    if now - _CSP_LOG["window"] > 60:
+        _CSP_LOG["window"], _CSP_LOG["n"] = now, 0
+    _CSP_LOG["n"] += 1
+    return _CSP_LOG["n"] <= per_minute
+
+
+class BodySizeLimit:
+    """Pure ASGI guard: 413 for bodies over the limit, checked on Content-Length AND while
+    streaming (chunked uploads), before FastAPI parses any form or file part."""
+
+    def __init__(self, app: Any, cfg: KitConfig) -> None:
+        self.app, self.cfg = app, cfg
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope["type"] != "http" or scope["method"] in ("GET", "HEAD", "OPTIONS"):
+            await self.app(scope, receive, send)
+            return
+        path = scope.get("path", "")
+        limit = self.cfg.small_body if path in self.cfg.small_body_paths else self.cfg.max_body
+        for name, value in scope.get("headers", []):
+            if name == b"content-length":
+                try:
+                    if int(value) > limit:
+                        await _too_large(send)
+                        return
+                except ValueError:
+                    await _too_large(send)
+                    return
+        seen = 0
+
+        async def limited_receive() -> Any:
+            nonlocal seen
+            message = await receive()
+            if message["type"] == "http.request":
+                seen += len(message.get("body", b""))
+                if seen > limit:
+                    raise _BodyTooLarge
+            return message
+
+        try:
+            await self.app(scope, limited_receive, send)
+        except _BodyTooLarge:
+            await _too_large(send)
+
+
+class _BodyTooLarge(Exception):
+    pass
+
+
+async def _too_large(send: Any) -> None:
+    await send({"type": "http.response.start", "status": 413,
+                "headers": [(b"content-type", b"text/plain; charset=utf-8"), (b"connection", b"close")]})
+    await send({"type": "http.response.body", "body": b"Request body too large"})
+
+
 # ── Security headers + per-request state ─────────────────────────────────────
 def _csp(nonce: str, cfg: KitConfig) -> str:
     d: dict[str, list[str]] = {
@@ -322,18 +399,18 @@ def _csp(nonce: str, cfg: KitConfig) -> str:
 
 
 def install(app: FastAPI, cfg: KitConfig) -> None:
-    """Register the security middleware (and the CSP report sink) on a FastAPI app."""
+    """Register the security middleware, the body-size guard and the CSP report sink."""
     app.state.authkit = cfg
 
     @app.post("/csp-report", include_in_schema=False, status_code=204)
     async def _csp_report(request: Request) -> Response:
         """Browsers POST CSP violations here; we log a short, size-capped summary."""
-        body = (await request.body())[:16_384]
+        body = (await request.body())[:16_384]       # the size guard already capped the stream
         try:
             rep = json.loads(body or b"{}").get("csp-report", {})
         except (ValueError, AttributeError):
             rep = {}
-        if isinstance(rep, dict) and rep:
+        if isinstance(rep, dict) and rep and _csp_log_allowed():
             _LOG.warning("csp-violation %s blocked=%s source=%s:%s sample=%r",
                          str(rep.get("violated-directive", ""))[:60], str(rep.get("blocked-uri", ""))[:120],
                          str(rep.get("source-file", ""))[:120], rep.get("line-number"),
@@ -362,3 +439,5 @@ def install(app: FastAPI, cfg: KitConfig) -> None:
             response.set_cookie(cfg.csrf_cookie, request.state.csrf_token, path="/",
                                 httponly=True, samesite="strict", secure=cfg.secure_cookies)
         return response
+
+    app.add_middleware(BodySizeLimit, cfg=cfg)

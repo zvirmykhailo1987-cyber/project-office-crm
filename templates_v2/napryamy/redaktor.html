@@ -171,6 +171,8 @@
           {{ _("лишились би на неіснуючій стадії.") }}</p>
         {% endif %}
         {% endif %}
+        <label class="chk"><input type="checkbox" name="confirm" value="1" required>
+          {{ _("Підтверджую: стадію буде прибрано назавжди") }}</label>
         <button class="btn-quiet danger"
                 {% if stadiyi|length <= 1 %}disabled{% endif %}>{{ _("Прибрати стадію") }}</button>
       </form>

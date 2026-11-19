@@ -9,6 +9,7 @@
 <p class="kk-chesnist s-c9996a7">
   <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-kpi"></use></svg>
   {{ _("Усе обчислюється з даних системи — жодного ручного зведення.") }}
+  {{ _("Виграно, втрачено, листи й документи — за останні") }} {{ k.days }} {{ _("дн.") }}
 </p>
 
 <h2 class="metryka-h s-bdbc1ed">{{ _("Воронки") }}</h2>
@@ -42,8 +43,8 @@
 <section class="surf-panel s-0519a0a">
   <div id="chart-stadii"></div>
   <script type="application/json" id="dani-stadii">
-    [{% for title, n in k.by_stage.items() %}
-      {"label": {{ title|tojson }}, "value": {{ n }}}{{ "," if not loop.last }}
+    [{% for sid, r in k.by_stage.items() %}
+      {"label": {{ (r.title ~ (" · " ~ r.prog if r.prog else ""))|tojson }}, "value": {{ r.n }}}{{ "," if not loop.last }}
     {% endfor %}]
   </script>
 </section>

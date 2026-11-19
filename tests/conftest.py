@@ -2,6 +2,7 @@
 import os
 
 os.environ.setdefault("UI_DEFAULT_LANG", "uk")
+os.environ.setdefault("OFIS_ENV", "dev")
 import pytest
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine

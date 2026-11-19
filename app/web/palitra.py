@@ -21,6 +21,7 @@ from sqlmodel import Session, select
 
 from ..db import get_session
 from ..fts import search_ids
+from ..i18n import translate
 from ..models import Counterparty, Deal, Task, User
 from .deps import current_user, render
 
@@ -94,7 +95,11 @@ def palitra(request: Request, q: str = "", user: User = Depends(current_user),
         if not zapyt:
             return [{"nz": n, "url": u, "ik": i, "pid": p}
                     for n, u, i, p in dzherelo][:mezha]
-        z = [(_zbih(zapyt, n) + _zbih(zapyt, p) // 3, n, u, i, p)
+        # Підписи — українські джерельні рядки, а інтерфейс за замовчуванням
+        # англійський: «Tasks» не знаходило «Завдання». Рахуємо кращий збіг з
+        # обох — оригіналу й перекладу поточною мовою.
+        z = [(max(_zbih(zapyt, n), _zbih(zapyt, translate(n)))
+              + max(_zbih(zapyt, p), _zbih(zapyt, translate(p))) // 3, n, u, i, p)
              for n, u, i, p in dzherelo]
         z = sorted([x for x in z if x[0] > 0], key=lambda x: -x[0])
         return [{"nz": n, "url": u, "ik": i, "pid": p} for _, n, u, i, p in z[:mezha]]

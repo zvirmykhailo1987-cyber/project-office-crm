@@ -32,8 +32,8 @@
       {% if cp.email %}<a class="k-btn shchilna" href="mailto:{{ cp.email }}">
         <svg class="ik" width="14" height="14" aria-hidden="true"><use href="/static/bib/ikony.svg#i-lyst"></use></svg>
         {{ _("Написати") }}</a>{% endif %}
-      {% if cp.website %}<a class="k-btn shchilna" href="{{ cp.website }}" target="_blank" rel="noopener">{{ _("Сайт") }}</a>{% endif %}
-      {% if cp.card_url %}<a class="k-btn shchilna" href="{{ cp.card_url }}" target="_blank" rel="noopener">{{ _("Первинна картка") }}</a>{% endif %}
+      {% if cp.website|bezpechnyi_url %}<a class="k-btn shchilna" href="{{ cp.website }}" target="_blank" rel="noopener">{{ _("Сайт") }}</a>{% endif %}
+      {% if cp.card_url|bezpechnyi_url %}<a class="k-btn shchilna" href="{{ cp.card_url }}" target="_blank" rel="noopener">{{ _("Первинна картка") }}</a>{% endif %}
     </div>
   </header>
 

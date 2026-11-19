@@ -167,7 +167,10 @@ ACTION_PHRASES = {
 }
 
 # дії, які не варто показувати в стрічці — шум
-FEED_SKIP = {"auth.login"}
+# Події входу — службовий журнал безпеки, не робота команди. `auth.login_failed`
+# тим паче: його «автор» і деталі задає той, хто вводить логін, тобто будь-хто
+# ззовні міг би писати довільний текст просто в стрічку офісу.
+FEED_SKIP = {"auth.login", "auth.login_failed", "auth.logout_all"}
 
 
 @dataclass
@@ -299,7 +302,8 @@ def comments_for(s: Session, entity: str, entity_id: int) -> list[Comment]:
 def tasks_for(s: Session, entity: str, entity_id: int) -> list[Task]:
     """Завдання, привʼязані до сутності (через відповідний FK)."""
     col = {"deal": Task.deal_id, "site": Task.site_id,
-           "counterparty": Task.counterparty_id, "document": Task.document_id}.get(entity)
+           "counterparty": Task.counterparty_id, "document": Task.document_id,
+           "cluster": Task.cluster_id}.get(entity)
     if col is None:
         return []
     return list(s.exec(select(Task).where(col == entity_id)

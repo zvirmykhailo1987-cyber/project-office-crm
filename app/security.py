@@ -14,6 +14,7 @@ KIT = authkit.KitConfig(
     # OFIS has no token API: every route, /api/* included, authenticates with the
     # session cookie, so only the CSP report sink is exempt from CSRF.
     csrf_exempt_prefixes=("/csp-report",),
+    max_body=61 * 1024 * 1024,           # largest upload: documents up to 60 MB
     # map tiles are the only third-party resource the UI loads
     csp_extra={"img-src": ["https://*.tile.openstreetmap.org"]},
 )

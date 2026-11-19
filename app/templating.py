@@ -101,7 +101,25 @@ def misce(cp, dash: str = "—") -> str:
     return ", ".join(zhyvi) if zhyvi else dash
 
 
+def bezpechnyi_url(url: object) -> bool:
+    """Чи можна ставити значення в `href`: лише http(s) з хостом.
+
+    Сайт контрагента вводиться руками й приходить з імпортів — `javascript:`
+    чи `data:` у такому полі виконались би одним кліком колеги.
+    """
+    from urllib.parse import urlsplit
+    tekst = str(url or "").strip()
+    if any(ord(ch) < 33 for ch in tekst):
+        return False
+    try:
+        chastyny = urlsplit(tekst)
+    except ValueError:
+        return False
+    return chastyny.scheme.lower() in ("http", "https") and bool(chastyny.netloc)
+
+
 FILTRY = {
+    "bezpechnyi_url": bezpechnyi_url,
     "misce": misce, "url_for_entity": url_for_entity, "ton": ton_stadiyi,
     "num": num, "plural": plural, "dt": dt, "ago": ago,
 }

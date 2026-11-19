@@ -24,7 +24,7 @@ password must be provided through the environment.
 2. **Sites → any biogas site.** The score is decomposed into components with weights and the
    source of each raw value; missing data is shown as "no data", not as zero.
 3. **Pipelines → Bioenergy.** Drag a deal to a later stage: the stage **gate** refuses the move
-   when a required document or activity is missing, and says what exactly is missing.
+   when a required document is missing (or not yet signed off), and says what exactly is missing.
 4. **Directory → search** for "Valley": full-text search over organisations and people.
 5. **Documents → a teaser → submit for approval.** Sign out, sign in as `bohdan`, open
    *Approval*: approve or return for rework (a comment is mandatory). Try approving your own
@@ -32,7 +32,7 @@ password must be provided through the environment.
 6. **Tasks.** Assign a task to a colleague; the assignee accepts it or declines with a reason.
 7. **Map.** Filter sites by capacity and suitability; share the current view as a link.
 8. **Security, visible from the browser:** response headers carry a strict CSP with a per-request
-   nonce; five wrong passwords in a row lock the login for 15 minutes; "Sign out everywhere"
+   nonce; five wrong passwords for the same login from the same client lock that pair for 15 minutes; "Sign out everywhere"
    revokes every session of the account.
 
 ## Reset

@@ -13,8 +13,17 @@
   </div>
 </div>
 
-{% if request.query_params.get('err') == 'prava' %}
+{% set err = request.query_params.get('err') %}
+{% if err == 'prava' %}
 <div class="k-banner krytych" role="alert">{{ _("Ваша роль не дозволяє узгоджувати чужі документи.") }}</div>
+{% elif err == 'lyshe-zatverdzhuvach' %}
+<div class="k-banner krytych" role="alert">{{ _("Узгодити документ може лише той, хто затверджує.") }}</div>
+{% elif err == 'samozatverdzhennya' %}
+<div class="k-banner krytych" role="alert">{{ _("Автор не затверджує власну роботу — це має зробити колега") }}</div>
+{% elif err == 'finalnyi' %}
+<div class="k-banner krytych" role="alert">{{ _("Документ фінальний — стан не змінюється. Потрібна правка? Створіть нову версію.") }}</div>
+{% elif err == 'perekhid' %}
+<div class="k-banner krytych" role="alert">{{ _("Такий перехід стану не дозволено: спершу узгодження, потім відправлення.") }}</div>
 {% endif %}
 
 <div class="k-hrupa">
@@ -49,7 +58,7 @@
     </form>
     {% endif %}
 
-    {% if not d.is_final %}
+    {% if not d.is_final and user.can('approve') and user.name not in (d.created_by, d.uploaded_by) %}
     <h2>{{ _("Фінальна версія") }} <span class="k-chip s-93827eb">Tier3</span></h2>
     <form method="post" action="/dokumenty/{{ d.id }}/final" class="kk-forma"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label>{{ _("Дата підписання (якщо є)") }}

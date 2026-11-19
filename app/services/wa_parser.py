@@ -21,6 +21,7 @@ import json
 import re
 import unicodedata
 import zipfile
+import zlib
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -217,21 +218,78 @@ def rozibraty_txt(syryi: str) -> Rozbir:
     return r
 
 
+class ArkhivVidhyleno(ValueError):
+    """Архів не пройшов межі (zip-бомба, забагато файлів, битий zip)."""
+
+
+# Межі на розпакування. 100 МБ стиснутого zip-а може розгорнутись у гігабайти —
+# класична zip-бомба кладе процес на памʼяті ще до першого повідомлення.
+ZIP_MAX_FAYLIV = 2000
+ZIP_MAX_RAZOM = 200 * 1024 * 1024
+ZIP_MAX_FAYL = 100 * 1024 * 1024
+ZIP_SHMAT = 1024 * 1024
+
+
+def _prochytaty_obmezheno(z: zipfile.ZipFile, info: zipfile.ZipInfo, zalyshok: int) -> bytes:
+    """Читає член архіву шматками й обриває на перевищенні меж.
+
+    Заявленому `file_size` не довіряємо до кінця: заголовок можна підробити,
+    тому лічимо реально розпаковані байти.
+    """
+    mezha = min(ZIP_MAX_FAYL, zalyshok)
+    shmatky: list[bytes] = []
+    rozmir = 0
+    with z.open(info) as f:
+        while True:
+            shmat = f.read(ZIP_SHMAT)
+            if not shmat:
+                break
+            rozmir += len(shmat)
+            if rozmir > mezha:
+                raise ArkhivVidhyleno(
+                    f"Архів розпаковується більше ніж у {ZIP_MAX_RAZOM // (1024 * 1024)} МБ "
+                    f"або файл «{Path(info.filename).name}» завеликий")
+            shmatky.append(shmat)
+    return b"".join(shmatky)
+
+
 def rozibraty_zip(danci: bytes) -> Rozbir:
     """Експорт «з медіа»: усередині один `.txt` і файли поруч."""
-    z = zipfile.ZipFile(io.BytesIO(danci))
-    txt = [n for n in z.namelist() if n.lower().endswith(".txt")]
+    try:
+        z = zipfile.ZipFile(io.BytesIO(danci))
+    except zipfile.BadZipFile:
+        raise ArkhivVidhyleno("Файл не є коректним zip-архівом") from None
+    infos = [i for i in z.infolist() if not i.is_dir()]
+    if len(infos) > ZIP_MAX_FAYLIV:
+        raise ArkhivVidhyleno(f"В архіві понад {ZIP_MAX_FAYLIV} файлів")
+    # Перша лінія — заявлені розміри, ДО будь-якого читання
+    if any(i.file_size > ZIP_MAX_FAYL for i in infos):
+        raise ArkhivVidhyleno(
+            f"Файл в архіві більший за {ZIP_MAX_FAYL // (1024 * 1024)} МБ")
+    if sum(i.file_size for i in infos) > ZIP_MAX_RAZOM:
+        raise ArkhivVidhyleno(
+            f"Архів розпаковується більше ніж у {ZIP_MAX_RAZOM // (1024 * 1024)} МБ")
+
+    txt = [i for i in infos if i.filename.lower().endswith(".txt")]
     if not txt:
         r = Rozbir()
         r.format = "zip без .txt"
         return r
     # Найбільший .txt — це і є переписка (дрібні бувають службовими)
-    holovnyi = max(txt, key=lambda n: z.getinfo(n).file_size)
-    r = rozibraty_txt(z.read(holovnyi).decode("utf-8", "replace"))
-    for n in z.namelist():
-        if n == holovnyi or n.endswith("/"):
-            continue
-        r.media_v_arhivi[Path(n).name] = z.read(n)
+    holovnyi = max(txt, key=lambda i: i.file_size)
+    try:
+        zalyshok = ZIP_MAX_RAZOM
+        syre = _prochytaty_obmezheno(z, holovnyi, zalyshok)
+        zalyshok -= len(syre)
+        r = rozibraty_txt(syre.decode("utf-8", "replace"))
+        for i in infos:
+            if i.filename == holovnyi.filename:
+                continue
+            bayty = _prochytaty_obmezheno(z, i, zalyshok)
+            zalyshok -= len(bayty)
+            r.media_v_arhivi[Path(i.filename).name] = bayty
+    except (zipfile.BadZipFile, zlib.error, EOFError) as e:
+        raise ArkhivVidhyleno(f"Пошкоджений zip-архів: {type(e).__name__}") from None
     return r
 
 

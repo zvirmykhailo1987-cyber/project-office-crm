@@ -9,7 +9,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import authkit, config, i18n
-from .db import init_db
+from sqlmodel import Session
+
+from .db import get_session, init_db
 from .security import KIT
 from .web import (ai, auth, chat, collab, dashboard, dokumenty, dovidnyk, karta,
                   napryamy, obyekty, palitra, voronky, zavdannya)
@@ -166,7 +168,7 @@ def change_language(code: str, next: str = "/"):
 
 
 @app.get("/health")
-def health():
+def health(s: Session = Depends(get_session)):
     """Здоровʼя = процес живий І БАЗА ВІДПОВІДАЄ НА ЗАПИТ.
 
     «200 OK» без звернення до бази доводить лише те, що uvicorn піднявся. При
@@ -181,18 +183,14 @@ def health():
     сплутати.
     """
     from sqlalchemy import text
-    from sqlmodel import Session
-
-    from .db import engine
 
     try:
-        with Session(engine) as s:
-            lyudej = s.exec(text("select count(*) from user")).one()[0]
-            kontrahentiv = s.exec(text("select count(*) from counterparty")).one()[0]
+        lyudej = s.exec(text("select count(*) from user")).one()[0]
+        kontrahentiv = s.exec(text("select count(*) from counterparty")).one()[0]
     except Exception as e:                                  # noqa: BLE001
-        return JSONResponse({"ok": False, "env": config.ENV,
-                             "baza": type(e).__name__}, status_code=503)
-    if config.IS_PROD:
+        detail = {"baza": type(e).__name__} if config.ENV == "dev" else {}
+        return JSONResponse({"ok": False, **detail}, status_code=503)
+    if config.ENV != "dev":
         return {"ok": True}
     return {"ok": True, "env": config.ENV,
             "lyudej": lyudej, "kontrahentiv": kontrahentiv}

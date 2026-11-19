@@ -39,8 +39,11 @@ def login(request: Request, login: str = Form(""), password: str = Form(""),
     ok, new_hash = check_pw(user.password_hash if user else "", password)
     if not user or not user.active or not ok:
         LIMITER.failure(keys)
-        audit.log(s, login or "?", "auth.login_failed", entity="user",
-                  entity_id=user.id if user else None, tier=audit.TIER_CHANGE)
+        # Логін задає той, хто стукає ззовні, — тому він НЕ автор запису (інакше
+        # довільний рядок ставав би «людиною» в журналі) і лише обрізаними даними.
+        audit.log(s, "anonymous", "auth.login_failed", entity="user",
+                  entity_id=user.id if user else None, tier=audit.TIER_CHANGE,
+                  detail=f"login={login[:32]!r}")
         s.commit()
         resp = render(request, "login.html", login_value=login,
                       error=_("Невірний логін або пароль"))

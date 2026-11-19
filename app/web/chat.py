@@ -13,16 +13,17 @@ Business API від Meta бачить лише розмови зі своїм б
 """
 import hashlib
 import unicodedata
-from datetime import date
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
+from sqlalchemy import and_, or_
 from sqlmodel import Session, func, select
 
 from .. import audit, config
 from ..db import get_session
+from ..i18n import _
 from ..models import (
     CAP_CRM,
     CAP_DATA_SERVICE,
@@ -38,7 +39,7 @@ from ..models import (
     utcnow,
 )
 from ..services import collab, wa_import, wa_parser
-from .deps import current_user, redirect, render, require_cap
+from .deps import current_user, data_z_formy, redirect, render, require_cap
 from .dokumenty import DOZVOLENI_ROZSHYRENNYA, _slug
 
 router = APIRouter()
@@ -164,6 +165,35 @@ def _kimnaty(s: Session, imya: str) -> list[ChatRoom]:
     return [r for r in vsi if r.vydyma(imya)]
 
 
+def _vydyme(s: Session, m: ChatMessage | None, user: User) -> None:
+    """404, якщо повідомлення лежить у кімнаті, якої людина не бачить.
+
+    Правило «архів особистого чату бачать лише учасники» досі діяло тільки на
+    екрані кімнати: файл, «у завдання», «у документи», правка й видалення
+    приймали будь-який id — тобто вміст закритої кімнати діставався прямим
+    запитом. 404, а не 403: чужа кімната не має навіть підтверджувати існування.
+    """
+    if m is None:
+        return
+    room = s.get(ChatRoom, m.room_id)
+    if room is not None and not room.vydyma(user.name):
+        raise HTTPException(404, _("Не знайдено"))
+
+
+def _kursor_ranishe(s: Session, do: int):
+    """Умова «раніше за повідомлення `do`» за тим самим ключем, що й сортування.
+
+    Стрічка впорядкована за (created_at, id), а «раніші» досі різались за id —
+    у перенесеному архіві id відбиває порядок імпорту, тож частина старших
+    реплік губилась між сторінками, а лічильник обіцяв не те число.
+    """
+    pivot = s.get(ChatMessage, do)
+    if pivot is None:
+        return ChatMessage.id < do
+    return or_(ChatMessage.created_at < pivot.created_at,
+               and_(ChatMessage.created_at == pivot.created_at, ChatMessage.id < pivot.id))
+
+
 def _vkladennya(s: Session, msg_ids: list[int]) -> dict[int, list[ChatAttachment]]:
     """Вкладення пачкою — щоб не робити запит на кожне повідомлення у стрічці."""
     if not msg_ids:
@@ -240,7 +270,7 @@ def room(request: Request, q: str = "", kimnata: str = "", do: int = 0,
     if do:
         # «раніші»: в архіві на 251 повідомлення без цього видно лише останні 60,
         # і до старших не дістатись інакше як пошуком
-        stmt = stmt.where(ChatMessage.id < do)
+        stmt = stmt.where(_kursor_ranishe(s, do))
     if q.strip():
         # Пошук і по тексту, і по іменах файлів: «де той zip» — типовий запит
         znaydeni = {a.message_id for a in s.exec(
@@ -263,7 +293,7 @@ def room(request: Request, q: str = "", kimnata: str = "", do: int = 0,
     ranishi = 0
     if rows:
         lich = select(func.count()).select_from(ChatMessage).where(
-            ChatMessage.id < rows[0].id)
+            _kursor_ranishe(s, rows[0].id))
         for u in umovy:
             lich = lich.where(u)
         ranishi = s.exec(lich).one()
@@ -327,10 +357,18 @@ async def send(request: Request, text: str = Form(""), reply_to: str = Form(""),
     if not tekst and not prynyati:
         return redirect("/chat")
 
+    # Відповідь — лише на повідомлення ЦІЄЇ кімнати: інакше в стрічці офісу
+    # цитувався б текст із закритого архіву, якого автор відповіді не бачить.
+    reply_id = int(reply_to) if reply_to.strip().isdigit() else None
+    if reply_id is not None:
+        batko = s.get(ChatMessage, reply_id)
+        if batko is None or batko.room_id != room.id:
+            raise HTTPException(400, _("Відповідати можна лише на повідомлення цієї кімнати"))
+
     zgadani = collab.find_mentions(s, tekst)
     msg = ChatMessage(
         room_id=room.id, author=user.name, text=tekst,
-        reply_to_id=int(reply_to) if reply_to.strip().isdigit() else None,
+        reply_to_id=reply_id,
         mentions=",".join(u.login for u in zgadani if u.login),
         created_by=user.name)
     s.add(msg)
@@ -372,6 +410,7 @@ def download(att_id: int, user: User = Depends(current_user),
     a = s.get(ChatAttachment, att_id)
     if not a:
         return redirect("/chat")
+    _vydyme(s, s.get(ChatMessage, a.message_id), user)
     path = config.CHAT_DIR / a.filename
     # Ще одна перевірка шляху: імʼя в БД наше, але припускати цього не будемо
     if not path.exists() or path.parent.resolve() != config.CHAT_DIR.resolve():
@@ -397,6 +436,7 @@ def download(att_id: int, user: User = Depends(current_user),
 def edit(msg_id: int, text: str = Form(""), user: User = Depends(require_cap(CAP_CRM)),
          s: Session = Depends(get_session)):
     m = s.get(ChatMessage, msg_id)
+    _vydyme(s, m, user)
     if not m or m.is_deleted or m.author != user.name or not text.strip():
         return redirect("/chat")
     m.text = text.strip()
@@ -417,6 +457,7 @@ def delete(msg_id: int, user: User = Depends(require_cap(CAP_CRM)),
     із ними зникли гілки відповідей. Тут відповідь на видалене лишається читабельною.
     """
     m = s.get(ChatMessage, msg_id)
+    _vydyme(s, m, user)
     if not m or m.is_deleted:
         return redirect("/chat")
     if m.author != user.name and not user.can(CAP_DELETE):
@@ -440,12 +481,14 @@ def to_task(msg_id: int, assignee: str = Form(""), due_date: str = Form(""),
     між репліками, а лягло у список із виконавцем і терміном.
     """
     m = s.get(ChatMessage, msg_id)
+    _vydyme(s, m, user)
     if not m or m.is_deleted or not (m.text or "").strip():
         return redirect("/chat")
+    termin = data_z_formy(due_date)
     t = Task(title=m.text.strip()[:120], note=f"з чату, {m.author}, "
                                               f"{m.created_at:%d.%m.%Y %H:%M}",
              assignee=assignee or user.name,
-             due_date=date.fromisoformat(due_date) if due_date else None,
+             due_date=termin,
              source="vid_komentarya",
              # автор повідомлення, а не той, хто натиснув: доручення в чаті дав він
              created_by=m.author)
@@ -476,17 +519,26 @@ async def perenesty(request: Request, nazva: str = Form(""),
         return redirect("/chat?err=" + quote(
             "Очікую .txt або .zip з «Експорту чату» WhatsApp (або .json зібраного)"))
 
-    danci = b""
+    # Шматки — у список, склеюємо один раз: `danci += shmat` копіював увесь
+    # накопичений буфер на кожному мегабайті (квадратично на 100 МБ).
+    shmatky: list[bytes] = []
+    rozmir = 0
     while True:
         shmat = await fayl.read(SHMAT)
         if not shmat:
             break
-        danci += shmat
-        if len(danci) > MAX_ROZMIR:
+        rozmir += len(shmat)
+        if rozmir > MAX_ROZMIR:
             return redirect("/chat?err=" + quote(
                 f"Експорт більший за {MAX_ROZMIR // (1024 * 1024)} МБ"))
+        shmatky.append(shmat)
+    danci = b"".join(shmatky)
+    del shmatky
 
-    rozbir = wa_parser.rozibraty(imya_syre, danci)
+    try:
+        rozbir = wa_parser.rozibraty(imya_syre, danci)
+    except wa_parser.ArkhivVidhyleno as e:
+        return redirect("/chat?err=" + quote(str(e)))
     if not rozbir.povidomlennya:
         return redirect("/chat?err=" + quote(
             f"З файлу не вдалося прочитати жодного повідомлення "
@@ -522,6 +574,7 @@ def promote(att_id: int, kind: str = Form("fayl"), title: str = Form(""),
     a = s.get(ChatAttachment, att_id)
     if not a:
         return redirect("/chat")
+    _vydyme(s, s.get(ChatMessage, a.message_id), user)
     if a.promoted_document_id:
         return redirect(f"/dokumenty/{a.promoted_document_id}")
 

@@ -122,10 +122,11 @@ def test_unsigned_final_document_does_not_open_gate(seeded):
 
 
 def test_gate_cannot_be_bypassed_by_skipping_stages(seeded):
-    """Стрибок з 1 на 8 має вимагати ВСІ гейти проміжних стадій."""
+    """Стрибок з 1 на 8 має вимагати ВСІ гейти проміжних стадій — і власний
+    документ виграшної стадії «8. Два підписи» (COM-09, Контракт #2)."""
     d, st = _deal(seeded, "elevator", at=1)
     res = gates.check(seeded, d, st[8])
-    assert set(res.missing) == {"INV-05", "COM-06", "FARM-02", "COM-07"}
+    assert set(res.missing) == {"INV-05", "COM-06", "FARM-02", "COM-07", "COM-09"}
 
 
 def test_backward_move_always_allowed(seeded):

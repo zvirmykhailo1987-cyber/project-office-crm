@@ -246,7 +246,8 @@ def to_pdf(docx_path: Path) -> Path | None:
     if not exe:
         return None
     try:
-        subprocess.run([exe, "--headless",  # noqa: S603 — fixed argv, our own file, no shell "--convert-to", "pdf", "--outdir",  # nosec B603
+        # fixed argv, our own file, no shell
+        subprocess.run([exe, "--headless", "--convert-to", "pdf", "--outdir",  # noqa: S603  # nosec B603
                         str(docx_path.parent), str(docx_path)],
                        check=True, capture_output=True, timeout=180)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):

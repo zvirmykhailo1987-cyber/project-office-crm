@@ -195,8 +195,11 @@ def set_criteria(site_id: int,
         s.add(site)
         s.flush()
         res = scoring.score_site(site)
-        if res:
+        if res and not scoring.bez_danykh(res):
             scoring.save(s, site.id, res)
+        elif res:
+            # Усі критерії стерто → «немає даних», а не збережений 0.0
+            scoring.prybraty(s, site.id, res.model)
         audit.log(s, user.name, "site.criteria", entity="site", entity_id=site_id,
                   tier=audit.TIER_CHANGE, detail="; ".join(changed))
         s.commit()
@@ -234,7 +237,8 @@ def cluster_card(cluster_id: int, request: Request,
     # Завдання хабу — з тим самим FK cluster_id, що Task уже має; наступна дія
     # хабу живе тут, а не окремим полем. Відкриті зверху.
     zavdannya = list(s.exec(
-        select(Task).where(Task.cluster_id == cluster_id, Task.status == "open")
+        select(Task).where(Task.cluster_id == cluster_id,
+                           Task.status.in_(["open", "in_progress"]))
         .order_by(Task.due_date.is_(None), Task.due_date).limit(20)))
     komanda = [u.name for u in s.exec(select(User).where(User.active == True))]  # noqa: E712
     return render(request, "obyekty/hab.html", user=user, c=c, rows=rows,

@@ -20,7 +20,7 @@ from ..models import (
     utcnow,
 )
 from ..services import collab, den
-from .deps import current_user, redirect, render, require_cap
+from .deps import current_user, data_z_formy, redirect, render, require_cap
 
 router = APIRouter()
 
@@ -65,7 +65,7 @@ def create(title: str = Form(""), note: str = Form(""), assignee: str = Form("")
         return redirect("/zavdannya")
     t = Task(title=title.strip(), note=note.strip(),
              assignee=assignee or user.name,
-             due_date=date.fromisoformat(due_date) if due_date else None,
+             due_date=data_z_formy(due_date),
              priority=priority if priority in PRIORITIES else "normal",
              source="vid_koleghy" if assignee and assignee != user.name else "manual",
              deal_id=int(deal_id) if deal_id.isdigit() else None,

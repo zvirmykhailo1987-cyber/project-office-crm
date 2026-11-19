@@ -38,7 +38,7 @@ OFIS_ENV=demo uvicorn app.main:app --port 8030
 | My day / overview | Per-role queue: overdue next actions, tasks, documents awaiting edits, data-quality debt, "what changed since you were here". |
 | Directory | Counterparties and people with SQLite **FTS5** search, profile completeness, dedup on import (tax code, normalised names/phones). |
 | Sites & hubs | Biogas sites and candidate communities. Every score is stored **decomposed into components** (`Score` + `ScoreComponent`) so "why is this site higher" always has an answer; unknown values are "no data", never zero. |
-| Pipelines | Two programmes (bioenergy, grain elevators) with stages, **gates** (required documents / activity before a stage can be entered) and an automatic transition rule; programmes and stages are data editable in the UI. |
+| Pipelines | Two programmes (bioenergy, grain elevators) with stages, **gates** (required, signed-off documents before a stage can be entered — including the final "won" stage) and an automatic transition rule; programmes and stages are data editable in the UI. |
 | Documents | Versions, a workflow (draft → review → agreed → sent), letter templates with placeholders → DOCX; irreversible actions require explicit confirmation (HTTP 428). |
 | Collaboration | Comments and recommendations on any card, approvals (**the author can never approve their own work**), assignments that can be accepted or declined with a reason, notifications, team feed. |
 | Chat | Team room with mentions; any message becomes a task; legal import of WhatsApp chat exports into read-only archive rooms. |
@@ -54,7 +54,12 @@ covered by tests:
 - **Sessions**: server-side rows (only a SHA-256 of the cookie token is stored), absolute expiry
   and idle timeout, logout and "sign out everywhere" revoke them, session rotation on login.
 - **CSRF**: double-submit token on every unsafe request plus an Origin/Referer check.
-- **Login rate limiting**: lockout per client IP and per login after repeated failures.
+- **Login rate limiting**: 5 failures lock the (client IP, login) pair for 15 minutes; separate,
+  higher thresholds per IP (30) and per login (50) stop spraying and distributed guessing without
+  letting one client lock everybody out.
+- **Request size limits**: an ASGI guard answers 413 before any form or upload is parsed
+  (sign-in and CSP-report bodies are capped at 16 KB).
+- **Cookies**: `Secure` + `__Host-` prefix in every environment except local development.
 - **Headers**: strict CSP with per-request nonces (no `unsafe-inline`, no inline handlers or
   styles), CSP violation reporting, `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy`,
   COOP/CORP, HSTS in production. OpenAPI docs are disabled outside local development.
