@@ -545,6 +545,11 @@ async def perenesty(request: Request, nazva: str = Form(""),
 
     tytul = nazva.strip() or Path(imya_syre).stem
     kod = "wa-" + (_slug(tytul).lower().strip("_") or "arhiv")
+    isnuye = s.exec(select(ChatRoom).where(ChatRoom.code == kod)).first()
+    if isnuye and (isnuye.uchasnyky or "") != (user.name if osobystyi else ""):
+        # той самий код, інша видимість: не зливаємо особисте в спільне (і навпаки)
+        return redirect("/chat?err=" + quote(
+            "Архів із такою назвою вже є з іншою видимістю — дайте іншу назву"))
     poryadok = len(list(s.exec(select(ChatRoom).where(ChatRoom.archived == True)))) + 1  # noqa: E712
 
     z = wa_import.importuvaty(
@@ -555,8 +560,10 @@ async def perenesty(request: Request, nazva: str = Form(""),
         uchasnyky=user.name if osobystyi else "",
         wa_chat=tytul, poryadok=poryadok, hto=user.name)
 
+    # Стрічку бачить уся команда: назву особистого архіву туди не пишемо.
     audit.log(s, user.name, "chat.import", entity="chat_message", entity_id=None,
-              tier=audit.TIER_BULK, detail=z.yak_tekst()[:200])
+              tier=audit.TIER_BULK,
+              detail=(f"особистий архів · нових {z.novyh}" if osobystyi else z.yak_tekst())[:200])
     s.commit()
     return redirect(f"/chat?kimnata={kod}&zvit=" + quote(z.yak_tekst()))
 
@@ -580,13 +587,17 @@ def promote(att_id: int, kind: str = Form("fayl"), title: str = Form(""),
     path = config.CHAT_DIR / a.filename
     if not path.exists():
         return redirect("/chat?err=" + quote("Файл не знайдено на диску"))
+    # Автор — той, хто виклав файл, а не той, хто натиснув «в документи»: інакше
+    # колега переносить чужий файл, і автор потім погоджує власну роботу.
+    msg = s.get(ChatMessage, a.message_id)
+    avtor = (msg.author if msg and msg.author else user.name)
 
     doc = Document(title=title.strip() or Path(a.original_name).stem,
                    kind=kind.strip() or "fayl",
                    doc_group_uid=f"chat:{a.id}", version=1,
                    filename=a.filename, stored_path=str(path), size=a.size,
                    workflow_status="chernetka", uploaded_by=user.name,
-                   created_by=user.name)
+                   created_by=avtor)
     s.add(doc)
     s.flush()
     a.promoted_document_id = doc.id

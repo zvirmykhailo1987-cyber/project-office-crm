@@ -74,7 +74,7 @@
     <h2>{{ _("Версії") }} <span class="dim">({{ versions|length }})</span></h2>
     <ul class="persons">
       {% for v in versions %}
-      <li {% if v.id == d.id %}style="border-color:var(--akcent)"{% endif %}>
+      <li{% if v.id == d.id %} class="s-poto-versiya"{% endif %}>
         <a href="/dokumenty/{{ v.id }}"><b>v{{ v.version }}</b></a>
         <span class="k-chip">{{ workflow.get(v.workflow_status, v.workflow_status) }}</span>
         <div class="dim s-9942017">{{ v.created_by }} · {{ v.created_at|dt('%d.%m.%Y %H:%M') }}</div>

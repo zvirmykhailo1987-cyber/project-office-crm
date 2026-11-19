@@ -47,7 +47,11 @@ def _avtory_sutnosti(s: Session, entity: str, entity_id: int) -> set[str]:
     from ..models import Deal, Document
     if entity == "document":
         d = s.get(Document, entity_id)
-        return {x for x in (d.created_by, d.uploaded_by) if x} if d else set()
+        if not d:
+            return set()
+        # автор будь-якої версії — автор документа (нова версія не «відмиває» авторство)
+        versii = s.exec(select(Document).where(Document.doc_group_uid == d.doc_group_uid)).all()             if d.doc_group_uid else [d]
+        return {x for v in versii for x in (v.created_by, v.uploaded_by) if x}
     if entity == "deal":
         g = s.get(Deal, entity_id)
         return {x for x in (g.owner, g.created_by) if x} if g else set()

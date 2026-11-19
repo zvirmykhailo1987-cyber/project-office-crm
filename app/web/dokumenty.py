@@ -78,9 +78,14 @@ def _mitka_hrupy(group_uid: str) -> str:
     return hashlib.sha1(group_uid.encode("utf-8"), usedforsecurity=False).hexdigest()[:8]
 
 
-def _avtor(d: Document, user: User) -> bool:
-    """Чи людина — автор документа (створила або завантажила)."""
-    return user.name in {x for x in (d.created_by, d.uploaded_by) if x}
+def _avtor(d: Document, user: User, s: Session | None = None) -> bool:
+    """Чи людина — автор документа (створила або завантажила будь-яку його версію)."""
+    if user.name in {x for x in (d.created_by, d.uploaded_by) if x}:
+        return True
+    if s is None or not d.doc_group_uid:
+        return False
+    return any(user.name in {x.created_by, x.uploaded_by}
+               for x in s.exec(select(Document).where(Document.doc_group_uid == d.doc_group_uid)))
 
 
 def _fayl_dokumenta(d: Document) -> Path | None:
@@ -326,18 +331,18 @@ def set_workflow(doc_id: int, workflow_status: str = Form(""),
     if workflow_status == "uzhodzheno":
         if not user.can(CAP_APPROVE):
             return redirect(f"/dokumenty/{doc_id}?err=lyshe-zatverdzhuvach")
-        if _avtor(d, user):
+        if _avtor(d, user, s):
             return redirect(f"/dokumenty/{doc_id}?err=samozatverdzhennya")
     # Undoing an approval is a decision too: approver or author only.
     pohodzheni = ("uzhodzheno", "do_vidpravlennya")
     if d.workflow_status in pohodzheni and workflow_status not in pohodzheni + ("nadislano",) \
-            and not (user.can(CAP_APPROVE) or _avtor(d, user)):
+            and not (user.can(CAP_APPROVE) or _avtor(d, user, s)):
         return redirect(f"/dokumenty/{doc_id}?err=prava")
     # «Надіслано» — факт відправлення; фіксує його лише той, хто веде реєстр.
     if workflow_status == "nadislano" and not user.can(CAP_SEND):
         return redirect(f"/dokumenty/{doc_id}?err=prava")
     if workflow_status == "do_vidpravlennya" \
-            and not (user.can(CAP_APPROVE) or user.can(CAP_SEND) or _avtor(d, user)):
+            and not (user.can(CAP_APPROVE) or user.can(CAP_SEND) or _avtor(d, user, s)):
         return redirect(f"/dokumenty/{doc_id}?err=prava")
 
     was = d.workflow_status
@@ -366,7 +371,7 @@ def finalize(doc_id: int, confirm: str = Form(""), signed_at: str = Form(""),
         return redirect("/dokumenty")
     if d.is_final:
         raise HTTPException(409, _("Документ уже фінальний — повторно позначити не можна"))
-    if _avtor(d, user):
+    if _avtor(d, user, s):
         raise HTTPException(403, _("Автор не затверджує власну роботу — це має зробити колега"))
     pidpysano = data_z_formy(signed_at)
     audit.require_confirm("document.finalize", confirm == "yes")
@@ -418,7 +423,7 @@ def new_version(doc_id: int, note: str = Form(""),
                   size=main.stat().st_size, deal_id=d.deal_id,
                   counterparty_id=d.counterparty_id, stage_id=d.stage_id,
                   workflow_status="na_pravtsi", uploaded_by=user.name,
-                  created_by=user.name)
+                  created_by=d.created_by or user.name)   # автор групи лишається автором
     s.add(nd)
     s.flush()
     audit.log(s, user.name, "document.new_version", entity="document", entity_id=nd.id,
@@ -474,7 +479,9 @@ def mark_sent(document_id: str = Form(""), counterparty_id: str = Form(""),
     s.add(o)
     # Стан фінального документа не чіпаємо (він незмінний); сам факт відправлення
     # все одно лягає в реєстр листів.
-    if d and not d.is_final:
+    if d and not d.is_final and d.workflow_status in ("uzhodzheno", "do_vidpravlennya"):
+        # «Надіслано» лише після погодження (PEREKHODY); неузгоджений документ лишається у
+        # своєму стані, а сам факт листа все одно лягає в реєстр.
         d.workflow_status = "nadislano"
         d.updated_at = utcnow()
         s.add(d)

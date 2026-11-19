@@ -18,7 +18,8 @@ What it provides
   never authenticate with cookies.
 * **Login rate limiting** — failures are counted per (client IP, login) pair, per IP
   and per login, each with its own threshold: a single client cannot lock everyone
-  out, and one burst cannot lock a victim's account for everybody.
+  out, and the per-login lock never blocks a client (IP + login) that has signed in
+  to that account successfully before, so a distributed burst cannot lock the owner out.
 * **Request size limits** — an ASGI guard rejects oversized bodies (413) before any
   form or upload is parsed; sign-in and CSP-report bodies have a much smaller cap.
 * **Security headers** — strict CSP with a per-request nonce, ``nosniff``,
@@ -235,6 +236,7 @@ class LoginLimiter:
         self.cfg = cfg
         self._fails: dict[str, deque[float]] = {}
         self._locked: dict[str, float] = {}
+        self._trusted: set[str] = set()        # pair keys that signed in successfully
         self._lock = threading.Lock()
 
     @staticmethod
@@ -253,8 +255,10 @@ class LoginLimiter:
         """Seconds until the caller may try again; 0 = allowed."""
         now = time.monotonic()
         with self._lock:
+            trusted = any(k in self._trusted for k in keys if k.startswith("pair:"))
             waits = [int(until - now) + 1 for k in keys
-                     if (until := self._locked.get(k)) and until > now]
+                     if not (trusted and k.startswith("user:"))
+                     and (until := self._locked.get(k)) and until > now]
         return max(waits, default=0)
 
     def failure(self, keys: list[str]) -> None:
@@ -275,11 +279,14 @@ class LoginLimiter:
                 if k.startswith("pair:"):
                     self._fails.pop(k, None)
                     self._locked.pop(k, None)
+                    if len(self._trusted) < 100_000:      # bounded: memory cannot be flooded
+                        self._trusted.add(k)
 
     def reset_all(self) -> None:
         with self._lock:
             self._fails.clear()
             self._locked.clear()
+            self._trusted.clear()
 
 
 # ── CSRF ─────────────────────────────────────────────────────────────────────

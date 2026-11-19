@@ -20,7 +20,7 @@ from app.models import ROLE_CAPS, User
 from app.security import KIT
 
 PUBLIC = {"/login", "/health", "/lang/{code}", "/csp-report"}
-TOKEN = "boundary-csrf-token-0123456789abcdef"
+TOKEN = "b" * 36                      # a well-formed CSRF value for the boundary sweep
 
 
 def _flat(routes):
@@ -103,7 +103,7 @@ def test_anonymous_is_sent_to_login(app_engine, route, method):
     c = TestClient(app, follow_redirects=False)
     c.cookies.set(KIT.csrf_cookie, TOKEN)
     r = c.request(method, _url(route.path), headers={"X-CSRF-Token": TOKEN})
-    assert r.status_code == 307 and r.headers["location"] == "/login", (method, route.path, r.status_code)
+    assert r.status_code == 303 and r.headers["location"] == "/login", (method, route.path, r.status_code)
 
 
 @pytest.mark.parametrize("route,method", [(r, m) for r, m in ROUTES if m != "GET"],

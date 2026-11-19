@@ -139,3 +139,93 @@ def test_leaving_ready_to_send_backwards_needs_the_right(engine, rol):
     with Session(engine) as s:
         assert s.get(Document, did).workflow_status == "do_vidpravlennya"
 
+
+
+# ── final independent review ─────────────────────────────────────────────────
+
+def _jak(engine, u):
+    from fastapi.testclient import TestClient
+
+    from app.db import get_session
+    from app.main import app
+    from app.web.deps import current_user
+    from tests.conftest import z_csrf
+
+    def _sess():
+        with Session(engine) as sess:
+            yield sess
+    app.dependency_overrides[get_session] = _sess
+    app.dependency_overrides[current_user] = lambda: u
+    return z_csrf(TestClient(app, follow_redirects=False))
+
+
+def _korystuvach(engine, name, login, role):
+    with Session(engine) as s:
+        u = User(name=name, login=login, role=role)
+        s.add(u); s.commit(); s.refresh(u); s.expunge(u)
+    return u
+
+
+def test_sent_mark_does_not_skip_the_approval(engine):
+    from app.main import app
+    u = _korystuvach(engine, "Sender", "snd", "zapyty_lysty")
+    with Session(engine) as s:
+        d = Document(title="Draft", filename="d.md", workflow_status="chernetka", created_by="Someone")
+        s.add(d); s.commit(); did = d.id
+    try:
+        _jak(engine, u).post("/lysty/nadislano", data={"document_id": str(did), "recipient": "x@demo.example"})
+    finally:
+        app.dependency_overrides.clear()
+    with Session(engine) as s:
+        assert s.get(Document, did).workflow_status == "chernetka"
+
+
+def test_only_the_task_people_change_its_status(engine):
+    from app.main import app
+    from app.models import Task
+    chuzhyi = _korystuvach(engine, "Outsider", "outs", "perehovory_kontakt")
+    with Session(engine) as s:
+        t = Task(title="Call", assignee="Doer", created_by="Boss", status="open")
+        s.add(t); s.commit(); tid = t.id
+    try:
+        c = _jak(engine, chuzhyi)
+        c.post(f"/zavdannya/{tid}/status", data={"status": "cancelled"})
+        c.post(f"/zavdannya/{tid}/status", data={"status": "done"})
+    finally:
+        app.dependency_overrides.clear()
+    with Session(engine) as s:
+        assert s.get(Task, tid).status == "open"
+
+
+def test_return_from_lost_stage_still_passes_the_gates(engine):
+    from app.models import Deal, Pipeline, Program, Stage
+    from app.services import gates
+    with Session(engine) as s:
+        prog = Program(code="tprog", title="Test")
+        s.add(prog); s.commit(); s.refresh(prog)
+        p = Pipeline(program_id=prog.id, code="tp", title="Test")
+        s.add(p); s.commit(); s.refresh(p)
+        st = {}
+        for i, (code, req, term, won) in enumerate([("kontakt", "", False, False), ("kp", "KP", False, False),
+                                                     ("perehovory", "", False, False), ("uhoda", "", True, True),
+                                                     ("vidmova", "", True, False)], start=1):
+            st[code] = Stage(pipeline_id=p.id, code=code, title=code, order=i, required_doc_kinds=req,
+                             is_terminal=term, is_won=won)
+            s.add(st[code])
+        s.commit()
+        deal = Deal(title="D", program_id=prog.id, pipeline_id=p.id, stage_id=st["vidmova"].id)
+        s.add(deal); s.commit(); s.refresh(deal)
+        assert not gates.check(s, deal, st["perehovory"]).allowed          # KP was never produced
+        assert gates.check(s, deal, st["kontakt"]).allowed                 # restarting from the top is fine
+
+
+def test_author_of_any_version_cannot_approve_the_document(engine):
+    """A colleague's new version (or a chat file promoted by someone else) keeps the author."""
+    from app.web.collab import _avtory_sutnosti
+    with Session(engine) as s:
+        v1 = Document(title="KP", filename="a.md", doc_group_uid="g-1", version=1, created_by="Author")
+        v2 = Document(title="KP", filename="b.md", doc_group_uid="g-1", version=2,
+                      created_by="Author", uploaded_by="Colleague")
+        s.add(v1); s.add(v2); s.commit()
+        assert {"Author", "Colleague"} <= _avtory_sutnosti(s, "document", v2.id)
+        assert "Author" in _avtory_sutnosti(s, "document", v1.id)

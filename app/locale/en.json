@@ -187,7 +187,6 @@
  "KPI офісу": "Office KPIs",
  "KPI — ОФІС": "KPIs — OFIS",
  "LLM вимкнено (LLM_PROVIDER=stub або немає LLM_API_KEY) — працює детермінований екстрактор": "LLM disabled (LLM_PROVIDER=stub or no LLM_API_KEY) — the deterministic extractor is running",
- "LOI громади + due diligence EIFO пройдено": "Community LOI + EIFO due diligence passed",
  "MOU громади підписано — головне горло воронки (гарантія) пройдено": "Community MOU signed — main pipeline bottleneck (guarantee) cleared",
  "OFIS_ENV=production, але не задані секрети:": "OFIS_ENV=production, but secrets are not set:",
  "OPEX/рік": "OPEX/yr",
@@ -479,7 +478,6 @@
  "Газова мережа": "Gas network",
  "Газопроводи": "Gas pipelines",
  "Галина": "Halyna",
- "Галина Сидорко": "Halyna Sydorko",
  "Гарячі клавіші": "Keyboard shortcuts",
  "Гейт відкриває лише документ, позначений": "The gate is opened only by a document marked",
  "Гейт не пустив у «": "Gate did not allow moving to «",
@@ -774,7 +772,6 @@
  "Контрагента не привʼязано": "No counterparty linked",
  "Контрагенти": "Counterparties",
  "Контракт": "Contract",
- "Контракт #1 підписано (мандат Офіс↔UAF)": "Contract #1 signed (Office↔UAF mandate)",
  "Контракт #2 підписано + financial close": "Contract #2 signed + financial close",
  "Конфліктів": "Conflicts",
  "Конфліктів злиття, що чекають рішення": "Merge conflicts awaiting a decision",
@@ -2062,5 +2059,7 @@
  "→ у документи": "→ to documents",
  "≠ сума без ПДВ": "≠ amount excl. VAT",
  "✓ Підтвердив": "✓ Confirmed",
- "🟠 AI-чернетка — перевірте": "🟠 AI draft — please review"
+ "🟠 AI-чернетка — перевірте": "🟠 AI draft — please review",
+ "Контракт #1 підписано (мандат Офіс↔інвестор)": "Contract #1 signed (Office↔investor mandate)",
+ "LOI громади + due diligence фінансиста пройдено": "Community LOI + financier due diligence passed"
 }

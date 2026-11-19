@@ -84,8 +84,8 @@
     <ul class="kk-strichka">
       {% for t in rows %}
       <li id="t{{ t.id }}"
-          {% if t.is_overdue %}style="border-inline-start:2px solid var(--krytych);padding-inline-start:var(--sp2)"
-          {% elif t.is_today %}style="border-inline-start:2px solid var(--akcent);padding-inline-start:var(--sp2)"{% endif %}>
+          {% if t.is_overdue %}data-tz="prostr"
+          {% elif t.is_today %}data-tz="sohodni"{% endif %}>
         <div class="s-c0dfb61">
           {{ ava(t.assignee, "sm") }}
           <div class="s-d1d9f56">
@@ -134,7 +134,7 @@
             {% endif %}
           </div>
 
-          {% if t.is_open %}
+          {% if t.is_open and (not t.assignee or user.name in (t.assignee, t.created_by)) %}
           <form method="post" action="/zavdannya/{{ t.id }}/status"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="status" value="done">
             {# Іконка зі спрайта, а не гліф «✓»: гліф малюється системним

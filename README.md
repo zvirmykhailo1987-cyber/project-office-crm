@@ -113,6 +113,10 @@ scripts/        pii_scan.py, metrics.py
 - Map infrastructure overlays (power lines, gas pipelines) used in production are not shipped: a
   public map of critical infrastructure is an OPSEC risk.
 - Reports/exports/backups (a planned phase) are not part of this showcase.
+- The login limiter lives in memory: lockouts and the list of clients that signed in before
+  are lost on restart. A distributed guessing burst (50 failures for one login) locks that
+  login for 15 minutes for every client that has not signed in to it before, including the
+  owner on a new device.
 
 ## License
 

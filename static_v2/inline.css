@@ -139,3 +139,8 @@
 .s-f0abc1d { gap:6px !important }
 .s-f50dd74 { list-style:none !important; margin:0 !important; padding:0 !important; display:grid !important; gap:var(--sp1) !important }
 .s-fe6bdbe { list-style:none !important; margin:0 !important; padding:0 !important; display:grid !important; gap:var(--sp3) !important }
+.s-poto-versiya { border-color:var(--akcent) !important }
+.s-tz-prostr { border-inline-start:2px solid var(--krytych) !important; padding-inline-start:var(--sp2) !important }
+.s-tz-sohodni { border-inline-start:2px solid var(--akcent) !important; padding-inline-start:var(--sp2) !important }
+[data-tz=prostr] { border-inline-start:2px solid var(--krytych) !important; padding-inline-start:var(--sp2) !important }
+[data-tz=sohodni] { border-inline-start:2px solid var(--akcent) !important; padding-inline-start:var(--sp2) !important }

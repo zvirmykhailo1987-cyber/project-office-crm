@@ -45,7 +45,7 @@ def index(request: Request, assignee: str = "", status: str = "open",
     cps = {c.id: c for c in s.exec(select(Counterparty).where(
         Counterparty.id.in_([t.counterparty_id for t in rows if t.counterparty_id]
                             or [-1])))}
-    # Кластер-звʼязок — по-новому (Task.cluster_id, 25.08.2026): завдання хабу
+    # Кластер-звʼязок — по-новому (Task.cluster_id,): завдання хабу
     # показує, до якого хабу воно, як і завдання угоди показує угоду.
     haby = {c.id: c for c in s.exec(select(Cluster).where(
         Cluster.id.in_([t.cluster_id for t in rows if t.cluster_id] or [-1])))}
@@ -85,6 +85,14 @@ def create(title: str = Form(""), note: str = Form(""), assignee: str = Form("")
     return redirect("/zavdannya")
 
 
+def mozhe_zminyty(t: Task, user: User, status: str) -> bool:
+    """Скасувати — лише постановник (виконавець відмовляється через «Відмовитись» із
+    причиною); інші зміни — виконавець або постановник. Завдання без виконавця — будь-хто."""
+    if status == "cancelled":
+        return t.created_by == user.name
+    return not t.assignee or user.name in (t.assignee, t.created_by)
+
+
 @router.post("/zavdannya/{task_id}/status")
 def set_status(task_id: int, status: str = Form("done"),
                user: User = Depends(require_cap(CAP_CRM)),
@@ -92,6 +100,8 @@ def set_status(task_id: int, status: str = Form("done"),
     t = s.get(Task, task_id)
     if not t or status not in STATUSES:
         return redirect("/zavdannya")
+    if not mozhe_zminyty(t, user, status):
+        return redirect("/zavdannya?err=prava")
     t.status = status
     if status == "done":
         t.done_at, t.done_by = utcnow(), user.name

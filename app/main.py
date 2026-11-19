@@ -27,7 +27,7 @@ def _baza_zhyva() -> None:
     оновленні. Зовні це виглядає як «система працює».
 
     Тому в проді порожній довідник = падіння з поясненням. У ОФІСі база їде на
-    сервер уже наповненою (46 тис. контрагентів), тож нуль тут не буває
+    сервер уже наповненою, тож нуль тут не буває
     законним станом. Локально (`dev`) перевірки немає: там порожня база — це
     нормальний перший запуск.
     """
@@ -128,7 +128,8 @@ app.include_router(napryamy.router)
 async def _http_error(request: Request, exc: StarletteHTTPException):
     """307 from current_user → login redirect; everything else → branded error page."""
     if exc.status_code == 307:
-        return RedirectResponse((exc.headers or {}).get("Location", "/login"), status_code=307)
+        # 303, never 307: a 307 would re-send an expired form (or a whole upload) to /login
+        return RedirectResponse((exc.headers or {}).get("Location", "/login"), status_code=303)
     return _error_page(request, exc.status_code, str(exc.detail or ""))
 
 

@@ -41,9 +41,13 @@ def check(s: Session, deal: Deal, target: Stage) -> GateResult:
     if current is None or target.id == current.id:
         return GateResult(True, [], target.gate_criteria)
 
+    # Терміналь «відмова/відкладено» стоїть у кінці порядку: повернення з неї на робочу
+    # стадію НЕ є кроком назад — інакше «Контакт → Відмова → Перемовини» обходить гейти.
+    z_terminalu = current.is_terminal and not current.is_won and not target.is_terminal
     # Назад і у відкладено/відмову — завжди можна (off-ramp, funnel.md п.3)
-    if target.order <= current.order or (target.is_terminal and not target.is_won):
+    if not z_terminalu and (target.order <= current.order or (target.is_terminal and not target.is_won)):
         return GateResult(True, [], target.gate_criteria, is_backward=True)
+    vid = -1 if z_terminalu else current.order        # з терміналу — перевіряємо всі стадії до цілі
 
     have = satisfied_doc_kinds(s, deal.id)
     missing: list[str] = []
@@ -51,7 +55,7 @@ def check(s: Session, deal: Deal, target: Stage) -> GateResult:
     # стрибком через стадію
     for st in s.exec(select(Stage).where(Stage.pipeline_id == current.pipeline_id)
                      .order_by(Stage.order)):
-        if st.order < current.order or st.order >= target.order or st.is_terminal:
+        if st.order < vid or st.order >= target.order or st.is_terminal:
             continue
         missing += [k for k in st.required_list if k not in have]
     # Виграшна термінальна стадія має ВЛАСНІ обовʼязкові документи («Угода» —
