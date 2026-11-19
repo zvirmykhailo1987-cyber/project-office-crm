@@ -3,7 +3,7 @@
 
 """Shared authentication and web-security kit.
 
-The same file ships in both demo apps (OFIS and the Grants portal); keep the two
+The same file ships in both demo apps (Project Office CRM and the Grants portal); keep the two
 copies identical. It is framework-aware (FastAPI + SQLModel) but app-agnostic:
 every app passes its own settings through :class:`KitConfig`.
 

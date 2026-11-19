@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Mykhailo Zvir
 
-"""Synthetic demo data for OFIS.
+"""Synthetic demo data for Project Office CRM.
 
 Everything is invented: organisations, communities, people, sites, deals and
 messages. E-mails use ``*.example`` (RFC 2606), tax codes use the ``99`` prefix,

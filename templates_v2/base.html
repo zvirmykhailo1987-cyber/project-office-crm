@@ -6,7 +6,7 @@
 <meta name="csrf-token" content="{{ csrf_token }}">
 <meta name="robots" content="noindex, nofollow">
 <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "inlineScriptNonce": "{{ csp_nonce }}"}'>
-<title>{% block title %}{{ _("ОФІС") }}{% endblock %}</title>
+<title>{% block title %}{{ _("CRM проєктного офісу") }}{% endblock %}</title>
 <link rel="icon" href="/static_v2/favicon.svg" type="image/svg+xml">
 
 {# Design library first (tokens → core → components → motion/depth), then the
@@ -42,7 +42,7 @@
 {% if user %}
 <div class="kk-app" data-rejka="{{ 'vidkryto' if rejka_vidkryta else 'zakryto' }}">
   <aside class="kk-rejka" id="rejka">
-    <a class="brand brend-rejka" href="/">{{ _("ОФІС") }}</a>
+    <a class="brand brend-rejka" href="/">{{ _("CRM проєктного офісу") }}</a>
     <nav class="kk-nav" aria-label="{{ _('Розділи') }}">
       {% set rozdily = [
         ('/', _('Огляд'), 'i-kpi'),
@@ -102,13 +102,13 @@
 
   <main class="kk-telo" id="vmist">
 {% block vmist %}{% endblock %}
-<p class="avtorstvo">© 2026 Mykhailo Zvir · <a href="https://github.com/zvirmykhailo1987-cyber/ofis/blob/main/LICENSE" rel="license">MIT License</a></p>
+<p class="avtorstvo">© 2026 Mykhailo Zvir · <a href="https://github.com/zvirmykhailo1987-cyber/project-office-crm/blob/main/LICENSE" rel="license">MIT License</a></p>
   </main>
 </div>
 {% else %}
 <main class="kk-telo gost-telo">
 {% block body_gost %}{{ self.vmist() }}{% endblock %}
-<p class="avtorstvo">© 2026 Mykhailo Zvir · <a href="https://github.com/zvirmykhailo1987-cyber/ofis/blob/main/LICENSE" rel="license">MIT License</a></p>
+<p class="avtorstvo">© 2026 Mykhailo Zvir · <a href="https://github.com/zvirmykhailo1987-cyber/project-office-crm/blob/main/LICENSE" rel="license">MIT License</a></p>
 </main>
 {% endif %}
 

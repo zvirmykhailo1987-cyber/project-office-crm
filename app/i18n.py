@@ -5,7 +5,7 @@
 
 Source strings are written in Ukrainian (the product's working language) and
 looked up in ``app/locale/en.json`` when the interface language is English.
-A missing entry falls back to the source string, and ``tests/test_i18n.py``
+A missing entry falls back to the source string, and ``tests/test_ekrany.py``
 fails the build if any template string has no English translation.
 
 Numbers in a string are matched through ``{n}``: the catalogue key

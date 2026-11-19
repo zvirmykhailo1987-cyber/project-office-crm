@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Mykhailo Zvir
 
-"""ОФІС — хмарна платформа Проєктного офісу. Точка збірки застосунку."""
+"""Project Office CRM (CRM проєктного офісу) — точка збірки застосунку."""
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
@@ -29,7 +29,7 @@ def _baza_zhyva() -> None:
     віддає сторінки — і кожен запис іде в те, що зникне при наступному
     оновленні. Зовні це виглядає як «система працює».
 
-    Тому в проді порожній довідник = падіння з поясненням. У ОФІСі база їде на
+    Тому в проді порожній довідник = падіння з поясненням. Тут база їде на
     сервер уже наповненою, тож нуль тут не буває
     законним станом. Локально (`dev`) перевірки немає: там порожня база — це
     нормальний перший запуск.
@@ -62,7 +62,7 @@ async def lifespan(app: FastAPI):
 
 # OpenAPI/Swagger only in local development — never in demo or production.
 _DOCS = config.ENV == "dev"
-app = FastAPI(title="OFIS — project office platform", lifespan=lifespan,
+app = FastAPI(title="Project Office CRM", lifespan=lifespan,
               dependencies=[Depends(authkit.csrf_protect)],
               docs_url="/docs" if _DOCS else None, redoc_url=None,
               openapi_url="/openapi.json" if _DOCS else None)

@@ -43,7 +43,7 @@ def complete(system: str, user: str, timeout: int | None = None) -> dict:
         "Content-Type": "application/json",
         # Cloudflare перед деякими провайдерами (напр. Groq) блокує дефолтний
         # "Python-urllib" і віддає 403/1010 — грабля sto_v2.
-        "User-Agent": "Mozilla/5.0 (compatible; ofis/1.0)",
+        "User-Agent": "Mozilla/5.0 (compatible; project-office-crm/1.0)",
         "Authorization": f"Bearer {config.LLM_API_KEY}",
     }
     if not url.startswith("https://") and not url.startswith("http://localhost"):
