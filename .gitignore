@@ -1,0 +1,20 @@
+# data and secrets — never in git
+data/
+*.sqlite
+*.sqlite-*
+.env
+secrets.env
+*.local.*
+
+# tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.venv/
+venv/
+.claude/

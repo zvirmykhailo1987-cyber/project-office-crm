@@ -1,0 +1,22 @@
+# One command demo:  docker compose up --build   →  http://localhost:8030
+# Demo accounts are listed in DEMO.md. Data lives in the named volume (docker compose down -v resets it).
+services:
+  ofis:
+    build: .
+    image: ofis-demo
+    ports:
+      - "127.0.0.1:8030:8030"
+    environment:
+      OFIS_ENV: demo
+      OFIS_SECRET: ${OFIS_SECRET:-demo-only-secret-change-me-0123456789abcdef}
+    volumes:
+      - ofis-data:/data
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  ofis-data:
