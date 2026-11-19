@@ -25,6 +25,7 @@ from sqlmodel import Session, select
 
 from .db import engine
 from .models.people import User
+from .authkit import password_problem
 from .security import hash_pw
 
 # Без схожих символів: пароль диктують голосом і переписують з паперу,
@@ -71,8 +72,9 @@ def main(argv: list[str]) -> int:
             return 2
 
     p1 = getpass.getpass(f"новий пароль для {login}: ")
-    if len(p1) < 8:
-        print("закоротко — щонайменше 8 символів", file=sys.stderr)
+    problem = password_problem(p1)
+    if problem:
+        print(problem, file=sys.stderr)
         return 2
     if p1 != getpass.getpass("ще раз: "):
         print("не збіглись", file=sys.stderr)

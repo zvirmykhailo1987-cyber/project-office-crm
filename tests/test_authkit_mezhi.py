@@ -30,6 +30,7 @@ def test_starhyi_sha256_z_nevirnym_parolem_vidkhylyayetsya():
 def test_polityka_novoho_parolya():
     assert authkit.password_problem("short1!") is not None
     assert authkit.password_problem("onlylowercaseletters") is not None
+    assert authkit.password_problem("OnlyLettersMixedCase") is not None
     assert authkit.password_problem("letters-and-digits-42") is None
 
 

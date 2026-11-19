@@ -143,7 +143,7 @@ def password_problem(password: str) -> str | None:
     """Minimal policy for new passwords; returns an error message or None."""
     if len(password) < 12:
         return "Password must be at least 12 characters long."
-    if password.lower() == password and password.isalpha():
+    if password.isalpha():
         return "Use a mix of letters with digits or symbols."
     return None
 

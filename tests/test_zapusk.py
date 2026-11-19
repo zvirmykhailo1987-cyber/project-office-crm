@@ -140,6 +140,9 @@ def test_bootstrap_u_prodi_vymagaye_parol_admina(tmp_path, monkeypatch):
     try:
         with pytest.raises(RuntimeError, match="OFIS_BOOTSTRAP_PASSWORD"):
             db.bootstrap(eng)
+        monkeypatch.setattr(config, "BOOTSTRAP_PASSWORD", "OnlyLettersButLongEnough")
+        with pytest.raises(RuntimeError, match="not letters only"):
+            db.bootstrap(eng)
         with Session(eng) as s:
             assert s.exec(select(User)).first() is None
     finally:
@@ -325,6 +328,8 @@ def test_parol_nevidomyi_login(parol_cli):
 
 def test_parol_zakorotkyi_i_ne_zbihsya(parol_cli, engine, monkeypatch):
     monkeypatch.setattr(parol_cli.getpass, "getpass", lambda prompt="": "short")
+    assert parol_cli.main(["marko"]) == 2
+    monkeypatch.setattr(parol_cli.getpass, "getpass", lambda prompt="": "OnlyLettersMixedCase")
     assert parol_cli.main(["marko"]) == 2
     vvedennya = iter(["long-enough-1", "long-enough-2"])
     monkeypatch.setattr(parol_cli.getpass, "getpass", lambda prompt="": next(vvedennya))

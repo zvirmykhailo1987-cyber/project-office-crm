@@ -7,7 +7,7 @@
 """
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from . import config
+from . import authkit, config
 from . import fts as fts_mod
 from . import models  # noqa: F401 — реєструє таблиці в metadata
 from .models import DataSource, User
@@ -195,9 +195,9 @@ def bootstrap(eng=None) -> None:
     with Session(eng) as s:
         if not s.exec(select(User)).first():
             pw = config.BOOTSTRAP_PASSWORD
-            if config.IS_PROD and len(pw) < 12:
+            if config.IS_PROD and authkit.password_problem(pw):
                 raise RuntimeError("Empty database in production: set OFIS_BOOTSTRAP_PASSWORD "
-                                   "(12+ characters) for the first admin account.")
+                                   "(12+ characters, not letters only) for the first admin account.")
             for name, login, role in TEAM:
                 s.add(User(
                     name=name, login=login, role=role,
