@@ -466,7 +466,7 @@ def delete(msg_id: int, user: User = Depends(require_cap(CAP_CRM)),
     m.updated_at = utcnow()
     s.add(m)
     audit.log(s, user.name, "chat.delete", entity="chat_message", entity_id=msg_id,
-              tier=audit.TIER_CHANGE, detail=(m.text or "")[:80])
+              tier=audit.TIER_CHANGE, detail=f"message {m.id}")   # no text: rooms may be private
     s.commit()
     return redirect("/chat")
 
@@ -495,7 +495,7 @@ def to_task(msg_id: int, assignee: str = Form(""), due_date: str = Form(""),
     s.add(t)
     s.flush()
     audit.log(s, user.name, "chat.to_task", entity="task", entity_id=t.id,
-              tier=audit.TIER_CHANGE, detail=t.title[:80])
+              tier=audit.TIER_CHANGE, detail=f"task {t.id}")   # no text: rooms may be private
     if t.assignee != user.name:
         collab.notify(s, user=t.assignee, kind="zavdannya",
                       text=f"з чату: {t.title[:70]}", url=f"/zavdannya#t{t.id}",

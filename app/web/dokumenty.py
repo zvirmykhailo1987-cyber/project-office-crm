@@ -248,7 +248,7 @@ def download(doc_id: int, fmt: str = "", user: User = Depends(current_user),
         koreni = (config.DOCS_DIR.resolve(), config.CHAT_DIR.resolve())
         if kand.exists() and kand.resolve().parent in koreni:
             path = kand
-    if fmt:
+    if fmt and fmt in ("docx", "pdf", "md"):
         cand = path.with_suffix("." + fmt)
         if cand.exists():
             path = cand
@@ -328,6 +328,10 @@ def set_workflow(doc_id: int, workflow_status: str = Form(""),
             return redirect(f"/dokumenty/{doc_id}?err=lyshe-zatverdzhuvach")
         if _avtor(d, user):
             return redirect(f"/dokumenty/{doc_id}?err=samozatverdzhennya")
+    # Undoing an approval is a decision too: approver or author only.
+    if d.workflow_status == "uzhodzheno" and workflow_status != "uzhodzheno" \
+            and not (user.can(CAP_APPROVE) or _avtor(d, user)) and workflow_status != "do_vidpravlennya":
+        return redirect(f"/dokumenty/{doc_id}?err=prava")
     # «Надіслано» — факт відправлення; фіксує його лише той, хто веде реєстр.
     if workflow_status == "nadislano" and not user.can(CAP_SEND):
         return redirect(f"/dokumenty/{doc_id}?err=prava")
@@ -367,8 +371,7 @@ def finalize(doc_id: int, confirm: str = Form(""), signed_at: str = Form(""),
     audit.require_confirm("document.finalize", confirm == "yes")
     d.is_final = True
     d.workflow_status = "uzhodzheno"
-    if pidpysano:
-        d.signed_at = pidpysano
+    d.signed_at = pidpysano or utcnow().date()     # gates require a signed date
     d.updated_at = utcnow()
     s.add(d)
     audit.log(s, user.name, "document.finalize", entity="document", entity_id=doc_id,

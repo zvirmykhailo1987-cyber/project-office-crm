@@ -14,7 +14,7 @@ import random
 import sys
 from datetime import timedelta
 
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from . import config
 from .models import (Activity, Approval, ChatMessage, ChatRoom, Cluster, ClusterMember, Comment,
@@ -102,7 +102,9 @@ def seed(s: Session) -> dict:
     today = utcnow().date()
     # A database that already holds data is never touched — not even its accounts: a production
     # image started without OFIS_ENV=production must not get the published demo passwords.
-    if s.exec(select(Counterparty)).first():
+    if (s.exec(select(Counterparty)).first() or s.exec(select(Deal)).first()
+            or s.exec(select(Document)).first()
+            or s.exec(select(User).where(func.length(User.password_hash) > 0)).first()):
         return {"skipped": True}
     users = _users(s)
     made: dict[str, int] = {}

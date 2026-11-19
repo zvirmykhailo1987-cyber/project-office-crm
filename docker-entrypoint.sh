@@ -1,5 +1,6 @@
 #!/bin/sh
-# In demo mode an empty database is filled with synthetic data (idempotent: restarts change nothing).
+# Demo mode (set by docker-compose.yml, never the image default) fills an EMPTY database with
+# synthetic data; seed_demo refuses any database that already has accounts or data.
 set -e
 if [ "${OFIS_ENV}" = "demo" ]; then
   python -m app.seed_demo

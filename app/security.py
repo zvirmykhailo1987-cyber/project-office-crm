@@ -15,6 +15,7 @@ KIT = authkit.KitConfig(
     # session cookie, so only the CSP report sink is exempt from CSRF.
     csrf_exempt_prefixes=("/csp-report",),
     max_body=61 * 1024 * 1024,           # largest upload: documents up to 60 MB
+    body_limits={"/chat/perenesty": 101 * 1024 * 1024},   # WhatsApp export archives up to 100 MB
     # map tiles are the only third-party resource the UI loads
     csp_extra={"img-src": ["https://*.tile.openstreetmap.org"]},
 )

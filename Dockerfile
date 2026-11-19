@@ -3,7 +3,7 @@ FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    OFIS_ENV=demo \
+    OFIS_ENV=production \
     DATA_DIR=/data \
     PORT=8030 \
     FORWARDED_ALLOW_IPS=127.0.0.1

@@ -74,6 +74,8 @@ class KitConfig:
     max_body: int = 26 * 1024 * 1024     # bytes; uploads included
     small_body: int = 16 * 1024          # sign-in, logout, CSP reports
     small_body_paths: tuple[str, ...] = ("/login", "/logout", "/csp-report")
+    # exact path → larger limit for a documented big upload (e.g. a chat archive import)
+    body_limits: dict[str, int] = field(default_factory=dict)
     csrf_exempt_prefixes: tuple[str, ...] = ("/api/", "/csp-report")
     # extra CSP sources, e.g. {"img-src": ["https://tile.openstreetmap.org"]}
     csp_extra: dict[str, list[str]] = field(default_factory=dict)
@@ -340,7 +342,8 @@ class BodySizeLimit:
             await self.app(scope, receive, send)
             return
         path = scope.get("path", "")
-        limit = self.cfg.small_body if path in self.cfg.small_body_paths else self.cfg.max_body
+        limit = self.cfg.body_limits.get(path) or (
+            self.cfg.small_body if path in self.cfg.small_body_paths else self.cfg.max_body)
         for name, value in scope.get("headers", []):
             if name == b"content-length":
                 try:
@@ -363,8 +366,19 @@ class BodySizeLimit:
 
         try:
             await self.app(scope, limited_receive, send)
-        except _BodyTooLarge:
+        except BaseException as e:            # noqa: BLE001 — re-raised unless it is ours
+            # Starlette's BaseHTTPMiddleware layers wrap it in an ExceptionGroup.
+            if not _je_nadto_velyke(e):
+                raise
             await _too_large(send)
+
+
+def _je_nadto_velyke(e: BaseException) -> bool:
+    if isinstance(e, _BodyTooLarge):
+        return True
+    if isinstance(e, BaseExceptionGroup):
+        return any(_je_nadto_velyke(x) for x in e.exceptions)
+    return False
 
 
 class _BodyTooLarge(Exception):

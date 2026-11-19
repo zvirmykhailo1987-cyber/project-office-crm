@@ -335,3 +335,12 @@ def test_language_switch_rejects_open_redirect(gist):
         r = gist.get("/lang/uk", params={"next": zla})
         assert r.headers["location"] == "/"
     assert gist.get("/lang/uk", params={"next": "/zavdannya"}).headers["location"] == "/zavdannya"
+
+
+def test_oversized_chunked_body_is_413_not_500(gist):
+    """No Content-Length: the guard counts streamed bytes; the error must not surface as a 500."""
+    def body():
+        for _ in range(4):
+            yield b"x" * (KIT.small_body // 2)
+    r = gist.post("/csp-report", content=body(), headers={"Content-Type": "application/csp-report"})
+    assert r.status_code == 413
